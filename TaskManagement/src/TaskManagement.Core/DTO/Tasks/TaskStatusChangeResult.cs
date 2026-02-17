@@ -6,7 +6,10 @@ using System.Threading.Tasks;
 
 namespace TaskManagement.Core.DTO.Tasks
 {
-    internal class TaskStatusChangeResult
+    public class TaskStatusChangeResult
     {
+        public TaskDto Task { get; set; } = null!;
+        public string OldStatus { get; set; } = string.Empty;
+        public string NewStatus { get; set; } = string.Empty;
     }
 }

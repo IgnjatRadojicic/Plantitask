@@ -6,7 +6,10 @@ using System.Threading.Tasks;
 
 namespace TaskManagement.Core.DTO.Tasks
 {
-    internal class TaskPriorityChangeResult
+    public class TaskPriorityChangeResult
     {
-    }
+        public TaskDto Task { get; set; } = null!;
+        public string OldPriority { get; set; } = string.Empty;
+        public string NewPriority { get; set; } = string.Empty;
+     }
 }

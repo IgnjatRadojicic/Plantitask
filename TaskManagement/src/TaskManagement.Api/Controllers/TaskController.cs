@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using TaskManagement.Api.Interfaces;
 using TaskManagement.Core.DTO.Tasks;
+using TaskManagement.Core.Entities;
 using TaskManagement.Core.Interfaces;
 namespace TaskManagement.Api.Controllers
 {
@@ -160,6 +162,23 @@ namespace TaskManagement.Api.Controllers
                     action: "Updated",
                     groupId: task.GroupId);
 
+                if (task.AssignedToId.HasValue && task.AssignedToId.Value != userId)
+                {
+                    await _notificationService.NotifyTaskUpdatedAsync(task.GroupId, task);
+
+                    
+                    var notifications = await _notificationService.GetUserNotificationsAsync(
+                        task.AssignedToId.Value,
+                        unreadOnly: true);
+                    var notification = notifications.FirstOrDefault();
+
+                    if (notification != null)
+                    {
+                        await _notificationBroadcaster.BroadcastNotificationAsync(notification);
+                    }
+                }
+
+
                 return Ok(task);
             }
             catch (UnauthorizedAccessException ex)
@@ -198,9 +217,22 @@ namespace TaskManagement.Api.Controllers
                     entityType: "TaskItem",
                     entityId: taskId,
                     action: "StatusChanged",
-                    groupId: task.GroupId,
-                    propertyName: "Status",
-                    newValue: task.StatusDisplayName);
+                    propertyName: "StatusId",
+                    oldValue: task.OldStatus,
+                    newValue: task.NewStatus);
+
+
+                await _notificationService.NotifyTaskStatusChangedAsync(
+                    task.Task.GroupId,
+                    task.Task,
+                    task.OldStatus,
+                    task.NewStatus);
+
+
+                if (notification != null)
+                {
+                    await _notificationBroadcaster.BroadcastNotificationAsync(notification);
+                }
 
                 return Ok(task);
             }
@@ -240,9 +272,30 @@ namespace TaskManagement.Api.Controllers
                     entityType: "TaskItem",
                     entityId: taskId,
                     action: "PriorityChanged",
-                    groupId: task.GroupId,
+                    groupId: task.Task.GroupId,
                     propertyName: "Priority",
-                    newValue: task.PriorityName);
+                    oldValue: task.OldPriority,
+                    newValue: task.NewPriority);
+
+                if (task.Task.AssignedToId.HasValue)
+                {
+                    await _notificationService.NotifyTaskPriorityChangedAsync(
+                        task.Task.GroupId,
+                        task.Task,
+                        task.OldPriority,
+                        task.NewPriority);
+
+                   
+                    var notifications = await _notificationService.GetUserNotificationsAsync(
+                        task.Task.AssignedToId.Value,
+                        unreadOnly: true);
+                    var notification = notifications.FirstOrDefault();
+
+                    if (notification != null)
+                    {
+                        await _notificationBroadcaster.BroadcastNotificationAsync(notification);
+                    }
+                }
 
                 return Ok(task);
             }
@@ -288,15 +341,9 @@ namespace TaskManagement.Api.Controllers
                     propertyName: "AssignedTo",
                     newValue: task.AssignedToUserName);
 
-                await _notificationService.NotifyTaskAssignedAsync(assignDto.UserId, task);
+                var notification = await _notificationService.NotifyTaskAssignedAsync(assignDto.UserId, task);
 
-                var notifications = await _notificationService.GetUserNotificationsAsync(
-                    assignDto.UserId,
-                    unreadOnly: true);
-
-                var notification = notifications.FirstOrDefault();
-
-                if (notification != null)
+                if(notification != null)
                 {
                     await _notificationBroadcaster.BroadcastNotificationAsync(notification);
                 }

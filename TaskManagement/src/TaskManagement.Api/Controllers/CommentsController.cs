@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TaskManagement.Api.Interfaces;
 using TaskManagement.Core.DTO.Comments;
 using TaskManagement.Core.Interfaces;
 
@@ -11,16 +12,25 @@ namespace TaskManagement.Api.Controllers;
 public class CommentsController : BaseApiController
 {
     private readonly ICommentService _commentService;
+    private readonly INotificationService _notificationService;
+    private readonly INotificationBroadcaster _notificationBroadcaster;
+    private readonly ITaskService _taskService;
     private readonly IAuditService _auditService;
     private readonly ILogger<CommentsController> _logger;
 
     public CommentsController(
         ICommentService commentService,
         IAuditService auditService,
+        ITaskService taskService,
+        INotificationService notificationService,
+        INotificationBroadcaster notificationBroadcaster,
         ILogger<CommentsController> logger)
     {
         _commentService = commentService;
         _auditService = auditService;
+        _notificationBroadcaster = notificationBroadcaster;
+        _notificationService = notificationService;
+        _taskService = taskService;
         _logger = logger;
     }
 
@@ -43,6 +53,33 @@ public class CommentsController : BaseApiController
                 action: "Created",
                 propertyName: "Content",
                 newValue: comment.Content);
+
+            var task = await _taskService.GetTaskByIdAsync(taskId, userId);
+
+            await _notificationService.NotifyTaskCommentAddedAsync(task.GroupId, task, comment);
+
+            var usersToNotify = new List<Guid>();
+            if (task.CreatedBy != comment.UserId)
+            {
+                usersToNotify.Add(task.CreatedBy);
+            }
+            if (task.AssignedToId.HasValue && task.AssignedToId.Value != comment.UserId)
+            {
+                usersToNotify.Add(task.AssignedToId.Value);
+            }
+
+            foreach (var userToNotify in usersToNotify.Distinct())
+            {
+                var notifications = await _notificationService.GetUserNotificationsAsync(
+                    userToNotify,
+                    unreadOnly: true);
+                var notification = notifications.FirstOrDefault();
+
+                if (notification != null)
+                {
+                    await _notificationBroadcaster.BroadcastNotificationAsync(notification);
+                }
+            }
 
             return CreatedAtAction(nameof(GetTaskComments), new { taskId }, comment);
         }
