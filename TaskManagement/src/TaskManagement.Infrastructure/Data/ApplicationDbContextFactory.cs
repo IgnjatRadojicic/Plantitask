@@ -30,7 +30,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
 
         // Create DbContext
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-        optionsBuilder.UseSqlServer(
+        optionsBuilder.UseNpgsql(
             connectionString,
             b => b.MigrationsAssembly("TaskManagement.Infrastructure"));
 

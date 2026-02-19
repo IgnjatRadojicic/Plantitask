@@ -22,6 +22,28 @@ public class NotificationService : INotificationService
         _logger = logger;
     }
 
+
+    public async Task<NotificationDto?> NotifyTaskCreatedAsync(Guid createdByUserId, TaskDto task)
+    {
+        if (!task.AssignedToId.HasValue)
+            return null;
+        if (task.AssignedToId.Value == createdByUserId)
+            return null;
+
+        var notification = new Notification
+        {
+            UserId = task.AssignedToId.Value,
+            Type = NotificationType.TaskAssigned,
+            Title = "Task Assigned",
+            Message = $"You have been assigned to task: {task.Title}",
+            RelatedEntityId = task.Id,
+            RelatedEntityType = "Task",
+            CreatedBy = task.AssignedToId.Value
+        };
+
+        return await CreateNotificationAsync(notification);
+    }
+
     public async Task<NotificationDto> NotifyTaskAssignedAsync(Guid userId, TaskDto task)
     {
         var notification = new Notification
@@ -259,11 +281,24 @@ public class NotificationService : INotificationService
 
     private async Task<NotificationDto> CreateNotificationAsync(Notification notification)
     {
-        _context.Notifications.Add(notification);
-        await _context.SaveChangesAsync();
+        _logger.LogInformation("=== CREATING NOTIFICATION ===");
+        _logger.LogInformation("UserId: {UserId}", notification.UserId);
+        _logger.LogInformation("CreatedBy: {CreatedBy}", notification.CreatedBy);
+        _logger.LogInformation("Title: {Title}", notification.Title);
+        _logger.LogInformation("Type: {Type}", notification.Type);
 
-        _logger.LogInformation("Notification created for user {UserId}: {Title}",
-            notification.UserId, notification.Title);
+        try
+        {
+            _context.Notifications.Add(notification);
+            var rows = await _context.SaveChangesAsync();
+            _logger.LogInformation("SaveChanges result: {Rows} rows affected", rows);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "=== FAILED TO SAVE NOTIFICATION ===");
+            _logger.LogError("Inner exception: {Inner}", ex.InnerException?.Message);
+            throw;
+        }
 
         return new NotificationDto
         {

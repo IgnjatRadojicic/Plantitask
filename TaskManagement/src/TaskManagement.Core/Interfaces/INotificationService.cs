@@ -12,6 +12,7 @@ public interface INotificationService
     Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid groupId, TaskDto task, string oldPriority, string newPriority);
     Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid groupId, TaskDto task);
     Task<NotificationDto> NotifyGroupInvitationAsync(Guid userId, string groupName);
+    Task<NotificationDto?> NotifyTaskCreatedAsync(Guid createdByUserId, TaskDto task);
     Task<List<NotificationDto>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false);
     Task<int> GetUnreadCountAsync(Guid userId);
     Task MarkAsReadAsync(Guid notificationId, Guid userId);

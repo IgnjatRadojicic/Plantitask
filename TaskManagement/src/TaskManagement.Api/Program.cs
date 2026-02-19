@@ -18,8 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 // Database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<ApplicationDbContext>(options =>    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Register DbContext as IApplicationDbContext for dependency injection
 builder.Services.AddScoped<IApplicationDbContext>(provider =>

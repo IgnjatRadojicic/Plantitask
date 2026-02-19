@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Identity.Client;
 using TaskManagement.Core.DTO.Tasks;
 using TaskManagement.Core.Entities;
 using TaskManagement.Core.Enums;
