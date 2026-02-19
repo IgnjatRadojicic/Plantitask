@@ -12,6 +12,8 @@ using TaskManagement.Core.Configuration;
 using TaskManagement.Core.Interfaces;
 using TaskManagement.Infrastructure.Data;
 using TaskManagement.Infrastructure.Services;
+using Hangfire;
+using Hangfire.PostgreSql;
 using TaskManagement.Infrastructure.Services.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -103,6 +105,24 @@ builder.Services.AddCors(options =>
     });
 });
 
+
+// Hangfire
+
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options =>
+    {
+        options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("HangfireConnection"));
+    }));
+
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = 5;  // 5 parallel background workers
+});
+
+
 // Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -153,6 +173,22 @@ if (app.Environment.IsDevelopment())
         options.RoutePrefix = string.Empty; // Swagger at root URL
     });
 }
+
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Hangfire DashBoard
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireAuthorizationFilter() }
+});
+
+app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapControllers();
+
+app.Run();
+
 
 app.UseHttpsRedirection();
 
