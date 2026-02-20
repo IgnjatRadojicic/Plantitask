@@ -1,6 +1,7 @@
 ﻿using TaskManagement.Core.DTO.Comments;
 using TaskManagement.Core.DTO.Notifications;
 using TaskManagement.Core.DTO.Tasks;
+using TaskManagement.Core.Enums;
 
 namespace TaskManagement.Core.Interfaces;
 
@@ -18,4 +19,9 @@ public interface INotificationService
     Task MarkAsReadAsync(Guid notificationId, Guid userId);
     Task MarkAllAsReadAsync(Guid userId);
     Task DeleteNotificationAsync(Guid notificationId, Guid userId);
+
+    Task<List<NotificationPreferenceDto>> GetUserPreferencesAsync(Guid userId);
+    Task SaveUserPreferencesAsync(Guid userId, UpdateNotificationPreferencesDto dto);
+
+    Task<bool> ShouldNotifyAsync(Guid userId, NotificationType type);
 }

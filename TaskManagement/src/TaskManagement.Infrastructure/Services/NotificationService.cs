@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+
+using Microsoft.Identity.Client;
 using TaskManagement.Core.DTO.Comments;
 using TaskManagement.Core.DTO.Notifications;
 using TaskManagement.Core.DTO.Tasks;
@@ -30,6 +32,13 @@ public class NotificationService : INotificationService
         if (task.AssignedToId.Value == createdByUserId)
             return null;
 
+
+        if (!await ShouldNotifyAsync(task.AssignedToId.Value, NotificationType.TaskAssigned))
+        {
+            _logger.LogInformation("User {UserId} has disabled TaskAssigned notifications", task.AssignedToId.Value);
+            return null;
+        }
+
         var notification = new Notification
         {
             UserId = task.AssignedToId.Value,
@@ -46,6 +55,13 @@ public class NotificationService : INotificationService
 
     public async Task<NotificationDto> NotifyTaskAssignedAsync(Guid userId, TaskDto task)
     {
+
+        if (!await ShouldNotifyAsync(userId, NotificationType.TaskAssigned))
+        {
+            _logger.LogInformation("User {UserId} has disabled TaskAssigned notifications", userId);
+            return null;
+        }
+
         var notification = new Notification
         {
             UserId = userId,
@@ -67,10 +83,23 @@ public class NotificationService : INotificationService
             .Select(gm => gm.UserId)
             .ToListAsync();
 
+        var disabledMembers = await _context.NotificationPreferences
+            .Where(np => members.Contains(np.UserId)
+                && np.Type == NotificationType.TaskStatusChanged
+                && !np.IsEnabled)
+            .Select(np => np.UserId)
+            .ToListAsync();
+
         var createdNotifications = new List<NotificationDto>();
 
         foreach (var memberId in members)
         {
+            if (disabledMembers.Contains(memberId))
+            {
+                _logger.LogInformation("User {UserId} has disabled TaskStatusChanged notifications", memberId);
+                continue;
+            }
+
             var notification = new Notification
             {
                 UserId = memberId,
@@ -109,6 +138,12 @@ public class NotificationService : INotificationService
 
         foreach (var userId in usersToNotify)
         {
+            if (!await ShouldNotifyAsync(userId, NotificationType.TaskCommentAdded))
+            {
+                _logger.LogInformation("User {UserId} has disabled TaskCommentAdded notifications", userId);
+                continue;
+            }
+
             var notification = new Notification
             {
                 UserId = userId,
@@ -134,6 +169,12 @@ public class NotificationService : INotificationService
             return null;
         }
 
+        if (!await ShouldNotifyAsync(task.AssignedToId.Value, NotificationType.TaskPriorityChanged))
+        {
+            _logger.LogInformation("User {UserId} has disabled TaskCommentAdded notifications", task.AssignedToId.Value);
+            return null;
+        }
+
         var notification = new Notification
         {
             UserId = task.AssignedToId.Value,
@@ -155,6 +196,13 @@ public class NotificationService : INotificationService
             return null;
         }
 
+
+        if (!await ShouldNotifyAsync(task.AssignedToId.Value, NotificationType.TaskUpdated))
+        {
+            _logger.LogInformation("User {UserId} has disabled TaskUpdated notifications", task.AssignedToId.Value);
+            return null;
+        }
+
         var notification = new Notification
         {
             UserId = task.AssignedToId.Value,
@@ -171,6 +219,13 @@ public class NotificationService : INotificationService
 
     public async Task<NotificationDto> NotifyGroupInvitationAsync(Guid userId, string groupName)
     {
+
+        if (!await ShouldNotifyAsync(userId, NotificationType.GroupInvitation))
+        {
+            _logger.LogInformation("User {UserId} has disabled GroupInvitation notifications", userId);
+            return null;
+        }
+
         var notification = new Notification
         {
             UserId = userId,
@@ -315,4 +370,93 @@ public class NotificationService : INotificationService
             CreatedAt = notification.CreatedAt
         };
     }
+
+    public async Task<List<NotificationPreferenceDto>> GetUserPreferencesAsync(Guid userId)
+    {
+        var existingPrefrences = await _context.NotificationPreferences
+            .Where(np => np.UserId == userId)
+            .ToListAsync();
+
+        var allTypes = Enum.GetValues<NotificationType>();
+        var prefrences = new List<NotificationPreferenceDto>();
+
+        foreach (var type in allTypes)
+        {
+            var existing = existingPrefrences.FirstOrDefault(p => p.Type == type);
+
+            prefrences.Add(new NotificationPreferenceDto
+            {
+                Type = type,
+                TypeName = type.ToString(),
+                Description = GetNotificationTypeDescription(type),
+                IsEnabled = existing?.IsEnabled ?? true,  
+                ReminderHoursBefore = existing?.ReminderHoursBefore ?? (type == NotificationType.TaskDueSoon ? 24 : null)
+            });
+
+
+        }
+
+        return prefrences;
+    }
+
+
+    public async Task SaveUserPreferencesAsync(Guid userId, UpdateNotificationPreferencesDto dto)
+    {
+        var types = dto.Preferences.Select(p => p.Type).ToList();
+
+        var existingPreferences = await _context.NotificationPreferences
+            .Where(np => np.UserId == userId && types.Contains(np.Type))
+            .ToDictionaryAsync(np => np.Type);
+
+        foreach(var item in dto.Preferences)
+        {
+            if (existingPreferences.TryGetValue(item.Type, out var preference))
+            {
+                preference.IsEnabled = item.IsEnabled;
+                preference.ReminderHoursBefore = item.ReminderHoursBefore;
+                preference.UpdatedBy = userId;
+                preference.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                _context.NotificationPreferences.Add(new NotificationPreference
+                {
+                    UserId = userId,
+                    Type = item.Type,
+                    IsEnabled = item.IsEnabled,
+                    ReminderHoursBefore = item.ReminderHoursBefore,
+                    CreatedBy = userId
+                });
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("User {UserId} updated notification preferences", userId);
+    }
+
+    public async Task<bool> ShouldNotifyAsync(Guid userId, NotificationType type)
+    {
+        var preference = await _context.NotificationPreferences
+            .FirstOrDefaultAsync(np => np.UserId == userId && np.Type == type);
+
+        return preference?.IsEnabled ?? true;
+    }
+
+
+    private string GetNotificationTypeDescription(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.TaskAssigned => "When you are assigned to a task",
+            NotificationType.TaskStatusChanged => "When a task status changes in your groups",
+            NotificationType.TaskCommentAdded => "When someone comments on your tasks",
+            NotificationType.TaskPriorityChanged => "When a task priority is changed",
+            NotificationType.TaskUpdated => "When a task you're assigned to is updated",
+            NotificationType.GroupInvitation => "When you join a new group",
+            NotificationType.TaskDueSoon => "Reminder before task due date",
+            NotificationType.TaskOverdue => "When your tasks become overdue",
+            _ => type.ToString()
+        };
+    }
+
 }

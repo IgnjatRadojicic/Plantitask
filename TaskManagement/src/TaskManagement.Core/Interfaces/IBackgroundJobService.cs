@@ -9,7 +9,7 @@ namespace TaskManagement.Core.Interfaces
     public interface IBackgroundJobService
     {
 
-        string ScheduleTaskDueSoonNotification(Guid taskid, DateTime dueDate);
+        Task<string> ScheduleTaskDueSoonNotification(Guid taskId, Guid userId, DateTime dueDate);
 
         void CancelScheduledJob(string jobId);
 

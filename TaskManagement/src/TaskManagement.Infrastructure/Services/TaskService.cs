@@ -78,7 +78,7 @@ namespace TaskManagement.Infrastructure.Services
 
             if (task.DueDate.HasValue && task.AssignedToId.HasValue)
             {
-                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.DueDate.Value);
+                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
             }
 
             _context.Tasks.Add(task);
@@ -233,7 +233,7 @@ namespace TaskManagement.Infrastructure.Services
 
             if (task.DueDate.HasValue && task.AssignedToId.HasValue)
             {
-                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.DueDate.Value);
+                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
             }
 
             var membership = await _context.GroupMembers
@@ -429,7 +429,7 @@ namespace TaskManagement.Infrastructure.Services
 
             if (task.DueDate.HasValue)
             {
-                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.DueDate.Value);
+                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, assignDto.UserId, task.DueDate.Value);
             }
 
             var membership = await _context.GroupMembers

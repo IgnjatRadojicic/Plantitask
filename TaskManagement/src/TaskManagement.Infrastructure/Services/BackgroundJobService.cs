@@ -1,5 +1,7 @@
 ﻿using Hangfire;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using TaskManagement.Core.Enums;
 using TaskManagement.Core.Interfaces;
 
 namespace TaskManagement.Infrastructure.Services
@@ -7,10 +9,12 @@ namespace TaskManagement.Infrastructure.Services
     public class BackgroundJobService : IBackgroundJobService
     {
         private readonly ILogger<BackgroundJobService> _logger;
+        private readonly IApplicationDbContext _context;
 
-        public BackgroundJobService(ILogger<BackgroundJobService> logger)
+        public BackgroundJobService(ILogger<BackgroundJobService> logger, IApplicationDbContext context)
         {
             _logger = logger;
+            _context = context;
         }
 
         public void CancelScheduledJob(string jobId)
@@ -22,9 +26,12 @@ namespace TaskManagement.Infrastructure.Services
             _logger.LogInformation("Cancelled scheduled job {JobId}", jobId);
         }
 
-        public string ScheduleTaskDueSoonNotification(Guid taskId, DateTime dueDate)
+        public async Task<string> ScheduleTaskDueSoonNotification(Guid taskId, Guid userId, DateTime dueDate)
         {
-            int hours = 24;
+            var preference = await _context.NotificationPreferences
+                .FirstOrDefaultAsync(np => np.UserId == userId && np.Type == NotificationType.TaskDueSoon);
+
+            int hours = preference?.ReminderHoursBefore ?? 24;
 
             if (dueDate.Kind != DateTimeKind.Utc)
             {

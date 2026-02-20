@@ -26,6 +26,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<GroupRoleLookup> GroupRoles { get; set; }
 
     public DbSet<Notification> Notifications { get; set; }
+
+    public DbSet<NotificationPreference> NotificationPreferences { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
@@ -338,14 +340,29 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.HasOne(n => n.User)
                 .WithMany()
                 .HasForeignKey(n => n.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(n => n.UserId);
             entity.HasIndex(n => n.IsRead);
             entity.HasIndex(n => n.CreatedAt);
         });
+
+        modelBuilder.Entity<NotificationPreference>(entity =>
+        {
+            entity.HasQueryFilter(np => !np.IsDeleted);
+
+            entity.HasOne(np => np.User)
+                .WithMany()
+                .HasForeignKey(np => np.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(np => new { np.UserId, np.Type }).IsUnique();
+
+            entity.HasIndex(np => np.UserId);
+        }); 
     }
 
+    
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
