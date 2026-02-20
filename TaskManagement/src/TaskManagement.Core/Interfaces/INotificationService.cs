@@ -24,4 +24,6 @@ public interface INotificationService
     Task SaveUserPreferencesAsync(Guid userId, UpdateNotificationPreferencesDto dto);
 
     Task<bool> ShouldNotifyAsync(Guid userId, NotificationType type);
+
+    Task<int> GetReminderHoursBeforeAsync(Guid userId);
 }

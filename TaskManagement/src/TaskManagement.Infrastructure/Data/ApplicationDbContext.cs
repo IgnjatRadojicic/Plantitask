@@ -342,8 +342,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
                 .HasForeignKey(n => n.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasIndex(n => n.UserId);
-            entity.HasIndex(n => n.IsRead);
+            entity.HasIndex(n => new { n.UserId, n.IsRead }); 
             entity.HasIndex(n => n.CreatedAt);
         });
 
@@ -358,7 +357,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             entity.HasIndex(np => new { np.UserId, np.Type }).IsUnique();
 
-            entity.HasIndex(np => np.UserId);
         }); 
     }
 

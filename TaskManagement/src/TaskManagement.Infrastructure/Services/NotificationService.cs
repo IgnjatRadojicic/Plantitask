@@ -53,7 +53,7 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification);
     }
 
-    public async Task<NotificationDto> NotifyTaskAssignedAsync(Guid userId, TaskDto task)
+    public async Task<NotificationDto?> NotifyTaskAssignedAsync(Guid userId, TaskDto task)
     {
 
         if (!await ShouldNotifyAsync(userId, NotificationType.TaskAssigned))
@@ -76,7 +76,7 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification);
     }
 
-    public async Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid groupId, TaskDto task, string oldStatus, string newStatus)
+    public async Task<List<NotificationDto?>> NotifyTaskStatusChangedAsync(Guid groupId, TaskDto task, string oldStatus, string newStatus)
     {
         var members = await _context.GroupMembers
             .Where(gm => gm.GroupId == groupId && gm.UserId != task.CreatedBy)
@@ -118,7 +118,7 @@ public class NotificationService : INotificationService
         return createdNotifications;
     }
 
-    public async Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment)
+    public async Task<List<NotificationDto?>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment)
     {
         var usersToNotify = new List<Guid>();
 
@@ -217,7 +217,7 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification);
     }
 
-    public async Task<NotificationDto> NotifyGroupInvitationAsync(Guid userId, string groupName)
+    public async Task<NotificationDto?> NotifyGroupInvitationAsync(Guid userId, string groupName)
     {
 
         if (!await ShouldNotifyAsync(userId, NotificationType.GroupInvitation))
@@ -442,6 +442,13 @@ public class NotificationService : INotificationService
         return preference?.IsEnabled ?? true;
     }
 
+    public async Task<int> GetReminderHoursBeforeAsync(Guid userId)
+    {
+        var preference = await _context.NotificationPreferences
+            .FirstOrDefaultAsync(np => np.UserId == userId && np.Type == NotificationType.TaskDueSoon);
+
+        return preference?.ReminderHoursBefore ?? 24;
+    }
 
     private string GetNotificationTypeDescription(NotificationType type)
     {

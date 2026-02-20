@@ -9,12 +9,12 @@ namespace TaskManagement.Infrastructure.Services
     public class BackgroundJobService : IBackgroundJobService
     {
         private readonly ILogger<BackgroundJobService> _logger;
-        private readonly IApplicationDbContext _context;
+        private readonly INotificationService _notificationService;
 
-        public BackgroundJobService(ILogger<BackgroundJobService> logger, IApplicationDbContext context)
+        public BackgroundJobService(ILogger<BackgroundJobService> logger, INotificationService notificationService)
         {
             _logger = logger;
-            _context = context;
+            _notificationService = notificationService;
         }
 
         public void CancelScheduledJob(string jobId)
@@ -28,10 +28,7 @@ namespace TaskManagement.Infrastructure.Services
 
         public async Task<string> ScheduleTaskDueSoonNotification(Guid taskId, Guid userId, DateTime dueDate)
         {
-            var preference = await _context.NotificationPreferences
-                .FirstOrDefaultAsync(np => np.UserId == userId && np.Type == NotificationType.TaskDueSoon);
-
-            int hours = preference?.ReminderHoursBefore ?? 24;
+            int hours = await _notificationService.GetReminderHoursBeforeAsync(userId);
 
             if (dueDate.Kind != DateTimeKind.Utc)
             {
