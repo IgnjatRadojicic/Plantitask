@@ -143,8 +143,18 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.HasIndex(e => e.PriorityId);
             entity.HasIndex(e => e.DueDate);
 
+            entity.HasIndex(e => new { e.Group.Id, e.StatusId, e.DisplayOrder });
+
             entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
+
+            entity.Property(e => e.DisplayOrder)
+                .HasDefaultValue(0)
+                .IsRequired();
+
+            entity.Property(e => e.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
 
             entity.HasOne(e => e.Group)
                 .WithMany(g => g.Tasks)

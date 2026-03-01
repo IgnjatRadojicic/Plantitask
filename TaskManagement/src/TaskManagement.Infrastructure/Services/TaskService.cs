@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using TaskManagement.Core.DTO.Kanban;
 using TaskManagement.Core.DTO.Tasks;
 using TaskManagement.Core.Entities;
 using TaskManagement.Core.Enums;
@@ -563,6 +564,16 @@ namespace TaskManagement.Infrastructure.Services
             .Where(gm => gm.GroupId == task.GroupId)
             .Select(gm => gm.UserId)
             .ToListAsync();
+        }
+
+        public Task<KanbanBoardDto> GetKanbanBoardAsync(Guid groupId, Guid userId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task MoveTaskAsync(Guid taskId, MoveTaskDto moveDto, Guid userId)
+        {
+            throw new NotImplementedException();
         }
     }
 }

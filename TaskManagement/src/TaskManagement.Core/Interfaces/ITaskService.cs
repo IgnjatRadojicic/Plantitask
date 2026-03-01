@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaskManagement.Core.DTO.Kanban;
 using TaskManagement.Core.DTO.Tasks;
 
 namespace TaskManagement.Core.Interfaces
@@ -20,5 +21,8 @@ namespace TaskManagement.Core.Interfaces
         Task DeleteTaskAsync(Guid taskId, Guid userId);
 
         Task<List<Guid>> GetTaskGroupMembersAsync(Guid taskId, Guid userId);
+
+        Task<KanbanBoardDto> GetKanbanBoardAsync(Guid groupId, Guid userId);
+        Task MoveTaskAsync(Guid taskId, MoveTaskDto moveDto, Guid userId);
     }
 }
