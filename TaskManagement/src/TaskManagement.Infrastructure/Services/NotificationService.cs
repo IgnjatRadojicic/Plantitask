@@ -278,24 +278,15 @@ public class NotificationService : INotificationService
 
     public async Task MarkAsReadAsync(Guid notificationId, Guid userId)
     {
-        var notification = await _context.Notifications
-            .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId);
+        var updatedCount = await _context.Notifications
+            .Where(n => n.UserId == userId && !n.IsRead)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(n => n.IsRead, true)
+                .SetProperty(n => n.ReadAt, DateTime.UtcNow));
 
-        if (notification == null)
-        {
-            throw new KeyNotFoundException("Notification not found");
-        }
-
-        if (!notification.IsRead)
-        {
-            notification.IsRead = true;
-            notification.ReadAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Notification {NotificationId} marked as read by user {UserId}",
-                notificationId, userId);
-        }
+        _logger.LogInformation("{Count} notifications marked as read for user {UserId}", updatedCount, userId);
     }
+    
 
     public async Task MarkAllAsReadAsync(Guid userId)
     {

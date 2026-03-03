@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using TaskManagement.Core.Entities;
 using TaskManagement.Core.Enums;
 using TaskManagement.Core.Interfaces;
+using System.Linq;
 
 namespace TaskManagement.Infrastructure.Services
 {
@@ -95,18 +96,25 @@ namespace TaskManagement.Infrastructure.Services
                 .ToListAsync();
             _logger.LogInformation("Found {Count} overdue tasks", overdueTasks.Count);
 
+            if (overdueTasks.Count == 0)
+                return;
+
+            var overdueTaskIds = overdueTasks.Select(t => t.Id).ToList();
+
+            var alreadyNotifiedTaskIds = (await _context.Notifications
+            .Where(n => overdueTaskIds.Contains(n.RelatedEntityId!.Value)
+                && n.Type == NotificationType.TaskOverdue
+                && n.CreatedAt >= now.Date
+                && !n.IsDeleted)
+            .Select(n => n.RelatedEntityId!.Value)
+            .ToListAsync()
+            ).ToHashSet();
+
             var notificationsCreated = 0;
 
             foreach (var task in overdueTasks)
             {
-                var existingNotificationToday = await _context.Notifications
-                    .Where(n => n.RelatedEntityId == task.Id
-                    && n.Type == NotificationType.TaskOverdue
-                    && n.CreatedAt >= now.Date
-                    && !n.IsDeleted)
-                    .AnyAsync();
-
-                if (existingNotificationToday)
+                if (alreadyNotifiedTaskIds.Contains(task.Id))
                 {
                     _logger.LogDebug("Overdue notification already sent today for task {TaskId}", task.Id);
                     continue;
@@ -120,8 +128,8 @@ namespace TaskManagement.Infrastructure.Services
                     Type = NotificationType.TaskOverdue,
                     Title = "Task Overdue",
                     Message = daysSinceOverdue == 0
-                     ? $"Task '{task.Title}' is overdue"
-                     : $"Task '{task.Title}' is overdue by {daysSinceOverdue} day(s)",
+                        ? $"Task '{task.Title}' is overdue"
+                        : $"Task '{task.Title}' is overdue by {daysSinceOverdue} day(s)",
                     RelatedEntityId = task.Id,
                     RelatedEntityType = "Task",
                     CreatedBy = task.AssignedToId.Value
@@ -143,35 +151,26 @@ namespace TaskManagement.Infrastructure.Services
         }
 
 
-        [AutomaticRetry(Attempts = 2)]
+            [AutomaticRetry(Attempts = 2)]
         public async Task CleanupOldNotifications()
         {
             _logger.LogInformation("Starting notification cleanup");
 
             int daysofreadnotfications = 30;
 
-            var cutoffDate = DateTime.UtcNow.AddDays(-daysofreadnotfications); 
+            var cutoffDate = DateTime.UtcNow.AddDays(-daysofreadnotfications);
 
-            var oldNotifications = await _context.Notifications
+            var deletedCount = await _context.Notifications
                 .Where(n => n.IsRead
                     && n.ReadAt.HasValue
                     && n.ReadAt.Value < cutoffDate
                     && !n.IsDeleted)
-                .ToListAsync();
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(n => n.IsDeleted, true)
+                    .SetProperty(n => n.DeletedAt, DateTime.UtcNow));
 
-            _logger.LogInformation("Found {Count} old notifications to soft delete", oldNotifications.Count);
+            _logger.LogInformation("Found {Count} old notifications to soft delete", deletedCount);
 
-            foreach (var notification in oldNotifications)
-            {
-                notification.IsDeleted = true;
-                notification.DeletedAt = DateTime.UtcNow;
-            }
-
-            if (oldNotifications.Count > 0)
-            {
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Soft deleted {Count} old notifications", oldNotifications.Count);
-            }
         }
     }
 }

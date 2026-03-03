@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.Drawing;
 using TaskManagement.Core.DTO.Kanban;
 using TaskManagement.Core.DTO.Tasks;
 using TaskManagement.Core.Entities;

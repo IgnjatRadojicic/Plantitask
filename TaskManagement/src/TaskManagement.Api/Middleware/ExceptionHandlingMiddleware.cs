@@ -34,6 +34,7 @@ namespace TaskManagement.Api.Middleware
             var (statusCode, message) = exception switch
             {
                 KeyNotFoundException ex => (HttpStatusCode.NotFound, ex.Message),
+                FileNotFoundException ex => (HttpStatusCode.NotFound, ex.Message),
                 UnauthorizedAccessException ex => (HttpStatusCode.Forbidden, ex.Message),
                 InvalidOperationException ex => (HttpStatusCode.BadRequest, ex.Message),
                 _ => (HttpStatusCode.InternalServerError, "An unexpected error occured")
