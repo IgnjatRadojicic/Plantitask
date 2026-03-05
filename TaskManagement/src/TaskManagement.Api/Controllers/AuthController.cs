@@ -100,7 +100,6 @@ namespace TaskManagement.Api.Controllers
 
         [HttpPost("reset-password")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
         {
                 var userId = await _authService.ResetPasswordAsync(resetPasswordDto);

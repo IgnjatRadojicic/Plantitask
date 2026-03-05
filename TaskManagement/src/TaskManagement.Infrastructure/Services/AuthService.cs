@@ -245,13 +245,21 @@ namespace TaskManagement.Infrastructure.Services
         {
             _logger.LogInformation("Attempting password reset with token");
 
-            var allTokens = await _context.PasswordResetTokens
-                .Include(rt => rt.User)
-                .Where(rt => !rt.IsUsed && rt.ExpiresAt > DateTime.UtcNow)
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == resetPasswordDto.Email);
+
+            if (user == null)
+            {
+                throw new InvalidOperationException("Invalid or expired reset token");
+            }
+
+            var userTokens = await _context.PasswordResetTokens
+                .Where(rt => rt.UserId == user.Id && !rt.IsUsed && rt.ExpiresAt > DateTime.UtcNow)
+                .OrderByDescending(rt => rt.CreatedAt)
                 .ToListAsync();
 
             PasswordResetToken? resetToken = null;
-            foreach (var token in allTokens)
+            foreach (var token in userTokens)
             {
                 if (_passwordHasher.VerifyPassword(resetPasswordDto.Token, token.TokenHash))
                 {
@@ -259,6 +267,7 @@ namespace TaskManagement.Infrastructure.Services
                     break;
                 }
             }
+
 
             if (resetToken == null)
             {
