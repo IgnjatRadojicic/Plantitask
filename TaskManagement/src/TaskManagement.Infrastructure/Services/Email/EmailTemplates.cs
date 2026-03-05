@@ -2,9 +2,9 @@
 {
     public static class EmailTemplates
     {
-        private static string BaseTemplate(string content, string baseUrl)
+        private static string BaseTemplate(string content)
         {
-            var logoUrl = "https://localhost:7001/files/logo.png";
+            var logoUrl = "https://raw.githubusercontent.com/IgnjatRadojicic/TaskManagement/main/TaskManagement/logo.png";
 
             return $@"
 <!DOCTYPE html>
@@ -140,15 +140,15 @@
 </html>";
         }
 
-        public static string Welcome(string firstName, string baseUrl)
+        public static string Welcome(string firstName)
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>Welcome to Plantitask, {firstName}!</h2>
                 <p>Your account has been created successfully. Your journey starts with a seed — create your first group and watch your tree grow as your team completes tasks.</p>
-                <p>Get started by creating your first group or joining an existing one.</p>", baseUrl);
+                <p>Get started by creating your first group or joining an existing one.</p>");
         }
 
-        public static string PasswordReset(string userName, string resetLink, string baseUrl)
+        public static string PasswordReset(string userName, string resetLink)
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>Password Reset Request</h2>
@@ -161,10 +161,10 @@
                     </a>
                 </p>
                 <p>This link expires in 1 hour.</p>
-                <p>If you didn't request this, you can safely ignore this email. Your password will remain unchanged.</p>", baseUrl);
+                <p>If you didn't request this, you can safely ignore this email. Your password will remain unchanged.</p>");
         }
 
-        public static string TaskAssignment(string userName, string taskTitle, string groupName, string assignedBy, string baseUrl)
+        public static string TaskAssignment(string userName, string taskTitle, string groupName, string assignedBy)
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>New Task Assigned</h2>
@@ -173,10 +173,10 @@
                 <div class='highlight' style='background-color:#f2f7e9; padding:16px; border-radius:6px; border-left:4px solid #7cb342; margin:12px 0;'>
                     {taskTitle}
                 </div>
-                <p>Log in to view the details and start working on it.</p>", baseUrl);
+                <p>Log in to view the details and start working on it.</p>");
         }
 
-        public static string GroupInvitation(string inviterName, string groupName, string groupCode, string baseUrl)
+        public static string GroupInvitation(string inviterName, string groupName, string groupCode)
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>You've Been Invited!</h2>
@@ -185,10 +185,10 @@
                 <div class='code-box' style='text-align:center; font-size:24px; letter-spacing:4px; background-color:#f2f7e9; padding:16px; border-radius:6px; font-weight:bold; color:#4a7c2e;'>
                     {groupCode}
                 </div>
-                <p>Log in to your account and enter this code to join the group.</p>", baseUrl);
+                <p>Log in to your account and enter this code to join the group.</p>");
         }
 
-        public static string TaskComment(string userName, string commenterName, string taskTitle, string commentText, string baseUrl)
+        public static string TaskComment(string userName, string commenterName, string taskTitle, string commentText)
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>New Comment on Your Task</h2>
@@ -196,10 +196,10 @@
                 <p><strong>{commenterName}</strong> commented on <strong>{taskTitle}</strong>:</p>
                 <div class='highlight' style='background-color:#f2f7e9; padding:16px; border-radius:6px; border-left:4px solid #7cb342; margin:12px 0; font-style:italic;'>
                     {commentText}
-                </div>", baseUrl);
+                </div>");
         }
 
-        public static string TaskDueSoon(string userName, string taskTitle, DateTime dueDate, string baseUrl)
+        public static string TaskDueSoon(string userName, string taskTitle, DateTime dueDate)
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>Task Due Soon</h2>
@@ -208,10 +208,10 @@
                 <div class='highlight' style='background-color:#f2f7e9; padding:16px; border-radius:6px; border-left:4px solid #7cb342; margin:12px 0;'>
                     {taskTitle}
                 </div>
-                <p>Log in to check the details and make sure it's on track.</p>", baseUrl);
+                <p>Log in to check the details and make sure it's on track.</p>");
         }
 
-        public static string TaskOverdue(string userName, string taskTitle, int daysOverdue, string baseUrl)
+        public static string TaskOverdue(string userName, string taskTitle, int daysOverdue)
         {
             var overdueText = daysOverdue == 0
                 ? "is now overdue"
@@ -224,7 +224,7 @@
                 <div class='highlight' style='background-color:#f2f7e9; padding:16px; border-radius:6px; border-left:4px solid #7cb342; margin:12px 0;'>
                     {taskTitle}
                 </div>
-                <p>Log in to update the status or reach out to your team.</p>", baseUrl);
+                <p>Log in to update the status or reach out to your team.</p>");
         }
     }
 }

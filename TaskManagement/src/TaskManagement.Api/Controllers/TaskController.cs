@@ -206,7 +206,7 @@ namespace TaskManagement.Api.Controllers
         [HttpPost("{taskId}/assign")]
         public async Task<IActionResult> AssignTask(Guid taskId, [FromBody] AssignTaskDto assignDto)
         {
-                var userId = GetUserId();;
+                var userId = GetUserId();
 
                 await _taskService.AssignTaskAsync(taskId, assignDto, userId);
                 var task = await _taskService.GetTaskByIdAsync(taskId, userId);

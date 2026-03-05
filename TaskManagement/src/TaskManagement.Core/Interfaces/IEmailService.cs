@@ -1,5 +1,5 @@
 ﻿
-namespace TaskManagement.Infrastructure.Services
+namespace TaskManagement.Infrastructure.Interfaces
 {
     public interface IEmailService
     {
