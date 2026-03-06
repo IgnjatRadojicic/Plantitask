@@ -1,11 +1,13 @@
-﻿namespace TaskManagement.Core.DTO.Dashboard
+﻿using TaskManagement.Core.Enums;
+
+namespace TaskManagement.Core.DTO.Dashboard
 {
     public class GroupStatisticsDto
     {
         public Guid GroupId { get; set; }
         public string GroupName { get; set; } = string.Empty;
         public double CompletionPercentage { get; set; }
-        public int TreeStage { get; set; }
+        public TreeStage CurrentTreeStage { get; set; }
 
         // Counts
         public int TotalTasks { get; set; }

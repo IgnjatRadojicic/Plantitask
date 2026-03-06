@@ -126,7 +126,7 @@ namespace TaskManagement.Infrastructure.Services
                     GroupId = group.Id,
                     GroupName = group.Name,
                     CompletionPercentage = completionPercentage,
-                    TreeStage = CalculateTreeStage(completionPercentage),
+                    CurrentTreeStage = CalculateTreeStage(completionPercentage),
                     MemberCount = memberCount,
                     TotalTasks = totalTasks,
                     CompletedTasks = completedTasks
@@ -233,7 +233,7 @@ namespace TaskManagement.Infrastructure.Services
                 GroupId = group.Id,
                 GroupName = group.Name,
                 CompletionPercentage = completionPercentage,
-                TreeStage = CalculateTreeStage(completionPercentage),
+                CurrentTreeStage = CalculateTreeStage(completionPercentage),
                 TotalTasks = totalTasks,
                 CompletedTasks = completedTasks,
                 InProgressTasks = inProgressTasks,
@@ -250,7 +250,7 @@ namespace TaskManagement.Infrastructure.Services
         }
 
 
-        private static int CalculateTreeStage(double completionPercentage)
+        private static TreeStage CalculateTreeStage(double completionPercentage)
         {
             TreeStage stage = completionPercentage switch
             {
@@ -260,11 +260,11 @@ namespace TaskManagement.Infrastructure.Services
                 < TreeThresholds.SaplingThreshold => TreeStage.Sapling,
                 < TreeThresholds.YoungTreeThreshold => TreeStage.YoungTree,
                 < TreeThresholds.FullTreeThreshold => TreeStage.FullTree,
-                TreeThresholds.FullTreeThreshold => TreeStage.FloweringTree,
+                >= TreeThresholds.FullTreeThreshold => TreeStage.FloweringTree,
                 _ => TreeStage.EmptySoil
             };
 
-            return (int)stage;
+            return stage;
         }
 
         private static TaskSummaryDto ToTaskSummary(Core.Entities.TaskItem task)
