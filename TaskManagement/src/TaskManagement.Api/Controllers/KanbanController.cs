@@ -38,8 +38,11 @@ namespace TaskManagement.Api.Controllers
         public async Task<IActionResult> MoveTask(Guid taskId, [FromBody] MoveTaskDto moveDto)
         {
             var userId = GetUserId();
-            await _taskService.MoveTaskAsync(taskId, moveDto, userId);
+            var task = await _taskService.GetTaskByIdAsync(taskId, userId);
+            var oldStatusId = task.StatusId;
 
+            await _taskService.MoveTaskAsync(taskId, moveDto, userId);
+            
             await LogAuditAsync(
                 _auditService,
                 entityType: "TaskItem",
@@ -48,9 +51,10 @@ namespace TaskManagement.Api.Controllers
                 propertyName: "StatusId",
                 newValue: moveDto.NewStatusId.ToString());
 
-            var task = await _taskService.GetTaskByIdAsync(taskId, userId);
+            
 
-            await _kanbanBroadcaster.BroadcastTaskMovedAsync(task.GroupId, taskId, moveDto, userId);
+
+            await _kanbanBroadcaster.BroadcastTaskMovedAsync(task.GroupId, taskId, oldStatusId, moveDto, userId);
 
             return Ok(new { message = "Task moved successfully" });
         }

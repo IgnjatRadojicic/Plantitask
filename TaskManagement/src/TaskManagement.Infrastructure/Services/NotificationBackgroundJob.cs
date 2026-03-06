@@ -43,7 +43,7 @@ namespace TaskManagement.Infrastructure.Services
                 return;
             }
 
-            if (task.StatusId == 4)
+            if (task.StatusId == (int)TaskStatusItem.Completed)
             {
                 _logger.LogInformation("Task {TaskId} is already completed, skipping notification", taskId);
                 return;
@@ -113,7 +113,7 @@ namespace TaskManagement.Infrastructure.Services
             var overdueTasks = await _context.Tasks
                 .Include(t => t.AssignedTo)
                 .Where(t => !t.IsDeleted
-                 && t.StatusId != 4
+                 && t.StatusId != (int)TaskStatusItem.Completed
                  && t.DueDate.HasValue
                  && t.DueDate.Value < now
                  && t.AssignedToId != null)

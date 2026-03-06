@@ -1,0 +1,17 @@
+﻿
+namespace TaskManagement.Core.DTO.Dashboard
+{
+    public class PersonalDashboardDto
+    {
+        public List<TaskSummaryDto> OverdueTasks { get; set; } = new();
+        public List<TaskSummaryDto> DueToday { get; set; } = new();
+        public List<TaskSummaryDto> DueThisWeek { get; set; } = new();
+        public List<TaskSummaryDto> RecentlyCompleted { get; set; } = new();
+
+        public List<ActivityDto> RecentActivitu { get; set; } = new();
+        public int TotalAssignedTasks { get; set; }
+        public int TotalCompletedTasks { get; set; }
+        public int GroupCount { get; set; }
+
+    }
+}

@@ -9,6 +9,6 @@ namespace TaskManagement.Core.Interfaces
 {
     public interface IKanbanBroadcaster
     {
-        Task BroadcastTaskMovedAsync(Guid groupId, Guid taskId, MoveTaskDto moveDto, Guid movedByUserId);
+        Task BroadcastTaskMovedAsync(Guid groupId, Guid taskId, int oldStatusId, MoveTaskDto moveDto, Guid movedByUserId);
     }
 }

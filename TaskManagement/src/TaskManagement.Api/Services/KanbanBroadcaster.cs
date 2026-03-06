@@ -14,13 +14,14 @@ namespace TaskManagement.Api.Services
             _hubContext = hubContext;
         }
 
-        public async Task BroadcastTaskMovedAsync(Guid groupId, Guid taskId, MoveTaskDto moveDto, Guid movedByUserId)
+        public async Task BroadcastTaskMovedAsync(Guid groupId, Guid taskId, int oldStatusId, MoveTaskDto moveDto, Guid movedByUserId)
         {
             await _hubContext.Clients
                 .Group($"kanban-{groupId}")
                 .SendAsync("TaskMoved", new
                 {
                     TaskId = taskId,
+                    OldStatusId = oldStatusId,
                     NewStatusId = moveDto.NewStatusId,
                     NewDisplayOrder = moveDto.NewDisplayOrder,
                     MovedByUserId = movedByUserId
