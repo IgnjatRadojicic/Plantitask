@@ -104,34 +104,46 @@ namespace TaskManagement.Infrastructure.Services
                 .Select(gm => gm.Group)
                 .ToListAsync();
 
-            var result = new List<FieldTreeDto>();
+            var userGroupIds = userGroups.Select(g => g.Id).ToList();
 
-            foreach (var group in userGroups)
+            var taskStats = await _context.Tasks
+                .Where(t => userGroupIds.Contains(t.GroupId))
+                .GroupBy(t => t.GroupId)
+                .Select(g => new
+                {
+                    GroupId = g.Key,
+                    TotalTasks = g.Count(),
+                    CompletedTasks = g.Count(t => t.StatusId == (int)TaskStatusItem.Completed)
+                })
+                .ToDictionaryAsync(x => x.GroupId);
+
+            var memberCounts = await _context.GroupMembers
+                .Where(gm => userGroupIds.Contains(gm.GroupId))
+                .GroupBy(gm => gm.GroupId)
+                .Select(g => new { GroupId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.GroupId);
+
+            var result = userGroups.Select(group =>
             {
-                var tasks = await _context.Tasks
-                    .Where(t => t.GroupId == group.Id)
-                    .ToListAsync();
-
-                var totalTasks = tasks.Count;
-                var completedTasks = tasks.Count(t => t.StatusId == (int)TaskStatusItem.Completed);
+                var stats = taskStats.GetValueOrDefault(group.Id);
+                var totalTasks = stats?.TotalTasks ?? 0;
+                var completedTasks = stats?.CompletedTasks ?? 0;
                 var completionPercentage = totalTasks > 0
                     ? Math.Round((double)completedTasks / totalTasks * 100, 1)
                     : 0;
 
-                var memberCount = await _context.GroupMembers
-                    .CountAsync(gm => gm.GroupId == group.Id);
-
-                result.Add(new FieldTreeDto
+                return new FieldTreeDto
                 {
                     GroupId = group.Id,
                     GroupName = group.Name,
                     CompletionPercentage = completionPercentage,
                     CurrentTreeStage = CalculateTreeStage(completionPercentage),
-                    MemberCount = memberCount,
+                    MemberCount = memberCounts.GetValueOrDefault(group.Id)?.Count ?? 0,
                     TotalTasks = totalTasks,
                     CompletedTasks = completedTasks
-                });
-            }
+                };
+            }).ToList();
+
             return result;
         }
 
