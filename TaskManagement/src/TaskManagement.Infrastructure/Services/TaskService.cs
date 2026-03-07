@@ -129,7 +129,7 @@ namespace TaskManagement.Infrastructure.Services
                 {
                     query = query.Where(t => t.DueDate.HasValue &&
                                             t.DueDate.Value < DateTime.UtcNow &&
-                                            t.StatusId != 4);
+                                            t.StatusId != (int)TaskStatusItem.Completed);
                 }
 
                 if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
@@ -324,16 +324,13 @@ namespace TaskManagement.Infrastructure.Services
 
             var oldStatus = task.Status.DisplayName;
 
-            var statusExists = await _context.TaskStatuses
-                .AnyAsync(s => s.Id == statusDto.NewStatusId && s.IsActive);
+            var newStatus = await _context.TaskStatuses
+                .FirstOrDefaultAsync(s => s.Id == statusDto.NewStatusId && s.IsActive);
 
-            if (!statusExists)
+            if (newStatus == null)
             {
                 throw new InvalidOperationException("Invalid status selected");
             }
-
-            var newStatus = await _context.TaskStatuses
-                .FirstOrDefaultAsync(s => s.Id == statusDto.NewStatusId);
 
             task.StatusId = statusDto.NewStatusId;
 
@@ -392,16 +389,15 @@ namespace TaskManagement.Infrastructure.Services
 
             var oldPriority = task.Priority.Name;
 
-            var priorityExists = await _context.TaskPriorities
-                .AnyAsync(p => p.Id == newPriorityId && p.IsActive);
 
-            if (!priorityExists)
+            var newPriority = await _context.TaskPriorities
+                .FirstOrDefaultAsync(p => p.Id == newPriorityId && p.IsActive);
+
+            if (newPriority == null)
             {
                 throw new InvalidOperationException("Invalid priority selected");
             }
 
-            var newPriority = await _context.TaskPriorities
-                .FirstOrDefaultAsync(p => p.Id == newPriorityId);
 
             task.PriorityId = newPriorityId;
             task.UpdatedBy = userId;
@@ -433,11 +429,6 @@ namespace TaskManagement.Infrastructure.Services
                 throw new KeyNotFoundException("Task not found");
             }
 
-            if (task.DueDate.HasValue)
-            {
-                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, assignDto.UserId, task.DueDate.Value);
-            }
-
 
             var membership = await _context.GroupMembers
                 .Include(gm => gm.Role)
@@ -465,6 +456,11 @@ namespace TaskManagement.Infrastructure.Services
             task.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            if (task.DueDate.HasValue)
+            {
+                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, assignDto.UserId, task.DueDate.Value);
+            }
 
             _logger.LogInformation("Task {TaskId} assigned to user {AssignedUserId} by {UserId}",
                 taskId, assignDto.UserId, userId);
