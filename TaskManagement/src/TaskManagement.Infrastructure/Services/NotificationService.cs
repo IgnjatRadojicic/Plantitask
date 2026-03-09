@@ -6,7 +6,6 @@ using TaskManagement.Core.DTO.Tasks;
 using TaskManagement.Core.Entities;
 using TaskManagement.Core.Enums;
 using TaskManagement.Core.Interfaces;
-using TaskManagement.Infrastructure.Interfaces;
 
 
 namespace TaskManagement.Infrastructure.Services;
@@ -330,19 +329,9 @@ public class NotificationService : INotificationService
 
     private async Task<NotificationDto> CreateNotificationAsync(Notification notification)
     {
-
-        try
-        {
             _context.Notifications.Add(notification);
             var rows = await _context.SaveChangesAsync();
             _logger.LogInformation("SaveChanges result: {Rows} rows affected", rows);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "=== FAILED TO SAVE NOTIFICATION ===");
-            _logger.LogError("Inner exception: {Inner}", ex.InnerException?.Message);
-            throw;
-        }
 
         return new NotificationDto
         {
