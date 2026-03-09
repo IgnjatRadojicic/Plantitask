@@ -109,9 +109,9 @@ namespace TaskManagement.Infrastructure.Services
         public async Task<List<AuditLogDto>> GetGroupHistoryAsync(Guid groupId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50)
         {
                 var membership = await _context.GroupMembers
-                    .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == requestingUserId);
+                    .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == requestingUserId);
 
-                if (membership == null)
+                if (!membership)
                 {
                     throw new UnauthorizedAccessException("You must be a member of this group to view its audit history");
                 }
