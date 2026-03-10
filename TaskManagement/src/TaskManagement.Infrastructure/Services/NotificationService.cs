@@ -78,7 +78,7 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification);
     }
 
-    public async Task<List<NotificationDto?>> NotifyTaskStatusChangedAsync(Guid groupId, TaskDto task, string oldStatus, string newStatus)
+    public async Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid groupId, TaskDto task, string oldStatus, string newStatus)
     {
         var members = await _context.GroupMembers
             .Where(gm => gm.GroupId == groupId && gm.UserId != task.CreatedBy)
@@ -120,7 +120,7 @@ public class NotificationService : INotificationService
         return createdNotifications;
     }
 
-    public async Task<List<NotificationDto?>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment)
+    public async Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment)
     {
         var usersToNotify = new List<Guid>();
 
