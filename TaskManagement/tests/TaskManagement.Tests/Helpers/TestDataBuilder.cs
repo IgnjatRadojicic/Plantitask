@@ -1,4 +1,5 @@
-﻿using TaskManagement.Core.Entities;
+﻿using TaskManagement.Core.Constants;
+using TaskManagement.Core.Entities;
 using TaskManagement.Core.Entities.Lookups;
 using TaskManagement.Core.Enums;
 
@@ -6,6 +7,7 @@ namespace TaskManagement.Tests.Helpers;
 
 public static class TestDataBuilder
 {
+
     public static readonly Guid UserId1 = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     public static readonly Guid UserId2 = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     public static readonly Guid UserId3 = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
@@ -14,31 +16,39 @@ public static class TestDataBuilder
     public static readonly Guid TaskId1 = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
     public static readonly Guid TaskId2 = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
 
+    public static class RoleIds
+    {
+        public const int Owner = 1;
+        public const int Manager = 2;
+        public const int TeamLead = 3;
+        public const int Member = 4;
+    }
+
+
 
     public static List<TaskStatusLookup> CreateStatuses() => new()
     {
-        new TaskStatusLookup { Id = 1, Name = "NotStarted", DisplayName = "Not Started", Color = "#6B7280", DisplayOrder = 1, IsActive = true },
-        new TaskStatusLookup { Id = 2, Name = "InProgress", DisplayName = "In Progress", Color = "#3B82F6", DisplayOrder = 2, IsActive = true },
-        new TaskStatusLookup { Id = 3, Name = "UnderReview", DisplayName = "Under Review", Color = "#F59E0B", DisplayOrder = 3, IsActive = true },
-        new TaskStatusLookup { Id = 4, Name = "Completed", DisplayName = "Completed", Color = "#10B981", DisplayOrder = 4, IsActive = true },
+        new TaskStatusLookup { Id = (int)TaskStatusItem.NotStarted, Name = "NotStarted", DisplayName = "Not Started", Description = "Task has not been started yet", Color = "#6c757d", DisplayOrder = 1, IsActive = true },
+        new TaskStatusLookup { Id = (int)TaskStatusItem.InProgress, Name = "InProgress", DisplayName = "In Progress", Description = "Task is currently being worked on", Color = "#0dcaf0", DisplayOrder = 2, IsActive = true },
+        new TaskStatusLookup { Id = (int)TaskStatusItem.UnderReview, Name = "UnderReview", DisplayName = "Under Review", Description = "Task is under review", Color = "#ffc107", DisplayOrder = 3, IsActive = true },
+        new TaskStatusLookup { Id = (int)TaskStatusItem.Completed, Name = "Completed", DisplayName = "Completed", Description = "Task is completed", Color = "#198754", DisplayOrder = 4, IsActive = true },
     };
 
     public static List<TaskPriorityLookup> CreatePriorities() => new()
     {
-        new TaskPriorityLookup { Id = 1, Name = "Low", Color = "#6B7280", IsActive = true },
-        new TaskPriorityLookup { Id = 2, Name = "Medium", Color = "#F59E0B", IsActive = true },
-        new TaskPriorityLookup { Id = 3, Name = "High", Color = "#EF4444", IsActive = true },
-        new TaskPriorityLookup { Id = 4, Name = "Critical", Color = "#DC2626", IsActive = true },
+        new TaskPriorityLookup { Id = (int)TaskPriority.Low, Name = "Low", Description = "Low priority task", Color = "#6c757d", DisplayOrder = 1, IsActive = true },
+        new TaskPriorityLookup { Id = (int)TaskPriority.Medium, Name = "Medium", Description = "Medium priority task", Color = "#0dcaf0", DisplayOrder = 2, IsActive = true },
+        new TaskPriorityLookup { Id = (int)TaskPriority.High, Name = "High", Description = "High priority task", Color = "#ffc107", DisplayOrder = 3, IsActive = true },
+        new TaskPriorityLookup { Id = (int)TaskPriority.Urgent, Name = "Urgent", Description = "Urgent priority task", Color = "#dc3545", DisplayOrder = 4, IsActive = true },
     };
 
     public static List<GroupRoleLookup> CreateRoles() => new()
     {
-        new GroupRoleLookup { Id = 1, Name = "Member", DisplayName = "Member", PermissionLevel = 25 },
-        new GroupRoleLookup { Id = 2, Name = "TeamLead", DisplayName = "Team Lead", PermissionLevel = 50 },
-        new GroupRoleLookup { Id = 3, Name = "Manager", DisplayName = "Manager", PermissionLevel = 75 },
-        new GroupRoleLookup { Id = 4, Name = "Owner", DisplayName = "Owner", PermissionLevel = 100 },
+        new GroupRoleLookup { Id = RoleIds.Owner, Name = "Owner", DisplayName = "Owner", Description = "Full control over the group", PermissionLevel = PermissionLevels.Owner, IsActive = true },
+        new GroupRoleLookup { Id = RoleIds.Manager, Name = "Manager", DisplayName = "Manager", Description = "Can manage members and tasks", PermissionLevel = PermissionLevels.Manager, IsActive = true },
+        new GroupRoleLookup { Id = RoleIds.TeamLead, Name = "TeamLead", DisplayName = "Team Lead", Description = "Can manage tasks", PermissionLevel = PermissionLevels.TeamLead, IsActive = true },
+        new GroupRoleLookup { Id = RoleIds.Member, Name = "Member", DisplayName = "Member", Description = "Can view and work on tasks", PermissionLevel = PermissionLevels.Member, IsActive = true },
     };
-
 
 
     public static User CreateUser(Guid? id = null, string? userName = null, string? email = null) => new()
@@ -61,7 +71,7 @@ public static class TestDataBuilder
     };
 
     public static GroupMember CreateMembership(
-        Guid userId, Guid groupId, int roleId = 2,
+        Guid userId, Guid groupId, int roleId = RoleIds.TeamLead,
         GroupRoleLookup? role = null) => new()
         {
             UserId = userId,
@@ -76,8 +86,8 @@ public static class TestDataBuilder
         Guid? groupId = null,
         Guid? assignedToId = null,
         Guid? createdBy = null,
-        int statusId = 1,
-        int priorityId = 2,
+        int statusId = (int)TaskStatusItem.NotStarted,
+        int priorityId = (int)TaskPriority.Medium,
         DateTime? dueDate = null,
         DateTime? completedAt = null,
         int displayOrder = 0,
@@ -154,6 +164,7 @@ public static class TestDataBuilder
             Action = action,
             EntityType = entityType,
             UserName = "testuser",
+            UserEmail = "test@example.com",
             CreatedAt = DateTime.UtcNow
         };
 }
