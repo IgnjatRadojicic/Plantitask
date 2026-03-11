@@ -1,12 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using TaskManagement.Core.Common;
 using TaskManagement.Core.DTO.Comments;
 using TaskManagement.Core.DTO.Notifications;
 using TaskManagement.Core.DTO.Tasks;
 using TaskManagement.Core.Entities;
 using TaskManagement.Core.Enums;
 using TaskManagement.Core.Interfaces;
-
 
 namespace TaskManagement.Infrastructure.Services;
 
@@ -26,14 +26,12 @@ public class NotificationService : INotificationService
         _logger = logger;
     }
 
-
     public async Task<NotificationDto?> NotifyTaskCreatedAsync(Guid createdByUserId, TaskDto task)
     {
         if (!task.AssignedToId.HasValue)
             return null;
         if (task.AssignedToId.Value == createdByUserId)
             return null;
-
 
         if (!await ShouldNotifyAsync(task.AssignedToId.Value, NotificationType.TaskAssigned))
         {
@@ -57,7 +55,6 @@ public class NotificationService : INotificationService
 
     public async Task<NotificationDto?> NotifyTaskAssignedAsync(Guid userId, TaskDto task)
     {
-
         if (!await ShouldNotifyAsync(userId, NotificationType.TaskAssigned))
         {
             _logger.LogInformation("User {UserId} has disabled TaskAssigned notifications", userId);
@@ -125,9 +122,7 @@ public class NotificationService : INotificationService
         var usersToNotify = new List<Guid>();
 
         if (task.CreatedBy != comment.UserId)
-        {
             usersToNotify.Add(task.CreatedBy);
-        }
 
         if (task.AssignedToId.HasValue
             && task.AssignedToId.Value != comment.UserId
@@ -167,13 +162,11 @@ public class NotificationService : INotificationService
     public async Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid groupId, TaskDto task, string oldPriority, string newPriority)
     {
         if (!task.AssignedToId.HasValue)
-        {
             return null;
-        }
 
         if (!await ShouldNotifyAsync(task.AssignedToId.Value, NotificationType.TaskPriorityChanged))
         {
-            _logger.LogInformation("User {UserId} has disabled TaskCommentAdded notifications", task.AssignedToId.Value);
+            _logger.LogInformation("User {UserId} has disabled TaskPriorityChanged notifications", task.AssignedToId.Value);
             return null;
         }
 
@@ -194,10 +187,7 @@ public class NotificationService : INotificationService
     public async Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid groupId, TaskDto task)
     {
         if (!task.AssignedToId.HasValue || task.AssignedToId.Value == task.CreatedBy)
-        {
             return null;
-        }
-
 
         if (!await ShouldNotifyAsync(task.AssignedToId.Value, NotificationType.TaskUpdated))
         {
@@ -221,7 +211,6 @@ public class NotificationService : INotificationService
 
     public async Task<NotificationDto?> NotifyGroupInvitationAsync(Guid userId, string groupName)
     {
-
         if (!await ShouldNotifyAsync(userId, NotificationType.GroupInvitation))
         {
             _logger.LogInformation("User {UserId} has disabled GroupInvitation notifications", userId);
@@ -241,17 +230,15 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification);
     }
 
-    public async Task<List<NotificationDto>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false)
+    public async Task<Result<List<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false)
     {
         var query = _context.Notifications
             .Where(n => n.UserId == userId);
 
         if (unreadOnly)
-        {
             query = query.Where(n => !n.IsRead);
-        }
 
-        return await query
+        var notifications = await query
             .OrderByDescending(n => n.CreatedAt)
             .Select(n => new NotificationDto
             {
@@ -269,28 +256,33 @@ public class NotificationService : INotificationService
             })
             .Take(50)
             .ToListAsync();
+
+        return notifications;
     }
 
-    public async Task<int> GetUnreadCountAsync(Guid userId)
+    public async Task<Result<UnreadCountDto>> GetUnreadCountAsync(Guid userId)
     {
-        return await _context.Notifications
+        var count = await _context.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
             .CountAsync();
+        
+        return new UnreadCountDto { Count = count };
     }
 
-    public async Task MarkAsReadAsync(Guid notificationId, Guid userId)
+    public async Task<Result> MarkAsReadAsync(Guid notificationId, Guid userId)
     {
         var updatedCount = await _context.Notifications
-            .Where(n => n.UserId == userId && !n.IsRead)
+            .Where(n => n.Id == notificationId && n.UserId == userId && !n.IsRead)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(n => n.IsRead, true)
                 .SetProperty(n => n.ReadAt, DateTime.UtcNow));
 
         _logger.LogInformation("{Count} notifications marked as read for user {UserId}", updatedCount, userId);
-    }
-    
 
-    public async Task MarkAllAsReadAsync(Guid userId)
+        return Result.Success();
+    }
+
+    public async Task<Result> MarkAllAsReadAsync(Guid userId)
     {
         var unreadNotifications = await _context.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
@@ -305,17 +297,17 @@ public class NotificationService : INotificationService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("All notifications marked as read for user {UserId}", userId);
+
+        return Result.Success();
     }
 
-    public async Task DeleteNotificationAsync(Guid notificationId, Guid userId)
+    public async Task<Result> DeleteNotificationAsync(Guid notificationId, Guid userId)
     {
         var notification = await _context.Notifications
             .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId);
 
         if (notification == null)
-        {
-            throw new KeyNotFoundException("Notification not found");
-        }
+            return Error.NotFound("Notification not found");
 
         notification.IsDeleted = true;
         notification.DeletedAt = DateTime.UtcNow;
@@ -325,44 +317,24 @@ public class NotificationService : INotificationService
 
         _logger.LogInformation("Notification {NotificationId} deleted by user {UserId}",
             notificationId, userId);
+
+        return Result.Success();
     }
 
-    private async Task<NotificationDto> CreateNotificationAsync(Notification notification)
+    public async Task<Result<List<NotificationPreferenceDto>>> GetUserPreferencesAsync(Guid userId)
     {
-            _context.Notifications.Add(notification);
-            var rows = await _context.SaveChangesAsync();
-            _logger.LogInformation("SaveChanges result: {Rows} rows affected", rows);
-
-        return new NotificationDto
-        {
-            Id = notification.Id,
-            UserId = notification.UserId,
-            Type = notification.Type,
-            TypeName = notification.Type.ToString(),
-            Title = notification.Title,
-            Message = notification.Message,
-            RelatedEntityId = notification.RelatedEntityId,
-            RelatedEntityType = notification.RelatedEntityType,
-            IsRead = notification.IsRead,
-            ReadAt = notification.ReadAt,
-            CreatedAt = notification.CreatedAt
-        };
-    }
-
-    public async Task<List<NotificationPreferenceDto>> GetUserPreferencesAsync(Guid userId)
-    {
-        var existingPrefrences = await _context.NotificationPreferences
+        var existingPreferences = await _context.NotificationPreferences
             .Where(np => np.UserId == userId)
             .ToListAsync();
 
         var allTypes = Enum.GetValues<NotificationType>();
-        var prefrences = new List<NotificationPreferenceDto>();
+        var preferences = new List<NotificationPreferenceDto>();
 
         foreach (var type in allTypes)
         {
-            var existing = existingPrefrences.FirstOrDefault(p => p.Type == type);
+            var existing = existingPreferences.FirstOrDefault(p => p.Type == type);
 
-            prefrences.Add(new NotificationPreferenceDto
+            preferences.Add(new NotificationPreferenceDto
             {
                 Type = type,
                 TypeName = type.ToString(),
@@ -371,15 +343,12 @@ public class NotificationService : INotificationService
                 IsEmailEnabled = existing?.IsEmailEnabled ?? true,
                 ReminderHoursBefore = existing?.ReminderHoursBefore ?? (type == NotificationType.TaskDueSoon ? 24 : null)
             });
-
-
         }
 
-        return prefrences;
+        return preferences;
     }
 
-
-    public async Task SaveUserPreferencesAsync(Guid userId, UpdateNotificationPreferencesDto dto)
+    public async Task<Result> SaveUserPreferencesAsync(Guid userId, UpdateNotificationPreferencesDto dto)
     {
         var types = dto.Preferences.Select(p => p.Type).ToList();
 
@@ -387,7 +356,7 @@ public class NotificationService : INotificationService
             .Where(np => np.UserId == userId && types.Contains(np.Type))
             .ToDictionaryAsync(np => np.Type);
 
-        foreach(var item in dto.Preferences)
+        foreach (var item in dto.Preferences)
         {
             if (existingPreferences.TryGetValue(item.Type, out var preference))
             {
@@ -413,8 +382,9 @@ public class NotificationService : INotificationService
 
         await _context.SaveChangesAsync();
         _logger.LogInformation("User {UserId} updated notification preferences", userId);
-    }
 
+        return Result.Success();
+    }
     public async Task<bool> ShouldNotifyAsync(Guid userId, NotificationType type)
     {
         var preference = await _context.NotificationPreferences
@@ -423,36 +393,20 @@ public class NotificationService : INotificationService
         return preference?.IsEnabled ?? true;
     }
 
-    public async Task<int> GetReminderHoursBeforeAsync(Guid userId)
-    {
-        var preference = await _context.NotificationPreferences
-            .FirstOrDefaultAsync(np => np.UserId == userId && np.Type == NotificationType.TaskDueSoon);
-
-        return preference?.ReminderHoursBefore ?? 24;
-    }
-
-    private string GetNotificationTypeDescription(NotificationType type)
-    {
-        return type switch
-        {
-            NotificationType.TaskAssigned => "When you are assigned to a task",
-            NotificationType.TaskStatusChanged => "When a task status changes in your groups",
-            NotificationType.TaskCommentAdded => "When someone comments on your tasks",
-            NotificationType.TaskPriorityChanged => "When a task priority is changed",
-            NotificationType.TaskUpdated => "When a task you're assigned to is updated",
-            NotificationType.GroupInvitation => "When you join a new group",
-            NotificationType.TaskDueSoon => "Reminder before task due date",
-            NotificationType.TaskOverdue => "When your tasks become overdue",
-            _ => type.ToString()
-        };
-    }
-
     public async Task<bool> ShouldEmailAsync(Guid userId, NotificationType type)
     {
         var preference = await _context.NotificationPreferences
             .FirstOrDefaultAsync(np => np.UserId == userId && np.Type == type);
 
         return preference?.IsEmailEnabled ?? true;
+    }
+
+    public async Task<int> GetReminderHoursBeforeAsync(Guid userId)
+    {
+        var preference = await _context.NotificationPreferences
+            .FirstOrDefaultAsync(np => np.UserId == userId && np.Type == NotificationType.TaskDueSoon);
+
+        return preference?.ReminderHoursBefore ?? 24;
     }
 
     public async Task<(string Email, string UserName)?> GetUserContactAsync(Guid userId)
@@ -469,9 +423,8 @@ public class NotificationService : INotificationService
 
     public async Task TrySendTaskAssignmentEmailAsync(Guid assigneeUserId, string taskTitle, string groupName, string assignedByUserName)
     {
-      try
+        try
         {
-
             if (!await ShouldEmailAsync(assigneeUserId, NotificationType.TaskAssigned))
                 return;
 
@@ -485,9 +438,8 @@ public class NotificationService : INotificationService
                 taskTitle,
                 groupName,
                 assignedByUserName);
-            
         }
-      catch (Exception ex)
+        catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send task assignment email to user {UserId}", assigneeUserId);
         }
@@ -509,19 +461,54 @@ public class NotificationService : INotificationService
             if (assignee == null || commenter == null)
                 return;
 
-
             await _emailService.SendTaskCommentEmailAsync(
                 assignee.Value.Email,
                 assignee.Value.UserName,
                 commenter.Value.UserName,
                 taskTitle,
                 commentContent);
-
         }
-
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send comment email to user {UserId}", taskAssignedToUserId);
         }
+    }
+
+    private async Task<NotificationDto> CreateNotificationAsync(Notification notification)
+    {
+        _context.Notifications.Add(notification);
+        var rows = await _context.SaveChangesAsync();
+        _logger.LogInformation("SaveChanges result: {Rows} rows affected", rows);
+
+        return new NotificationDto
+        {
+            Id = notification.Id,
+            UserId = notification.UserId,
+            Type = notification.Type,
+            TypeName = notification.Type.ToString(),
+            Title = notification.Title,
+            Message = notification.Message,
+            RelatedEntityId = notification.RelatedEntityId,
+            RelatedEntityType = notification.RelatedEntityType,
+            IsRead = notification.IsRead,
+            ReadAt = notification.ReadAt,
+            CreatedAt = notification.CreatedAt
+        };
+    }
+
+    private string GetNotificationTypeDescription(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.TaskAssigned => "When you are assigned to a task",
+            NotificationType.TaskStatusChanged => "When a task status changes in your groups",
+            NotificationType.TaskCommentAdded => "When someone comments on your tasks",
+            NotificationType.TaskPriorityChanged => "When a task priority is changed",
+            NotificationType.TaskUpdated => "When a task you're assigned to is updated",
+            NotificationType.GroupInvitation => "When you join a new group",
+            NotificationType.TaskDueSoon => "Reminder before task due date",
+            NotificationType.TaskOverdue => "When your tasks become overdue",
+            _ => type.ToString()
+        };
     }
 }

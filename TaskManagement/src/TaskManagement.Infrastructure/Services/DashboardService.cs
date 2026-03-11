@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using TaskManagement.Core.Common;
 using TaskManagement.Core.Constants;
 using TaskManagement.Core.DTO.Dashboard;
 using TaskManagement.Core.Enums;
@@ -18,7 +19,7 @@ namespace TaskManagement.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<PersonalDashboardDto> GetPersonalDashboardAsync(Guid userId)
+        public async Task<Result<PersonalDashboardDto>> GetPersonalDashboardAsync(Guid userId)
         {
             var now = DateTime.UtcNow;
             var todayEnd = now.Date.AddDays(1);
@@ -47,9 +48,9 @@ namespace TaskManagement.Infrastructure.Services
 
             var dueToday = myTasks
                 .Where(t => t.DueDate.HasValue
-                  && t.DueDate.Value >= now
-                  && t.DueDate.Value < todayEnd
-                  && t.StatusId != (int)TaskStatusItem.Completed)
+                    && t.DueDate.Value >= now
+                    && t.DueDate.Value < todayEnd
+                    && t.StatusId != (int)TaskStatusItem.Completed)
                 .OrderBy(t => t.DueDate)
                 .Select(t => ToTaskSummary(t))
                 .ToList();
@@ -75,7 +76,8 @@ namespace TaskManagement.Infrastructure.Services
                 .Where(a => a.GroupId.HasValue && userGroupIds.Contains(a.GroupId.Value))
                 .OrderByDescending(a => a.CreatedAt)
                 .Take(15)
-                .Select(a => new ActivityDto {
+                .Select(a => new ActivityDto
+                {
                     UserName = a.UserName,
                     Action = a.Action,
                     EntityType = a.EntityType,
@@ -96,7 +98,7 @@ namespace TaskManagement.Infrastructure.Services
             };
         }
 
-        public async Task<List<FieldTreeDto>> GetFieldDataAsync(Guid userId)
+        public async Task<Result<List<FieldTreeDto>>> GetFieldDataAsync(Guid userId)
         {
             var userGroups = await _context.GroupMembers
                 .Where(gm => gm.UserId == userId)
@@ -147,17 +149,17 @@ namespace TaskManagement.Infrastructure.Services
             return result;
         }
 
-        public async Task<GroupStatisticsDto> GetGroupStatisticsAsync(Guid groupId, Guid userId)
+        public async Task<Result<GroupStatisticsDto>> GetGroupStatisticsAsync(Guid groupId, Guid userId)
         {
             var membership = await _context.GroupMembers
                 .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
 
             if (membership == null)
-                throw new UnauthorizedAccessException("You must be a member of this group");
+                return Error.Forbidden("You must be a member of this group");
 
             var group = await _context.Groups.FindAsync(groupId);
             if (group == null)
-                throw new KeyNotFoundException("Group not found");
+                return Error.NotFound("Group not found");
 
             var now = DateTime.UtcNow;
             var thirtyDaysAgo = now.AddDays(-30);
@@ -185,7 +187,6 @@ namespace TaskManagement.Infrastructure.Services
             var completedWithDates = tasks
                 .Where(t => t.CompletedAt.HasValue && t.CreatedAt != default)
                 .ToList();
-
 
             double? averageCompletionDays = completedWithDates.Count > 0
                 ? Math.Round(completedWithDates.Average(t => (t.CompletedAt!.Value - t.CreatedAt).TotalDays), 1)
@@ -235,8 +236,8 @@ namespace TaskManagement.Infrastructure.Services
                 {
                     Date = date,
                     CompletedCount = tasks.Count(t =>
-                    t.CompletedAt.HasValue
-                    && t.CompletedAt.Value.Date == date)
+                        t.CompletedAt.HasValue
+                        && t.CompletedAt.Value.Date == date)
                 })
                 .ToList();
 
@@ -260,7 +261,6 @@ namespace TaskManagement.Infrastructure.Services
                 CompletionTrend = completionTrend
             };
         }
-
 
         private static TreeStage CalculateTreeStage(double completionPercentage)
         {
@@ -295,6 +295,5 @@ namespace TaskManagement.Infrastructure.Services
                 CompletedAt = task.CompletedAt
             };
         }
-
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using TaskManagement.Core.Common;
 using TaskManagement.Core.Constants;
 using TaskManagement.Core.DTO.Comments;
 using TaskManagement.Core.Entities;
@@ -20,7 +21,7 @@ public class CommentService : ICommentService
         _logger = logger;
     }
 
-    public async Task<CommentDto> AddCommentAsync(Guid taskId, CreateCommentDto createCommentDto, Guid userId)
+    public async Task<Result<CommentDto>> AddCommentAsync(Guid taskId, CreateCommentDto createCommentDto, Guid userId)
     {
         _logger.LogInformation("User {UserId} adding comment to task {TaskId}", userId, taskId);
 
@@ -29,16 +30,13 @@ public class CommentService : ICommentService
             .FirstOrDefaultAsync(t => t.Id == taskId);
 
         if (task == null)
-        {
-            throw new KeyNotFoundException("Task not found");
-        }
+            return Error.NotFound("Task not found");
+
         var isMember = await _context.GroupMembers
             .AnyAsync(gm => gm.GroupId == task.GroupId && gm.UserId == userId);
 
         if (!isMember)
-        {
-            throw new UnauthorizedAccessException("You must be a member of the group to comment on tasks");
-        }
+            return Error.Forbidden("You must be a member of the group to comment on tasks");
 
         var comment = new TaskComment
         {
@@ -54,27 +52,23 @@ public class CommentService : ICommentService
         _logger.LogInformation("Comment {CommentId} added to task {TaskId} by user {UserId}",
             comment.Id, taskId, userId);
 
-        return await GetCommentByIdAsync(comment.Id, userId);
+        return await GetCommentByIdInternalAsync(comment.Id);
     }
 
-    public async Task<List<CommentDto>> GetTaskCommentsAsync(Guid taskId, Guid userId)
+    public async Task<Result<List<CommentDto>>> GetTaskCommentsAsync(Guid taskId, Guid userId)
     {
         var task = await _context.Tasks
             .Include(t => t.Group)
             .FirstOrDefaultAsync(t => t.Id == taskId);
 
         if (task == null)
-        {
-            throw new KeyNotFoundException("Task not found");
-        }
+            return Error.NotFound("Task not found");
 
         var isMember = await _context.GroupMembers
             .AnyAsync(gm => gm.GroupId == task.GroupId && gm.UserId == userId);
 
         if (!isMember)
-        {
-            throw new UnauthorizedAccessException("You must be a member of the group to view task comments");
-        }
+            return Error.Forbidden("You must be a member of the group to view task comments");
 
         var comments = await _context.TaskComments
             .Where(tc => tc.TaskId == taskId)
@@ -95,7 +89,7 @@ public class CommentService : ICommentService
         return comments;
     }
 
-    public async Task<CommentDto> UpdateCommentAsync(Guid commentId, UpdateCommentDto updateCommentDto, Guid userId)
+    public async Task<Result<CommentDto>> UpdateCommentAsync(Guid commentId, UpdateCommentDto updateCommentDto, Guid userId)
     {
         var comment = await _context.TaskComments
             .Include(tc => tc.Task)
@@ -103,14 +97,10 @@ public class CommentService : ICommentService
             .FirstOrDefaultAsync(tc => tc.Id == commentId);
 
         if (comment == null)
-        {
-            throw new KeyNotFoundException("Comment not found");
-        }
+            return Error.NotFound("Comment not found");
 
         if (comment.UserId != userId)
-        {
-            throw new UnauthorizedAccessException("You can only edit your own comments");
-        }
+            return Error.Forbidden("You can only edit your own comments");
 
         comment.Content = updateCommentDto.Content;
         comment.UpdatedAt = DateTime.UtcNow;
@@ -120,10 +110,10 @@ public class CommentService : ICommentService
 
         _logger.LogInformation("Comment {CommentId} updated by user {UserId}", commentId, userId);
 
-        return await GetCommentByIdAsync(commentId, userId);
+        return await GetCommentByIdInternalAsync(commentId);
     }
 
-    public async Task DeleteCommentAsync(Guid commentId, Guid userId)
+    public async Task<Result> DeleteCommentAsync(Guid commentId, Guid userId)
     {
         var comment = await _context.TaskComments
             .Include(tc => tc.Task)
@@ -131,25 +121,19 @@ public class CommentService : ICommentService
             .FirstOrDefaultAsync(tc => tc.Id == commentId);
 
         if (comment == null)
-        {
-            throw new KeyNotFoundException("Comment not found");
-        }
+            return Error.NotFound("Comment not found");
 
         var membership = await _context.GroupMembers
             .Include(gm => gm.Role)
             .FirstOrDefaultAsync(gm => gm.GroupId == comment.Task.GroupId && gm.UserId == userId);
 
         if (membership == null)
-        {
-            throw new UnauthorizedAccessException("You must be a member of the group");
-        }
+            return Error.Forbidden("You must be a member of the group");
 
         var canDelete = comment.UserId == userId || membership.Role.PermissionLevel >= PermissionLevels.Manager;
 
         if (!canDelete)
-        {
-            throw new UnauthorizedAccessException("You can only delete your own comments or you must be a Manager or Owner");
-        }
+            return Error.Forbidden("You can only delete your own comments or you must be a Manager or Owner");
 
         comment.IsDeleted = true;
         comment.DeletedAt = DateTime.UtcNow;
@@ -158,18 +142,18 @@ public class CommentService : ICommentService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Comment {CommentId} deleted by user {UserId}", commentId, userId);
+
+        return Result.Success();
     }
 
-    private async Task<CommentDto> GetCommentByIdAsync(Guid commentId, Guid userId)
+    private async Task<Result<CommentDto>> GetCommentByIdInternalAsync(Guid commentId)
     {
         var comment = await _context.TaskComments
             .Include(tc => tc.User)
             .FirstOrDefaultAsync(tc => tc.Id == commentId);
 
         if (comment == null)
-        {
-            throw new KeyNotFoundException("Comment not found");
-        }
+            return Error.NotFound("Comment not found");
 
         return new CommentDto
         {

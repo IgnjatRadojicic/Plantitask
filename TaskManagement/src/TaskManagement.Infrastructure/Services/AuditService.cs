@@ -1,6 +1,6 @@
-﻿
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using TaskManagement.Core.Common;
 using TaskManagement.Core.DTO.Audit;
 using TaskManagement.Core.Entities;
 using TaskManagement.Core.Interfaces;
@@ -19,8 +19,6 @@ namespace TaskManagement.Infrastructure.Services
         }
 
         public async Task LogAsync(
-
-
             string entityType,
             Guid entityId,
             string action,
@@ -31,163 +29,108 @@ namespace TaskManagement.Infrastructure.Services
             string? propertyName = null,
             string? oldValue = null,
             string? newValue = null,
-            string? reason = null
-            )
+            string? reason = null)
         {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                _logger.LogWarning("Cannot create audit log for non-existent user {UserId}", userId);
+                return;
+            }
 
-                var user = await _context.Users.FindAsync(userId);
-                if (user == null)
-                {
-                    _logger.LogWarning("Cannot create audit log for non-existent user {UserId}", userId);
-                    return;
-                }
+            var auditLog = new AuditLog
+            {
+                EntityType = entityType,
+                EntityId = entityId,
+                Action = action,
+                PropertyName = propertyName,
+                OldValue = oldValue,
+                NewValue = newValue,
+                UserId = userId,
+                UserName = user.UserName,
+                UserEmail = user.Email,
+                GroupId = groupId,
+                Reason = reason,
+                IpAddress = ipAddress ?? "Unknown",
+                UserAgent = userAgent ?? "Unknown",
+                CreatedAt = DateTime.UtcNow
+            };
 
-                var auditLog = new AuditLog
-                {
-                    EntityType = entityType,
-                    EntityId = entityId,
-                    Action = action,
-                    PropertyName = propertyName,
-                    OldValue = oldValue,
-                    NewValue = newValue,
-                    UserId = userId,
-                    UserName = user.UserName,
-                    UserEmail = user.Email,
-                    GroupId = groupId,
-                    Reason = reason,
-                    IpAddress = ipAddress ?? "Unknown",
-                    UserAgent = userAgent ?? "Unknown",
-                    CreatedAt = DateTime.UtcNow
-                };
+            _context.AuditLogs.Add(auditLog);
+            await _context.SaveChangesAsync();
 
-                _context.AuditLogs.Add(auditLog);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation(
+            _logger.LogInformation(
                 "Audit log created: {EntityType} {EntityId} - {Action} by user {UserId} in group {GroupId}",
                 entityType, entityId, action, userId, groupId);
-            
         }
-        public async Task<List<AuditLogDto>> GetEntityHistoryAsync(string entityType, Guid entityId, Guid requestingUserId)
+
+        public async Task<Result<List<AuditLogDto>>> GetEntityHistoryAsync(string entityType, Guid entityId, Guid requestingUserId)
         {
-                Guid? groupId = await GetEntityGroupdIdAsync(entityType, entityId);
+            Guid? groupId = await GetEntityGroupIdAsync(entityType, entityId);
 
-                if(groupId.HasValue)
-                {
-                    var isMember = await _context.GroupMembers
-                        .AnyAsync(gm => gm.GroupId == groupId.Value && gm.UserId == requestingUserId);
-                    if (!isMember)
-                    {
-                        throw new UnauthorizedAccessException("You must be a member of this group to view its audit history");
-                    }
-                }
-                var logs = await _context.AuditLogs
-                    .Where(a => a.EntityType == entityType && a.EntityId == entityId)
-                    .OrderByDescending(a => a.CreatedAt)
-                    .Select(a => new AuditLogDto
-                    {
-                        Id = a.Id,
-                        EntityType = a.EntityType,
-                        EntityId = a.EntityId,
-                        Action = a.Action,
-                        PropertyName = a.PropertyName,
-                        OldValue = a.OldValue,
-                        NewValue = a.NewValue,
-                        UserId = a.UserId,
-                        UserName = a.UserName,
-                        UserEmail = a.UserEmail,
-                        Timestamp = a.CreatedAt,
-                        Reason = a.Reason,
-                        IpAddress = a.IpAddress
-                    })
-                    .ToListAsync();
+            if (groupId.HasValue)
+            {
+                var isMember = await _context.GroupMembers
+                    .AnyAsync(gm => gm.GroupId == groupId.Value && gm.UserId == requestingUserId);
 
-                return logs;
-            
+                if (!isMember)
+                    return Error.Forbidden("You must be a member of this group to view its audit history");
+            }
+
+            var logs = await _context.AuditLogs
+                .Where(a => a.EntityType == entityType && a.EntityId == entityId)
+                .OrderByDescending(a => a.CreatedAt)
+                .Select(a => MapToDto(a))
+                .ToListAsync();
+
+            return logs;
         }
 
-        public async Task<List<AuditLogDto>> GetGroupHistoryAsync(Guid groupId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50)
+        public async Task<Result<List<AuditLogDto>>> GetGroupHistoryAsync(Guid groupId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50)
         {
-                var membership = await _context.GroupMembers
-                    .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == requestingUserId);
+            var isMember = await _context.GroupMembers
+                .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == requestingUserId);
 
-                if (!membership)
-                {
-                    throw new UnauthorizedAccessException("You must be a member of this group to view its audit history");
-                }
-                var logs = await _context.AuditLogs
-                    .Where(a => a.GroupId == groupId)
-                    .OrderByDescending(a => a.CreatedAt)
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
-                    .Select(a => new AuditLogDto
-                    {
-                        Id = a.Id,
-                        EntityType = a.EntityType,
-                        EntityId = a.EntityId,
-                        Action = a.Action,
-                        PropertyName = a.PropertyName,
-                        OldValue = a.OldValue,
-                        NewValue = a.NewValue,
-                        UserId = a.UserId,
-                        UserName = a.UserName,
-                        UserEmail = a.UserEmail,
-                        Timestamp = a.CreatedAt,
-                        Reason = a.Reason,
-                        IpAddress = a.IpAddress
-                    })
-                    .ToListAsync();
+            if (!isMember)
+                return Error.Forbidden("You must be a member of this group to view its audit history");
 
-                return logs;
-            
+            var logs = await _context.AuditLogs
+                .Where(a => a.GroupId == groupId)
+                .OrderByDescending(a => a.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(a => MapToDto(a))
+                .ToListAsync();
+
+            return logs;
         }
 
-        public async Task<List<AuditLogDto>> GetUserHistoryAsync(Guid userId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50)
+        public async Task<Result<List<AuditLogDto>>> GetUserHistoryAsync(Guid userId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50)
         {
-                var userGroupIds = await _context.GroupMembers
-                    .Where(gm => gm.UserId == requestingUserId)
-                    .Select(gm => gm.GroupId)
-                    .ToListAsync();
+            var userGroupIds = await _context.GroupMembers
+                .Where(gm => gm.UserId == requestingUserId)
+                .Select(gm => gm.GroupId)
+                .ToListAsync();
 
-                var logs = await _context.AuditLogs
-                    .Where(a => a.UserId == userId &&
-                               (a.GroupId == null || userGroupIds.Contains(a.GroupId.Value)))
-                    .OrderByDescending(a => a.CreatedAt)
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
-                    .Select(a => new AuditLogDto
-                    {
-                        Id = a.Id,
-                        EntityType = a.EntityType,
-                        EntityId = a.EntityId,
-                        Action = a.Action,
-                        PropertyName = a.PropertyName,
-                        OldValue = a.OldValue,
-                        NewValue = a.NewValue,
-                        UserId = a.UserId,
-                        UserName = a.UserName,
-                        UserEmail = a.UserEmail,
-                        Timestamp = a.CreatedAt,
-                        Reason = a.Reason,
-                        IpAddress = a.IpAddress
-                    })
-                    .ToListAsync();
+            var logs = await _context.AuditLogs
+                .Where(a => a.UserId == userId &&
+                           (a.GroupId == null || userGroupIds.Contains(a.GroupId.Value)))
+                .OrderByDescending(a => a.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(a => MapToDto(a))
+                .ToListAsync();
 
-                return logs;
-            
+            return logs;
         }
 
-
-        public async Task<List<AuditLogDto>> GetTaskHistoryAsync(Guid taskId, Guid requestingUserId)
+        public async Task<Result<List<AuditLogDto>>> GetTaskHistoryAsync(Guid taskId, Guid requestingUserId)
         {
             return await GetEntityHistoryAsync("TaskItem", taskId, requestingUserId);
         }
 
-
-
-
-        private async Task<Guid?> GetEntityGroupdIdAsync(string entityType, Guid entityId) {
-
+        private async Task<Guid?> GetEntityGroupIdAsync(string entityType, Guid entityId)
+        {
             return entityType switch
             {
                 "TaskItem" => await _context.Tasks
@@ -206,16 +149,24 @@ namespace TaskManagement.Infrastructure.Services
             };
         }
 
-
+        private static AuditLogDto MapToDto(AuditLog a)
+        {
+            return new AuditLogDto
+            {
+                Id = a.Id,
+                EntityType = a.EntityType,
+                EntityId = a.EntityId,
+                Action = a.Action,
+                PropertyName = a.PropertyName,
+                OldValue = a.OldValue,
+                NewValue = a.NewValue,
+                UserId = a.UserId,
+                UserName = a.UserName,
+                UserEmail = a.UserEmail,
+                Timestamp = a.CreatedAt,
+                Reason = a.Reason,
+                IpAddress = a.IpAddress
+            };
+        }
     }
 }
-
-
-
-
-
-
-
-
-
-

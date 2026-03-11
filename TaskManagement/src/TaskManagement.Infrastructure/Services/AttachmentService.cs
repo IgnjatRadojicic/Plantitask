@@ -1,18 +1,13 @@
 ﻿using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using TaskManagement.Core.Common;
 using TaskManagement.Core.Configuration;
+using TaskManagement.Core.Constants;
 using TaskManagement.Core.DTO.Attachments;
 using TaskManagement.Core.Entities;
 using TaskManagement.Core.Interfaces;
-using TaskManagement.Core.Constants;
 
 namespace TaskManagement.Infrastructure.Services
 {
@@ -35,7 +30,7 @@ namespace TaskManagement.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<AttachmentDto> UploadAttachmentAsync(Guid taskId, IFormFile file, Guid userId)
+        public async Task<Result<AttachmentDto>> UploadAttachmentAsync(Guid taskId, IFormFile file, Guid userId)
         {
             _logger.LogInformation("User {UserId} uploading attachment to task {TaskId}", userId, taskId);
 
@@ -44,19 +39,17 @@ namespace TaskManagement.Infrastructure.Services
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
             if (task == null)
-            {
-                throw new KeyNotFoundException("Task not found");
-            }
+                return Error.NotFound("Task not found");
 
             var isMember = await _context.GroupMembers
                 .AnyAsync(gm => gm.GroupId == task.GroupId && gm.UserId == userId);
 
             if (!isMember)
-            {
-                throw new UnauthorizedAccessException("You must be a member of the group to upload attachments");
-            }
+                return Error.Forbidden("You must be a member of the group to upload attachments");
 
-            ValidateFile(file);
+            var validationError = ValidateFile(file);
+            if (validationError != null)
+                return validationError;
 
             string storagePath;
             using (var stream = file.OpenReadStream())
@@ -83,24 +76,20 @@ namespace TaskManagement.Infrastructure.Services
             return await GetAttachmentByIdAsync(attachment.Id, userId);
         }
 
-        public async Task<List<AttachmentDto>> GetTaskAttachmentsAsync(Guid taskId, Guid userId)
+        public async Task<Result<List<AttachmentDto>>> GetTaskAttachmentsAsync(Guid taskId, Guid userId)
         {
             var task = await _context.Tasks
                 .Include(t => t.Group)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
             if (task == null)
-            {
-                throw new KeyNotFoundException("Task not found");
-            }
+                return Error.NotFound("Task not found");
 
             var isMember = await _context.GroupMembers
-               .AnyAsync(gm => gm.GroupId == task.GroupId && gm.UserId == userId);
+                .AnyAsync(gm => gm.GroupId == task.GroupId && gm.UserId == userId);
 
             if (!isMember)
-            {
-                throw new UnauthorizedAccessException("You must be a member of the group to view attachments");
-            }
+                return Error.Forbidden("You must be a member of the group to view attachments");
 
             var attachments = await _context.TaskAttachments
                 .Where(a => a.TaskId == taskId)
@@ -117,12 +106,12 @@ namespace TaskManagement.Infrastructure.Services
                     UploadedAt = a.CreatedAt,
                     UploadedByUserName = a.Uploader.UserName
                 })
-            .ToListAsync();
+                .ToListAsync();
 
             return attachments;
         }
 
-        public async Task<AttachmentDto> GetAttachmentByIdAsync(Guid attachmentId, Guid userId)
+        public async Task<Result<AttachmentDto>> GetAttachmentByIdAsync(Guid attachmentId, Guid userId)
         {
             var attachment = await _context.TaskAttachments
                 .Include(a => a.Task)
@@ -131,17 +120,13 @@ namespace TaskManagement.Infrastructure.Services
                 .FirstOrDefaultAsync(a => a.Id == attachmentId);
 
             if (attachment == null)
-            {
-                throw new KeyNotFoundException("Attachment not found");
-            }
+                return Error.NotFound("Attachment not found");
 
             var isMember = await _context.GroupMembers
                 .AnyAsync(gm => gm.GroupId == attachment.Task.GroupId && gm.UserId == userId);
 
             if (!isMember)
-            {
-                throw new UnauthorizedAccessException("You must be a member of the group to view this attachment");
-            }
+                return Error.Forbidden("You must be a member of the group to view this attachment");
 
             return new AttachmentDto
             {
@@ -156,7 +141,7 @@ namespace TaskManagement.Infrastructure.Services
             };
         }
 
-        public async Task<(Stream FileStream, string FileName, string ContentType)> DownloadAttachmentAsync(Guid attachmentId, Guid userId)
+        public async Task<Result<(Stream FileStream, string FileName, string ContentType)>> DownloadAttachmentAsync(Guid attachmentId, Guid userId)
         {
             var attachment = await _context.TaskAttachments
                 .Include(a => a.Task)
@@ -164,52 +149,40 @@ namespace TaskManagement.Infrastructure.Services
                 .FirstOrDefaultAsync(a => a.Id == attachmentId);
 
             if (attachment == null)
-            {
-                throw new KeyNotFoundException("Attachment not found");
-            }
+                return Error.NotFound("Attachment not found");
 
             var isMember = await _context.GroupMembers
                 .AnyAsync(gm => gm.GroupId == attachment.Task.GroupId && gm.UserId == userId);
 
             if (!isMember)
-            {
-                throw new UnauthorizedAccessException("You must be a member of the group to download this attachment");
-            }
+                return Error.Forbidden("You must be a member of the group to download this attachment");
 
             var fileStream = await _fileStorage.DownloadFileAsync(attachment.FilePath);
 
             return (fileStream, attachment.FileName, attachment.ContentType);
-
         }
-        public async Task DeleteAttachmentAsync(Guid attachmentId, Guid userId)
+
+        public async Task<Result> DeleteAttachmentAsync(Guid attachmentId, Guid userId)
         {
             var attachment = await _context.TaskAttachments
-                  .Include(a => a.Task)
-                  .ThenInclude(t => t.Group)
-                  .FirstOrDefaultAsync(a => a.Id == attachmentId);
+                .Include(a => a.Task)
+                .ThenInclude(t => t.Group)
+                .FirstOrDefaultAsync(a => a.Id == attachmentId);
 
             if (attachment == null)
-            {
-                throw new KeyNotFoundException("Attachment not found");
-
-            }
+                return Error.NotFound("Attachment not found");
 
             var membership = await _context.GroupMembers
                 .Include(gm => gm.Role)
                 .FirstOrDefaultAsync(gm => gm.GroupId == attachment.Task.GroupId && gm.UserId == userId);
 
             if (membership == null)
-            {
-                throw new UnauthorizedAccessException("You must be a member of the group");
-            }
+                return Error.Forbidden("You must be a member of the group");
 
             var canDelete = membership.Role.PermissionLevel >= PermissionLevels.Manager || attachment.CreatedBy == userId;
 
             if (!canDelete)
-            {
-                throw new UnauthorizedAccessException("Only Managers, Owners, or the uploader can delete attachments");
-            }
-
+                return Error.Forbidden("Only Managers, Owners, or the uploader can delete attachments");
 
             await _fileStorage.DeleteFileAsync(attachment.FilePath);
 
@@ -221,33 +194,23 @@ namespace TaskManagement.Infrastructure.Services
 
             _logger.LogInformation("Attachment {AttachmentId} deleted by user {UserId}", attachmentId, userId);
 
+            return Result.Success();
         }
 
-        private void ValidateFile(IFormFile file)
+        private Error? ValidateFile(IFormFile file)
         {
             if (file == null || file.Length == 0)
-            {
-                throw new InvalidOperationException("File is empty");
-            }
+                return Error.BadRequest("File is empty");
 
             var maxSizeBytes = _settings.MaxFileSizeInMB * 1024 * 1024;
             if (file.Length > maxSizeBytes)
-            {
-                throw new InvalidOperationException($"File size exceeds maximum allowed size of {_settings.MaxFileSizeInMB}MB");
-            }
+                return Error.BadRequest($"File size exceeds maximum allowed size of {_settings.MaxFileSizeInMB}MB");
 
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
             if (!_settings.AllowedExtensions.Contains(extension))
-            {
-                throw new InvalidOperationException($"File type '{extension}' is not allowed. Allowed types: {string.Join(", ", _settings.AllowedExtensions)}");
-            }
+                return Error.BadRequest($"File type '{extension}' is not allowed. Allowed types: {string.Join(", ", _settings.AllowedExtensions)}");
+
+            return null;
         }
-
-
-
-
-
-
-
     }
 }
