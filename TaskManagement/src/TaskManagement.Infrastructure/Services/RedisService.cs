@@ -164,16 +164,13 @@ namespace TaskManagement.Infrastructure.Services
 
         public async Task<bool> IsEmailVerifiedAsync(string email)
         {
-                var db = _redis.GetDatabase();
-                var key = $"verification:{email.ToLower()}";
-                var data = await db.StringGetAsync(key);
+            var key = $"verification:{email.ToLower()}";
+            var value = await _db.HashGetAsync(key, "IsUsed");
 
-                if (data.IsNullOrEmpty)
-                    return false;
+            if (value.IsNullOrEmpty)
+                return false;
 
-                var parsed = System.Text.Json.JsonDocument.Parse(data.ToString());
-                return parsed.RootElement.GetProperty("IsUsed").GetBoolean();
-            
+            return string.Equals(value.ToString(), "true", StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task<DateTime?> GetVerificationCodeCreatedAtAsync(string email)

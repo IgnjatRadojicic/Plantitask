@@ -10,5 +10,10 @@ namespace TaskManagement.Core.Interfaces
         Task<AuthResponseDto> RefreshTokenAsync(string refreshToken);
         Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto);
         Task<Guid> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
+
+        Task<CheckEmailResponseDto> CheckEmailAsync(string email);
+        Task SendVerificationCodeAsync(string email);
+        Task VerifyEmailCodeAsync(string email, string code);
+        Task<AuthResponseDto> GoogleLoginAsync(GoogleLoginDto dto);
     }
 }

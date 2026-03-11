@@ -226,5 +226,18 @@
                 </div>
                 <p>Log in to update the status or reach out to your team.</p>");
         }
+
+        public static string EmailVerification(string userName, string code)
+        {
+            return BaseTemplate($@"
+        <h2 style='color:#4a7c2e; margin-top:0;'>Verify Your Email</h2>
+        <p>Hello {userName},</p>
+        <p>Your verification code is:</p>
+        <div class='code-box' style='text-align:center; font-size:32px; letter-spacing:8px; background-color:#f2f7e9; padding:20px; border-radius:6px; font-weight:bold; color:#4a7c2e;'>
+            {code}
+        </div>
+        <p>This code expires in 15 minutes.</p>
+        <p>If you didn't create an account, you can safely ignore this email.</p>");
+        }
     }
 }

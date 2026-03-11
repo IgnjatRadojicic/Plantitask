@@ -63,6 +63,12 @@ namespace TaskManagement.Infrastructure.Services
             await SendEmailAsync(email, $"Task Overdue: {taskTitle}", html);
         }
 
+        public async Task SendEmailVerificationCodeAsync(string email, string userName, string code)
+        {
+            var html = EmailTemplates.EmailVerification(userName, code);
+            await SendEmailAsync(email, $"Your Plantitask verification code: {code}", html);
+        }
+
         private async Task SendEmailAsync(string toEmail, string subject, string htmlContent)
         {
             var from = new EmailAddress(_settings.FromEmail, _settings.FromName);
