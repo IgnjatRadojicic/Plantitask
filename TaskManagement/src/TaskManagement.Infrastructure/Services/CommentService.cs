@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Mvc.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TaskManagement.Core.Common;
 using TaskManagement.Core.Constants;
@@ -55,7 +56,7 @@ public class CommentService : ICommentService
         return await GetCommentByIdInternalAsync(comment.Id);
     }
 
-    public async Task<Result<List<CommentDto>>> GetTaskCommentsAsync(Guid taskId, Guid userId)
+    public async Task<Result<PaginatedList<CommentDto>>> GetTaskCommentsAsync(Guid taskId, Guid userId, int pageNumber = 1, int pageSize = 20)
     {
         var task = await _context.Tasks
             .Include(t => t.Group)
@@ -70,10 +71,17 @@ public class CommentService : ICommentService
         if (!isMember)
             return Error.Forbidden("You must be a member of the group to view task comments");
 
-        var comments = await _context.TaskComments
+        var query = _context.TaskComments
             .Where(tc => tc.TaskId == taskId)
+            .OrderBy(tc => tc.CreatedAt);
+
+        var totalCount = await query.CountAsync();
+
+
+        var comments = await _context.TaskComments
             .Include(tc => tc.User)
-            .OrderBy(tc => tc.CreatedAt)
+            .Skip((pageNumber - 1 ) * pageSize)
+            .Take(pageSize)
             .Select(tc => new CommentDto
             {
                 Id = tc.Id,
@@ -86,7 +94,13 @@ public class CommentService : ICommentService
             })
             .ToListAsync();
 
-        return comments;
+        return new PaginatedList<CommentDto>
+        {
+            Items = comments,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
     }
 
     public async Task<Result<CommentDto>> UpdateCommentAsync(Guid commentId, UpdateCommentDto updateCommentDto, Guid userId)

@@ -16,7 +16,7 @@ public interface INotificationService
     Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid groupId, TaskDto task);
     Task<NotificationDto?> NotifyGroupInvitationAsync(Guid userId, string groupName);
 
-    Task<Result<List<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false);
+    Task<Result<PaginatedList<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false, int pageNumber = 1, int pageSize = 20);
     Task<Result<UnreadCountDto>> GetUnreadCountAsync(Guid userId);
     Task<Result> MarkAsReadAsync(Guid notificationId, Guid userId);
     Task<Result> MarkAllAsReadAsync(Guid userId);

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using TaskManagement.Api.Extensions;
 using TaskManagement.Api.Interfaces;
+using TaskManagement.Core.Common;
 using TaskManagement.Core.DTO.Comments;
 using TaskManagement.Core.Interfaces;
 
@@ -82,13 +83,16 @@ public class CommentsController : BaseApiController
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(List<CommentDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PaginatedList<CommentDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetTaskComments(Guid taskId)
+    public async Task<IActionResult> GetTaskComments(
+        Guid taskId,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20)
     {
         var userId = GetUserId();
-        var result = await _commentService.GetTaskCommentsAsync(taskId, userId);
+        var result = await _commentService.GetTaskCommentsAsync(taskId, userId, pageNumber, pageSize);
         return result.ToActionResult();
     }
 

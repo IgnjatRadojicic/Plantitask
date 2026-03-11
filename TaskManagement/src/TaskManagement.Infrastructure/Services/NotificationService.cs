@@ -230,7 +230,7 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification);
     }
 
-    public async Task<Result<List<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false)
+    public async Task<Result<PaginatedList<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false, int pageNumber = 1, int pageSize = 20)
     {
         var query = _context.Notifications
             .Where(n => n.UserId == userId);
@@ -238,8 +238,12 @@ public class NotificationService : INotificationService
         if (unreadOnly)
             query = query.Where(n => !n.IsRead);
 
+        var totalCount = await query.CountAsync();
+
         var notifications = await query
             .OrderByDescending(n => n.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .Select(n => new NotificationDto
             {
                 Id = n.Id,
@@ -257,7 +261,14 @@ public class NotificationService : INotificationService
             .Take(50)
             .ToListAsync();
 
-        return notifications;
+
+        return new PaginatedList<NotificationDto>
+        {
+            Items = notifications,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
     }
 
     public async Task<Result<UnreadCountDto>> GetUnreadCountAsync(Guid userId)

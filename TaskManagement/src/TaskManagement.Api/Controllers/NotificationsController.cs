@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using TaskManagement.Api.Extensions;
 using TaskManagement.Api.Hubs;
+using TaskManagement.Core.Common;
 using TaskManagement.Core.DTO.Notifications;
 using TaskManagement.Core.Interfaces;
 
@@ -30,11 +31,14 @@ public class NotificationsController : BaseApiController
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(List<NotificationDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetNotifications([FromQuery] bool unreadOnly = false)
+    [ProducesResponseType(typeof(PaginatedList<NotificationDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetNotifications(
+        [FromQuery] bool unreadOnly = false,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20)
     {
         var userId = GetUserId();
-        var result = await _notificationService.GetUserNotificationsAsync(userId, unreadOnly);
+        var result = await _notificationService.GetUserNotificationsAsync(userId, unreadOnly, pageNumber, pageSize);
         return result.ToActionResult();
     }
 

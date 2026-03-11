@@ -11,7 +11,7 @@ namespace TaskManagement.Core.Interfaces
     public interface ICommentService
     {
         Task<Result<CommentDto>> AddCommentAsync(Guid taskId, CreateCommentDto createCommentDto, Guid userId);
-        Task<Result<List<CommentDto>>> GetTaskCommentsAsync(Guid taskId, Guid userId);
+        Task<Result<PaginatedList<CommentDto>>> GetTaskCommentsAsync(Guid taskId, Guid userId, int pageNumber = 1, int pageSize = 20);
         Task<Result<CommentDto>> UpdateCommentAsync(Guid commentId, UpdateCommentDto updateCommentDto, Guid userId);
         Task<Result> DeleteCommentAsync(Guid commentId, Guid userId);
     }
