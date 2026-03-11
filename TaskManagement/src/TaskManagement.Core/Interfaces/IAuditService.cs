@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaskManagement.Core.Common;
 using TaskManagement.Core.DTO.Audit;
 using TaskManagement.Core.Entities;
 
@@ -25,13 +26,11 @@ namespace TaskManagement.Core.Interfaces
         string? reason = null);
 
 
-        Task<List<AuditLogDto>> GetEntityHistoryAsync(string entityType, Guid entityId, Guid reqiestingUserId);
+        Task<Result<List<AuditLogDto>>> GetEntityHistoryAsync(string entityType, Guid entityId, Guid requestingUserId);
+        Task<Result<List<AuditLogDto>>> GetGroupHistoryAsync(Guid groupId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50);
+        Task<Result<List<AuditLogDto>>> GetUserHistoryAsync(Guid userId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50);
+        Task<Result<List<AuditLogDto>>> GetTaskHistoryAsync(Guid taskId, Guid requestingUserId);
 
-        Task<List<AuditLogDto>> GetUserHistoryAsync(Guid userId, Guid requestingUserId, int pageNumber = 1, int pagesize = 50);
-        Task<List<AuditLogDto>> GetGroupHistoryAsync(Guid groupId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50);
 
-        Task<List<AuditLogDto>> GetTaskHistoryAsync(Guid taskId, Guid requestingId);
-
-        
     }
 }

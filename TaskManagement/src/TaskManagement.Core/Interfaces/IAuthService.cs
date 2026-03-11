@@ -1,19 +1,19 @@
-﻿using TaskManagement.Core.DTO.Auth;
+﻿using TaskManagement.Core.Common;
+using TaskManagement.Core.DTO.Auth;
 
 namespace TaskManagement.Core.Interfaces
 {
     public interface IAuthService
     {
-        Task ForgotPasswordAsync(string email);
-        Task<AuthResponseDto> LoginAsync(LoginDto loginDto);
-        Task LogoutAsync(string refreshToken);
-        Task<AuthResponseDto> RefreshTokenAsync(string refreshToken);
-        Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto);
-        Task<Guid> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
-
-        Task<CheckEmailResponseDto> CheckEmailAsync(string email);
-        Task SendVerificationCodeAsync(string email);
-        Task VerifyEmailCodeAsync(string email, string code);
-        Task<AuthResponseDto> GoogleLoginAsync(GoogleLoginDto dto);
+        Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto);
+        Task<Result<AuthResponseDto>> LoginAsync(LoginDto loginDto);
+        Task<Result<AuthResponseDto>> RefreshTokenAsync(string refreshToken);
+        Task<Result> LogoutAsync(string refreshToken);
+        Task<Result<CheckEmailResponseDto>> CheckEmailAsync(string email);
+        Task<Result> SendVerificationCodeAsync(string email);
+        Task<Result> VerifyEmailCodeAsync(string email, string code);
+        Task<Result> ForgotPasswordAsync(string email);
+        Task<Result<Guid>> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
+        Task<Result<AuthResponseDto>> GoogleLoginAsync(GoogleLoginDto dto);
     }
 }
