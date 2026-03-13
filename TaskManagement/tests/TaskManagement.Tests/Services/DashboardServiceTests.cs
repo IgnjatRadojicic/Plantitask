@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Moq;
 using TaskManagement.Core.Entities;
-using TaskManagement.Core.Entities.Lookups;
 using TaskManagement.Core.Enums;
 using TaskManagement.Core.Interfaces;
 using TaskManagement.Infrastructure.Services;
@@ -26,12 +25,12 @@ public class DashboardServiceTests
 
     [Theory]
     [InlineData(0, 0, TreeStage.EmptySoil)]
-    [InlineData(1, 10, TreeStage.Seed)]            
-    [InlineData(2, 10, TreeStage.Sprout)]          
-    [InlineData(4, 10, TreeStage.Sapling)]          
-    [InlineData(7, 10, TreeStage.YoungTree)]        
-    [InlineData(9, 10, TreeStage.FullTree)]         
-    [InlineData(10, 10, TreeStage.FloweringTree)]   
+    [InlineData(1, 10, TreeStage.Seed)]
+    [InlineData(2, 10, TreeStage.Sprout)]
+    [InlineData(4, 10, TreeStage.Sapling)]
+    [InlineData(7, 10, TreeStage.YoungTree)]
+    [InlineData(9, 10, TreeStage.FullTree)]
+    [InlineData(10, 10, TreeStage.FloweringTree)]
     public async Task GetFieldDataAsync_CorrectTreeStagePerCompletionPercentage(
         int completedCount, int totalCount, TreeStage expectedStage)
     {
@@ -55,10 +54,11 @@ public class DashboardServiceTests
 
         var result = await _sut.GetFieldDataAsync(UserId1);
 
-        Assert.Single(result);
-        Assert.Equal(expectedStage, result[0].CurrentTreeStage);
-        Assert.Equal(completedCount, result[0].CompletedTasks);
-        Assert.Equal(totalCount, result[0].TotalTasks);
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!);
+        Assert.Equal(expectedStage, result.Value[0].CurrentTreeStage);
+        Assert.Equal(completedCount, result.Value[0].CompletedTasks);
+        Assert.Equal(totalCount, result.Value[0].TotalTasks);
     }
 
     [Fact]
@@ -73,9 +73,10 @@ public class DashboardServiceTests
 
         var result = await _sut.GetFieldDataAsync(UserId1);
 
-        Assert.Single(result);
-        Assert.Equal(TreeStage.EmptySoil, result[0].CurrentTreeStage);
-        Assert.Equal(0, result[0].CompletionPercentage);
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!);
+        Assert.Equal(TreeStage.EmptySoil, result.Value[0].CurrentTreeStage);
+        Assert.Equal(0, result.Value[0].CompletionPercentage);
     }
 
     [Fact]
@@ -103,12 +104,14 @@ public class DashboardServiceTests
 
         var result = await _sut.GetFieldDataAsync(UserId1);
 
-        Assert.Equal(2, result.Count);
-        var groupA = result.First(t => t.GroupName == "Group A");
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value!.Count);
+
+        var groupA = result.Value.First(t => t.GroupName == "Group A");
         Assert.Equal(50.0, groupA.CompletionPercentage);
         Assert.Equal(TreeStage.Sapling, groupA.CurrentTreeStage);
 
-        var groupB = result.First(t => t.GroupName == "Group B");
+        var groupB = result.Value.First(t => t.GroupName == "Group B");
         Assert.Equal(100.0, groupB.CompletionPercentage);
         Assert.Equal(TreeStage.FloweringTree, groupB.CurrentTreeStage);
     }
@@ -138,8 +141,10 @@ public class DashboardServiceTests
         _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(tasks).Object);
         _mockContext.Setup(c => c.AuditLogs).Returns(MockDbSetFactory.Create(new List<AuditLog>()).Object);
 
-        var dashboard = await _sut.GetPersonalDashboardAsync(UserId1);
+        var result = await _sut.GetPersonalDashboardAsync(UserId1);
 
+        Assert.True(result.IsSuccess);
+        var dashboard = result.Value!;
         Assert.Single(dashboard.OverdueTasks);
         Assert.Equal("Overdue Task", dashboard.OverdueTasks[0].Title);
         Assert.Single(dashboard.DueToday);
@@ -167,10 +172,11 @@ public class DashboardServiceTests
         _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { completedOverdue }).Object);
         _mockContext.Setup(c => c.AuditLogs).Returns(MockDbSetFactory.Create(new List<AuditLog>()).Object);
 
-        var dashboard = await _sut.GetPersonalDashboardAsync(UserId1);
+        var result = await _sut.GetPersonalDashboardAsync(UserId1);
 
-        Assert.Empty(dashboard.OverdueTasks);
-        Assert.Single(dashboard.RecentlyCompleted);
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value!.OverdueTasks);
+        Assert.Single(result.Value.RecentlyCompleted);
     }
 
     [Fact]
@@ -184,16 +190,17 @@ public class DashboardServiceTests
 
         var auditLogs = new List<AuditLog>
         {
-            CreateAuditLog(groupId: GroupId1, action: "Created"),  
-            CreateAuditLog(groupId: GroupId2, action: "Deleted"),   
-            CreateAuditLog(groupId: null, action: "Login"),         
+            CreateAuditLog(groupId: GroupId1, action: "Created"),
+            CreateAuditLog(groupId: GroupId2, action: "Deleted"),
+            CreateAuditLog(groupId: null, action: "Login"),
         };
         _mockContext.Setup(c => c.AuditLogs).Returns(MockDbSetFactory.Create(auditLogs).Object);
 
-        var dashboard = await _sut.GetPersonalDashboardAsync(UserId1);
+        var result = await _sut.GetPersonalDashboardAsync(UserId1);
 
-        Assert.Single(dashboard.RecentActivity);
-        Assert.Equal("Created", dashboard.RecentActivity[0].Action);
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!.RecentActivity);
+        Assert.Equal("Created", result.Value.RecentActivity[0].Action);
     }
 
     [Fact]
@@ -203,8 +210,10 @@ public class DashboardServiceTests
         _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem>()).Object);
         _mockContext.Setup(c => c.AuditLogs).Returns(MockDbSetFactory.Create(new List<AuditLog>()).Object);
 
-        var dashboard = await _sut.GetPersonalDashboardAsync(UserId1);
+        var result = await _sut.GetPersonalDashboardAsync(UserId1);
 
+        Assert.True(result.IsSuccess);
+        var dashboard = result.Value!;
         Assert.Empty(dashboard.OverdueTasks);
         Assert.Empty(dashboard.DueToday);
         Assert.Empty(dashboard.DueThisWeek);
@@ -214,12 +223,30 @@ public class DashboardServiceTests
 
 
     [Fact]
-    public async Task GetGroupStatisticsAsync_NonMember_ThrowsUnauthorized()
+    public async Task GetGroupStatisticsAsync_NonMember_ReturnsForbidden()
     {
         _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>()).Object);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => _sut.GetGroupStatisticsAsync(GroupId1, UserId1));
+        var result = await _sut.GetGroupStatisticsAsync(GroupId1, UserId1);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Forbidden", result.Error!.Code);
+    }
+
+    [Fact]
+    public async Task GetGroupStatisticsAsync_GroupNotFound_ReturnsNotFound()
+    {
+        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+        {
+            CreateMembership(UserId1, GroupId1, roleId: RoleIds.Member)
+        }).Object);
+        _mockContext.Setup(c => c.Groups).Returns(MockDbSetFactory.Create(new List<Group>()).Object);
+        _mockContext.Setup(c => c.Groups.FindAsync(GroupId1)).ReturnsAsync((Group?)null);
+
+        var result = await _sut.GetGroupStatisticsAsync(GroupId1, UserId1);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("NotFound", result.Error!.Code);
     }
 
     [Fact]
@@ -243,8 +270,10 @@ public class DashboardServiceTests
         };
         _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(tasks).Object);
 
-        var stats = await _sut.GetGroupStatisticsAsync(GroupId1, UserId1);
+        var result = await _sut.GetGroupStatisticsAsync(GroupId1, UserId1);
 
+        Assert.True(result.IsSuccess);
+        var stats = result.Value!;
         Assert.Equal(4, stats.TotalTasks);
         Assert.Equal(1, stats.CompletedTasks);
         Assert.Equal(1, stats.InProgressTasks);
@@ -269,15 +298,16 @@ public class DashboardServiceTests
         var tasks = new List<TaskItem>
         {
             CreateTask(groupId: GroupId1, statusId: (int)TaskStatusItem.InProgress,
-                dueDate: now.AddDays(-3), assignedToId: UserId1),           
+                dueDate: now.AddDays(-3), assignedToId: UserId1),
             CreateTask(groupId: GroupId1, statusId: (int)TaskStatusItem.Completed,
-                dueDate: now.AddDays(-3), completedAt: now.AddDays(-2), assignedToId: UserId1), 
+                dueDate: now.AddDays(-3), completedAt: now.AddDays(-2), assignedToId: UserId1),
         };
         _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(tasks).Object);
 
-        var stats = await _sut.GetGroupStatisticsAsync(GroupId1, UserId1);
+        var result = await _sut.GetGroupStatisticsAsync(GroupId1, UserId1);
 
-        Assert.Equal(1, stats.OverdueTasks);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value!.OverdueTasks);
     }
 
     [Fact]
@@ -300,13 +330,13 @@ public class DashboardServiceTests
             CreateTask(groupId: GroupId1, statusId: (int)TaskStatusItem.Completed,
                 completedAt: now, assignedToId: UserId1),
         };
-        tasks[0].CreatedAt = now.AddDays(-3); 
-        tasks[1].CreatedAt = now.AddDays(-4); 
+        tasks[0].CreatedAt = now.AddDays(-3);
+        tasks[1].CreatedAt = now.AddDays(-4);
         _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(tasks).Object);
 
-        var stats = await _sut.GetGroupStatisticsAsync(GroupId1, UserId1);
+        var result = await _sut.GetGroupStatisticsAsync(GroupId1, UserId1);
 
-        Assert.Equal(3.0, stats.AverageCompletionDays); 
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3.0, result.Value!.AverageCompletionDays);
     }
-
 }

@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
+using TaskManagement.Core.Common;
 using TaskManagement.Core.DTO.Auth;
 using TaskManagement.Core.Entities;
 using TaskManagement.Core.Interfaces;
@@ -35,38 +37,66 @@ public class AuthServiceTests
         _mockConfig.Setup(c => c["Jwt:RefreshTokenExpirationDays"]).Returns("7");
         _mockConfig.Setup(c => c["App:FrontendUrl"]).Returns("https://localhost:5001");
 
+        var googleSettings = Options.Create(new GoogleAuthSettings { ClientId = "test-client-id" });
+
         _sut = new AuthService(
             _mockContext.Object, _mockHasher.Object, _mockTokenGen.Object,
-            _mockEmail.Object, _mockLogger.Object, _mockConfig.Object, _mockRedis.Object);
+            _mockEmail.Object, _mockLogger.Object, _mockConfig.Object,
+            _mockRedis.Object, googleSettings);
+    }
+
+
+    [Fact]
+    public async Task RegisterAsync_EmailNotVerified_ReturnsFailure()
+    {
+        _mockRedis.Setup(r => r.IsEmailVerifiedAsync("new@test.com")).ReturnsAsync(false);
+        _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User>()).Object);
+
+        var dto = new RegisterDto { Email = "new@test.com", UserName = "newuser", Password = "P@ss1", FirstName = "N", LastName = "U" };
+
+        var result = await _sut.RegisterAsync(dto);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("BadRequest", result.Error!.Code);
+        Assert.Contains("verified", result.Error.Message);
     }
 
     [Fact]
-    public async Task RegisterAsync_DuplicateEmail_ThrowsInvalidOperaiton()
+    public async Task RegisterAsync_DuplicateEmail_ReturnsConflict()
     {
         var existing = CreateUser(email: "existing@test.com");
+        _mockRedis.Setup(r => r.IsEmailVerifiedAsync("existing@test.com")).ReturnsAsync(true);
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User> { existing }).Object);
 
         var dto = new RegisterDto { Email = "existing@test.com", UserName = "newuser", Password = "P@ss1", FirstName = "N", LastName = "U" };
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.RegisterAsync(dto));
-        Assert.Contains("email already exists", ex.Message);
+        var result = await _sut.RegisterAsync(dto);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Conflict", result.Error!.Code);
+        Assert.Contains("email already exists", result.Error.Message);
     }
 
     [Fact]
-    public async Task RegisterAsync_DuplicateUserName_ThrowsInvalidOperation()
+    public async Task RegisterAsync_DuplicateUserName_ReturnsConflict()
     {
         var existing = CreateUser(userName: "takenname", email: "other@test.com");
+        _mockRedis.Setup(r => r.IsEmailVerifiedAsync("new@test.com")).ReturnsAsync(true);
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User> { existing }).Object);
 
         var dto = new RegisterDto { Email = "new@test.com", UserName = "takenname", Password = "P@ss1", FirstName = "N", LastName = "U" };
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.RegisterAsync(dto));
-        Assert.Contains("username already exists", ex.Message);
+        var result = await _sut.RegisterAsync(dto);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Conflict", result.Error!.Code);
+        Assert.Contains("username already exists", result.Error.Message);
     }
 
     [Fact]
-    public async Task RegisterAsync_ValidData_CreatesUserAndReturnsTokens()
+    public async Task RegisterAsync_ValidData_ReturnsSuccessWithTokens()
     {
+        _mockRedis.Setup(r => r.IsEmailVerifiedAsync("new@test.com")).ReturnsAsync(true);
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User>()).Object);
         _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _mockHasher.Setup(h => h.HashPassword(It.IsAny<string>())).Returns("hashed_pw");
@@ -77,16 +107,17 @@ public class AuthServiceTests
 
         var result = await _sut.RegisterAsync(dto);
 
-        Assert.Equal("access_123", result.AccessToken);
-        Assert.Equal("refresh_456", result.RefreshToken);
-        Assert.Equal("newuser", result.UserName);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("access_123", result.Value!.AccessToken);
+        Assert.Equal("refresh_456", result.Value.RefreshToken);
+        Assert.Equal("newuser", result.Value.UserName);
         _mockHasher.Verify(h => h.HashPassword("Password123!"), Times.Once);
-
     }
 
     [Fact]
-    public async Task RegisterAsync_SendWelcome()
+    public async Task RegisterAsync_SendsWelcomeEmail()
     {
+        _mockRedis.Setup(r => r.IsEmailVerifiedAsync("new@test.com")).ReturnsAsync(true);
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User>()).Object);
         _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _mockHasher.Setup(h => h.HashPassword(It.IsAny<string>())).Returns("hash");
@@ -101,45 +132,67 @@ public class AuthServiceTests
     [Fact]
     public async Task RegisterAsync_WelcomeEmailFailure_DoesNotBlockRegistration()
     {
+        _mockRedis.Setup(r => r.IsEmailVerifiedAsync("n@l.com")).ReturnsAsync(true);
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User>()).Object);
         _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _mockHasher.Setup(h => h.HashPassword(It.IsAny<string>())).Returns("hash");
         _mockTokenGen.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("t");
         _mockTokenGen.Setup(t => t.GenerateRefreshToken()).Returns("r");
         _mockEmail.Setup(e => e.SendWelcomeEmailAsync(It.IsAny<string>(), It.IsAny<string>()))
-            .ThrowsAsync(new Exception("SMPT down"));
+            .ThrowsAsync(new Exception("SMTP down"));
 
         var result = await _sut.RegisterAsync(new RegisterDto { Email = "n@l.com", UserName = "u", Password = "p", FirstName = "F", LastName = "L" });
 
-        Assert.NotNull(result.AccessToken);
-
-
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value!.AccessToken);
     }
 
+    // ── Login ──
+
     [Fact]
-    public async Task LoginAsync_NonExistentEmail_ThrowsUnauthorized()
+    public async Task LoginAsync_NonExistentEmail_ReturnsFailure()
     {
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User>()).Object);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => _sut.LoginAsync(new LoginDto { Email = "nobody@test.com", Password = "x" }));
+        var result = await _sut.LoginAsync(new LoginDto { Email = "nobody@test.com", Password = "x" });
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Forbidden", result.Error!.Code);
     }
 
     [Fact]
-    public async Task LoginAsync_WrongPassword_ThrowsUnauthorized()
+    public async Task LoginAsync_WrongPassword_ReturnsFailure()
     {
         var user = CreateUser(email: "user@test.com");
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User> { user }).Object);
         _mockHasher.Setup(h => h.VerifyPassword("wrong", user.PasswordHash)).Returns(false);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => _sut.LoginAsync(new LoginDto { Email = "user@test.com", Password = "wrong" }));
+        var result = await _sut.LoginAsync(new LoginDto { Email = "user@test.com", Password = "wrong" });
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Forbidden", result.Error!.Code);
     }
 
     [Fact]
-    public async Task LoginAsync_ValidCredentials_UpdatesLastLoginAt()
+    public async Task LoginAsync_EmailNotConfirmed_ReturnsFailure()
     {
         var user = CreateUser(email: "user@test.com");
+        user.IsEmailConfirmed = false;
+        _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User> { user }).Object);
+        _mockHasher.Setup(h => h.VerifyPassword("correct", user.PasswordHash)).Returns(true);
+
+        var result = await _sut.LoginAsync(new LoginDto { Email = "user@test.com", Password = "correct" });
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("BadRequest", result.Error!.Code);
+        Assert.Contains("verify your email", result.Error.Message);
+    }
+
+    [Fact]
+    public async Task LoginAsync_ValidCredentials_ReturnsSuccessAndUpdatesLastLogin()
+    {
+        var user = CreateUser(email: "user@test.com");
+        user.IsEmailConfirmed = true;
         user.LastLoginAt = null;
 
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User> { user }).Object);
@@ -148,21 +201,26 @@ public class AuthServiceTests
         _mockTokenGen.Setup(t => t.GenerateAccessToken(user)).Returns("t");
         _mockTokenGen.Setup(t => t.GenerateRefreshToken()).Returns("r");
 
-        await _sut.LoginAsync(new LoginDto { Email = "user@test.com", Password = "correct" });
+        var result = await _sut.LoginAsync(new LoginDto { Email = "user@test.com", Password = "correct" });
 
+        Assert.True(result.IsSuccess);
         Assert.NotNull(user.LastLoginAt);
     }
 
+
     [Fact]
-    public async Task RefreshTokenAsync_InvalidToken_ThrowUnauthorized()
+    public async Task RefreshTokenAsync_InvalidToken_ReturnsFailure()
     {
         _mockRedis.Setup(r => r.GetRefreshTokenAsync("bad")).ReturnsAsync((RefreshTokenModel?)null);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _sut.RefreshTokenAsync("bad"));
+        var result = await _sut.RefreshTokenAsync("bad");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Forbidden", result.Error!.Code);
     }
 
     [Fact]
-    public async Task RefreshTokenAsync_RevokedToken_ThrowsUnauthorized()
+    public async Task RefreshTokenAsync_RevokedToken_ReturnsFailure()
     {
         _mockRedis.Setup(r => r.GetRefreshTokenAsync("revoked")).ReturnsAsync(new RefreshTokenModel
         {
@@ -172,12 +230,14 @@ public class AuthServiceTests
             CreatedByIp = "127.0.0.1"
         });
 
-        var ex = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _sut.RefreshTokenAsync("revoked"));
-        Assert.Contains("revoked", ex.Message);
+        var result = await _sut.RefreshTokenAsync("revoked");
+
+        Assert.True(result.IsFailure);
+        Assert.Contains("revoked", result.Error!.Message);
     }
 
     [Fact]
-    public async Task RefreshTokenAsync_ExpiredToken_ThrowsUnauthorized()
+    public async Task RefreshTokenAsync_ExpiredToken_ReturnsFailure()
     {
         _mockRedis.Setup(r => r.GetRefreshTokenAsync("expired")).ReturnsAsync(new RefreshTokenModel
         {
@@ -187,13 +247,15 @@ public class AuthServiceTests
             CreatedByIp = "127.0.0.1"
         });
 
-        var ex = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _sut.RefreshTokenAsync("expired"));
-        Assert.Contains("expired", ex.Message);
+        var result = await _sut.RefreshTokenAsync("expired");
+
+        Assert.True(result.IsFailure);
+        Assert.Contains("expired", result.Error!.Message);
     }
 
-    [Fact]
 
-    public async Task ForgotPasswordAsync_ValidEmail_CreatesTokenAndSendsEmail()
+    [Fact]
+    public async Task ForgotPasswordAsync_ValidEmail_ReturnsSuccessAndSendsEmail()
     {
         var user = CreateUser(email: "user@testing.com", userName: "testuser");
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User> { user }).Object);
@@ -202,13 +264,24 @@ public class AuthServiceTests
         _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _mockHasher.Setup(h => h.HashPassword(It.IsAny<string>())).Returns("hashed_token");
 
-        await _sut.ForgotPasswordAsync("user@testing.com");
+        var result = await _sut.ForgotPasswordAsync("user@testing.com");
 
+        Assert.True(result.IsSuccess);
         Assert.Single(tokens);
         Assert.Equal(user.Id, tokens[0].UserId);
         Assert.False(tokens[0].IsUsed);
         _mockEmail.Verify(e => e.SendPasswordResetEmailAsync("user@testing.com", "testuser",
             It.Is<string>(link => link.Contains("reset-password") && link.Contains("token="))), Times.Once);
+    }
+
+    [Fact]
+    public async Task ForgotPasswordAsync_NonExistentEmail_ReturnsSuccessWithoutRevealingInfo()
+    {
+        _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User>()).Object);
+
+        var result = await _sut.ForgotPasswordAsync("nobody@test.com");
+
+        Assert.True(result.IsSuccess);
     }
 
     [Fact]
@@ -222,15 +295,55 @@ public class AuthServiceTests
         _mockEmail.Setup(e => e.SendPasswordResetEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new Exception("SMTP down"));
 
-        await _sut.ForgotPasswordAsync("user@test.com");
+        var result = await _sut.ForgotPasswordAsync("user@test.com");
+
+        Assert.True(result.IsSuccess);
     }
+
 
     [Fact]
     public async Task LogoutAsync_RevokesRefreshToken()
     {
-        await _sut.LogoutAsync("some_token");
+        var result = await _sut.LogoutAsync("some_token");
+
+        Assert.True(result.IsSuccess);
         _mockRedis.Verify(r => r.RevokeRefreshTokenAsync("some_token"), Times.Once);
     }
 
-}
 
+    [Fact]
+    public async Task SendVerificationCodeAsync_TooSoon_ReturnsFailure()
+    {
+        _mockRedis.Setup(r => r.GetVerificationCodeCreatedAtAsync("test@test.com"))
+            .ReturnsAsync(DateTime.UtcNow.AddSeconds(-30));
+
+        var result = await _sut.SendVerificationCodeAsync("test@test.com");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("BadRequest", result.Error!.Code);
+        Assert.Contains("wait", result.Error.Message);
+    }
+
+    [Fact]
+    public async Task VerifyEmailCodeAsync_InvalidCode_ReturnsFailure()
+    {
+        _mockRedis.Setup(r => r.GetVerificationCodeHashAsync("test@test.com")).ReturnsAsync("hashed_code");
+        _mockHasher.Setup(h => h.VerifyPassword("wrong", "hashed_code")).Returns(false);
+
+        var result = await _sut.VerifyEmailCodeAsync("test@test.com", "wrong");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("BadRequest", result.Error!.Code);
+    }
+
+    [Fact]
+    public async Task VerifyEmailCodeAsync_ExpiredCode_ReturnsFailure()
+    {
+        _mockRedis.Setup(r => r.GetVerificationCodeHashAsync("test@test.com")).ReturnsAsync((string?)null);
+
+        var result = await _sut.VerifyEmailCodeAsync("test@test.com", "123456");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("BadRequest", result.Error!.Code);
+    }
+}
