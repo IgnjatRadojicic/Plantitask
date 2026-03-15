@@ -1,0 +1,27 @@
+﻿@page "/field"
+@attribute [Authorize]
+
+<div class="field-page">
+    <div class="field-placeholder">
+        <MudIcon Icon="@Icons.Material.Outlined.Forest" Style="font-size:4rem; color:#9CC103;" />
+        <h2 class="text-sora" style="color:#424242; margin:16px 0 8px;">The Field</h2>
+        <p style="color:#9E9E9E; font-family:'DM Sans',sans-serif;">
+            Love you more :3
+        </p>
+    </div>
+</div>
+
+<style>
+    .field-page {
+        min-height: 100vh;
+        background: linear-gradient(180deg, #F5F8E8 0%, #EEF2DC 50%, #E8ECCE 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .field-placeholder {
+        text-align: center;
+        padding: 40px;
+    }
+</style>
