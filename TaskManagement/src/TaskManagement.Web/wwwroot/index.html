@@ -5,27 +5,141 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Plantitask</title>
     <base href="/" />
-
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
     <link href="https://fonts.googleapis.com/css?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-
     <link href="css/app.css" rel="stylesheet" />
+    <style>
+        .loading-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #fafafa;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .loading-logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: fade-up 0.7s ease-out 0.1s forwards;
+        }
+
+        .loading-brand {
+            font-family: 'Sora', sans-serif;
+            font-weight: 800;
+            font-size: 28px;
+            color: #9CC103;
+            letter-spacing: 3px;
+            margin-bottom: 32px;
+            opacity: 0;
+            animation: fade-up 0.7s ease-out 0.3s forwards;
+        }
+
+        .line-container {
+            width: 200px;
+            height: 3px;
+            border-radius: 3px;
+            background: #e8e8e8;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: fade-in 0.5s ease-out 0.6s forwards;
+        }
+
+        .line-glow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 60px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, transparent, #9CC103, #b8d940, #9CC103, transparent);
+            animation: line-sweep 1.8s ease-in-out 0.8s infinite;
+            transform: translateX(-60px);
+        }
+
+        .loading-text {
+            font-family: 'DM Sans', sans-serif;
+            color: #999;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            opacity: 0;
+            animation: fade-in 0.5s ease-out 0.8s forwards;
+        }
+
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes fade-up {
+            0% {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fade-in {
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes line-sweep {
+            0% {
+                transform: translateX(-60px);
+            }
+
+            100% {
+                transform: translateX(200px);
+            }
+        }
+
+        @keyframes dots {
+            0% {
+                content: '';
+            }
+
+            25% {
+                content: '.';
+            }
+
+            50% {
+                content: '..';
+            }
+
+            75% {
+                content: '...';
+            }
+        }
+    </style>
 </head>
 <body>
     <div id="app">
-        <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#fafafa;">
-            <div style="text-align:center;">
-                <img src="images/logo.png" alt="Plantitask" style="width:64px; margin-bottom:16px;" />
-                <p style="font-family:'DM Sans',sans-serif; color:#757575; font-size:14px;">Loading...</p>
+        <div class="loading-screen">
+            <img src="images/logo.png" alt="Plantitask" class="loading-logo" />
+            <div class="loading-brand">PLANTITASK</div>
+            <div class="line-container">
+                <div class="line-glow"></div>
             </div>
+            <p class="loading-text">Loading<span class="loading-dots"></span></p>
         </div>
     </div>
-
     <script src="_framework/blazor.webassembly.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="js/scroll-watcher.js"></script>
 </body>
 </html>
