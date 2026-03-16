@@ -3,10 +3,12 @@
     _dotnetRef: null,
 
     init: function (dotnetRef) {
+
+        this.destroy();
+
         this._dotnetRef = dotnetRef;
-        this._handler = function () {
-            var scrolled = window.scrollY > 80;
-            dotnetRef.invokeMethodAsync('OnScroll', scrolled);
+        this._handler = () => {
+            dotnetRef.invokeMethodAsync('OnScroll', window.scrollY > 80);
         };
         window.addEventListener('scroll', this._handler, { passive: true });
     },
@@ -15,6 +17,7 @@
         if (this._handler) {
             window.removeEventListener('scroll', this._handler);
             this._handler = null;
+            this.dotnetRef = null;
         }
     }
 };
