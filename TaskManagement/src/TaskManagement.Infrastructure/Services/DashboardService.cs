@@ -73,7 +73,9 @@ namespace TaskManagement.Infrastructure.Services
                 .Select(t => ToTaskSummary(t))
                 .ToList();
 
-            var recentActivity = await _context.AuditLogs
+            var recentActivity = userGroupIds.Count == 0
+                ? new List<ActivityDto>()
+                : await _context.AuditLogs
                 .Where(a => a.GroupId.HasValue && userGroupIds.Contains(a.GroupId.Value))
                 .OrderByDescending(a => a.CreatedAt)
                 .Take(15)
@@ -103,7 +105,6 @@ namespace TaskManagement.Infrastructure.Services
         {
             var userGroups = await _context.GroupMembers
                 .Where(gm => gm.UserId == userId)
-                .Include(gm => gm.Group)
                 .Select(gm => gm.Group)
                 .ToListAsync();
 
@@ -163,7 +164,7 @@ namespace TaskManagement.Infrastructure.Services
                 return Error.NotFound("Group not found");
 
             var now = DateTime.UtcNow;
-            var thirtyDaysAgo = now.AddDays(-30);
+            var thirtyDaysAgo = now.AddDays(-29);
 
             var tasks = await _context.Tasks
                 .Include(t => t.Status)
@@ -190,7 +191,7 @@ namespace TaskManagement.Infrastructure.Services
 
             double? averageCompletionDays = completedWithDates.Count > 0
                 ? Math.Round(completedWithDates.Average(t => (t.CompletedAt!.Value - t.CreatedAt).TotalDays), 1)
-                : 0;
+                : null;
 
             var memberCount = await _context.GroupMembers
                 .CountAsync(gm => gm.GroupId == groupId);
@@ -217,7 +218,7 @@ namespace TaskManagement.Infrastructure.Services
 
             var memberWorkload = tasks
                 .Where(t => t.AssignedToId.HasValue)
-                .GroupBy(t => new { t.AssignedToId, t.AssignedTo!.UserName })
+                .GroupBy(t => new { t.AssignedToId, UserName = t.AssignedTo?.UserName ?? "Unassigned" })
                 .Select(g => new MemberWorkloadDto
                 {
                     UserName = g.Key.UserName,
@@ -230,14 +231,21 @@ namespace TaskManagement.Infrastructure.Services
                 .OrderByDescending(m => m.AssignedCount)
                 .ToList();
 
+            const int trendWindowDays = 30;
+            var trendStart = now.Date.AddDays(-(trendWindowDays - 1));
+
+            var completedByDate = tasks
+                .Where(t => t.CompletedAt.HasValue
+                    && t.CompletedAt.Value >= trendStart)
+                .GroupBy(t => t.CompletedAt!.Value.Date)
+                .ToDictionary(g => g.Key, g => g.Count());
+
             var completionTrend = Enumerable.Range(0, 30)
-                .Select(i => thirtyDaysAgo.AddDays(i).Date)
+                .Select(i => thirtyDaysAgo.AddDays(i))
                 .Select(date => new TrendPointDto
                 {
                     Date = date,
-                    CompletedCount = tasks.Count(t =>
-                        t.CompletedAt.HasValue
-                        && t.CompletedAt.Value.Date == date)
+                    CompletedCount = completedByDate.GetValueOrDefault(date, 0)
                 })
                 .ToList();
 
@@ -279,10 +287,8 @@ namespace TaskManagement.Infrastructure.Services
                 })
                 .FirstOrDefaultAsync();
 
-            var memberIds = await _context.GroupMembers
-                .Where(gm => gm.GroupId == groupId)
-                .Select(gm => gm.UserId)
-                .ToListAsync();
+            var memberCount = await _context.GroupMembers
+                 .CountAsync(gm => gm.GroupId == groupId);
 
             var total = stats?.Total ?? 0;
             var completed = stats?.Completed ?? 0;
@@ -295,7 +301,7 @@ namespace TaskManagement.Infrastructure.Services
                 GroupName = group.Name,
                 CompletionPercentage = pct,
                 CurrentTreeStage = stage,
-                MemberCount = memberIds.Count,
+                MemberCount = memberCount,
                 TotalTasks = total,
                 CompletedTasks = completed
             };
