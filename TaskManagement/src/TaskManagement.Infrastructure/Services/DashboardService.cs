@@ -5,6 +5,7 @@ using TaskManagement.Core.Constants;
 using TaskManagement.Core.DTO.Dashboard;
 using TaskManagement.Core.Enums;
 using TaskManagement.Core.Interfaces;
+using TaskManagement.Core.Domain;
 
 namespace TaskManagement.Infrastructure.Services
 {
@@ -139,7 +140,7 @@ namespace TaskManagement.Infrastructure.Services
                     GroupId = group.Id,
                     GroupName = group.Name,
                     CompletionPercentage = completionPercentage,
-                    CurrentTreeStage = CalculateTreeStage(completionPercentage),
+                    CurrentTreeStage = TreeProgressCalculator.CalculateStage(completionPercentage),
                     MemberCount = memberCounts.GetValueOrDefault(group.Id)?.Count ?? 0,
                     TotalTasks = totalTasks,
                     CompletedTasks = completedTasks
@@ -180,9 +181,8 @@ namespace TaskManagement.Infrastructure.Services
                 && t.DueDate.Value < now
                 && t.StatusId != (int)TaskStatusItem.Completed);
 
-            var completionPercentage = totalTasks > 0
-                ? Math.Round((double)completedTasks / totalTasks * 100, 1)
-                : 0;
+            var completionPercentage = TreeProgressCalculator.CalculateCompletion(totalTasks, completedTasks);
+
 
             var completedWithDates = tasks
                 .Where(t => t.CompletedAt.HasValue && t.CreatedAt != default)
@@ -246,7 +246,7 @@ namespace TaskManagement.Infrastructure.Services
                 GroupId = group.Id,
                 GroupName = group.Name,
                 CompletionPercentage = completionPercentage,
-                CurrentTreeStage = CalculateTreeStage(completionPercentage),
+                CurrentTreeStage = TreeProgressCalculator.CalculateStage(completionPercentage),
                 TotalTasks = totalTasks,
                 CompletedTasks = completedTasks,
                 InProgressTasks = inProgressTasks,
@@ -262,21 +262,43 @@ namespace TaskManagement.Infrastructure.Services
             };
         }
 
-        private static TreeStage CalculateTreeStage(double completionPercentage)
-        {
-            TreeStage stage = completionPercentage switch
-            {
-                TreeThresholds.NoSeedPlanted => TreeStage.EmptySoil,
-                < TreeThresholds.SeedThreshold => TreeStage.Seed,
-                < TreeThresholds.SproutThreshold => TreeStage.Sprout,
-                < TreeThresholds.SaplingThreshold => TreeStage.Sapling,
-                < TreeThresholds.YoungTreeThreshold => TreeStage.YoungTree,
-                < TreeThresholds.FullTreeThreshold => TreeStage.FullTree,
-                >= TreeThresholds.FullTreeThreshold => TreeStage.FloweringTree,
-                _ => TreeStage.EmptySoil
-            };
 
-            return stage;
+        public async Task<Result<FieldTreeDto>> GetGroupTreeProgressAsync(Guid groupId)
+        {
+            var group = await _context.Groups.FindAsync(groupId);
+            if (group is null)
+                return Error.NotFound("Group not found");
+
+            var stats = await _context.Tasks
+                .Where(t => t.GroupId == groupId)
+                .GroupBy(t => t.GroupId)
+                .Select(g => new
+                {
+                    Total = g.Count(),
+                    Completed = g.Count(t => t.StatusId == (int)TaskStatusItem.Completed)
+                })
+                .FirstOrDefaultAsync();
+
+            var memberIds = await _context.GroupMembers
+                .Where(gm => gm.GroupId == groupId)
+                .Select(gm => gm.UserId)
+                .ToListAsync();
+
+            var total = stats?.Total ?? 0;
+            var completed = stats?.Completed ?? 0;
+            var pct = TreeProgressCalculator.CalculateCompletion(total, completed);
+            var stage = TreeProgressCalculator.CalculateStage(pct);
+
+            return new FieldTreeDto
+            {
+                GroupId = groupId,
+                GroupName = group.Name,
+                CompletionPercentage = pct,
+                CurrentTreeStage = stage,
+                MemberCount = memberIds.Count,
+                TotalTasks = total,
+                CompletedTasks = completed
+            };
         }
 
         private static TaskSummaryDto ToTaskSummary(Core.Entities.TaskItem task)

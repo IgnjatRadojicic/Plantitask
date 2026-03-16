@@ -16,12 +16,14 @@ namespace TaskManagement.Api.Controllers
         private readonly ITaskService _taskService;
         private readonly IAuditService _auditService;
         private readonly IKanbanBroadcaster _kanbanBroadcaster;
+        private readonly ITreeProgressBroadcaster _treeBroadcaster;
 
-        public KanbanController(ITaskService taskService, IAuditService auditService, IKanbanBroadcaster kanbanBroadcaster)
+        public KanbanController(ITaskService taskService, IAuditService auditService, IKanbanBroadcaster kanbanBroadcaster, ITreeProgressBroadcaster treeBroadcaster)
         {
             _taskService = taskService;
             _auditService = auditService;
             _kanbanBroadcaster = kanbanBroadcaster;
+            _treeBroadcaster = treeBroadcaster;
         }
 
         [HttpGet("{groupId}")]
@@ -63,6 +65,7 @@ namespace TaskManagement.Api.Controllers
                 newValue: moveDto.NewStatusId.ToString());
 
             await _kanbanBroadcaster.BroadcastTaskMovedAsync(task.GroupId, taskId, oldStatusId, moveDto, userId);
+            await _treeBroadcaster.BroadcastTreeUpdateAsync(task.GroupId);
 
             return Ok(new { message = "Task moved successfully" });
         }

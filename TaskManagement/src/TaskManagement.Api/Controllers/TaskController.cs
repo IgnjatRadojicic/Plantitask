@@ -19,6 +19,7 @@ namespace TaskManagement.Api.Controllers
         private readonly ILogger<TaskController> _logger;
         private readonly INotificationService _notificationService;
         private readonly INotificationBroadcaster _notificationBroadcaster;
+        private readonly ITreeProgressBroadcaster _treeBroadcaster;
 
 
         public TaskController(
@@ -26,11 +27,13 @@ namespace TaskManagement.Api.Controllers
             IAuditService auditService,
             INotificationBroadcaster notificationBroadcaster,
             INotificationService notificationService,
+            ITreeProgressBroadcaster treeBroadcaster,
             ILogger<TaskController> logger)
         {
             _taskService = taskService;
             _notificationBroadcaster = notificationBroadcaster;
             _notificationService = notificationService;
+            _treeBroadcaster = treeBroadcaster;
             _auditService = auditService;
             _logger = logger;
         }
@@ -168,6 +171,8 @@ namespace TaskManagement.Api.Controllers
 
             foreach (var notification in notifications)
                 await _notificationBroadcaster.BroadcastNotificationAsync(notification);
+
+            await _treeBroadcaster.BroadcastTreeUpdateAsync(result.Value!.Task.GroupId);
 
             return Ok(statusChange);
         }

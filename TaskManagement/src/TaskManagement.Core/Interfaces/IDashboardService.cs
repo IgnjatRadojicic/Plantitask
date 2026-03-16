@@ -13,5 +13,6 @@ namespace TaskManagement.Core.Interfaces
         Task<Result<PersonalDashboardDto>> GetPersonalDashboardAsync(Guid userId);
         Task<Result<List<FieldTreeDto>>> GetFieldDataAsync(Guid userId);
         Task<Result<GroupStatisticsDto>> GetGroupStatisticsAsync(Guid groupId, Guid userId);
+        Task<Result<FieldTreeDto>> GetGroupTreeProgressAsync(Guid groupId);
     }
 }
