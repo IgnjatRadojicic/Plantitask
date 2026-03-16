@@ -2,6 +2,8 @@
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject ICurrentUserService CurrentUser
+@inject IFieldUIService FieldUI
 
 <MudLayout>
     <!-- Top Navbar -->
@@ -118,6 +120,7 @@
         @Body
     </MudMainContent>
 
+    <!-- Bottom Navbar -->
 <!-- Bottom Navbar -->
     <div class="field-bottom-nav @(_bottomNavHidden ? "field-bottom-nav-hidden" : "")">
         <div class="field-bottom-nav-inner">
@@ -135,7 +138,7 @@
         </button>
     </div>
 
-<!-- Bottom Nav Reveal Arrow -->
+    <!-- Bottom Nav Reveal Arrow -->
     <button class="field-nav-reveal field-nav-reveal-bottom @(_bottomNavHidden ? "field-nav-reveal-visible" : "")" @onclick="ToggleBottomNav" title="Show navigation">
         <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small" />
     </button>
@@ -149,53 +152,30 @@
     private int _unreadCount = 0;
     private UserInfo _userInfo = new();
 
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthState { get; set; }
-
     protected override async Task OnInitializedAsync()
     {
-        if (AuthState != null)
-        {
-            var state = await AuthState;
-            if (state.User.Identity?.IsAuthenticated == true)
-            {
-                var claims = state.User.Claims;
-                _userInfo = new UserInfo
-                {
-                    UserName = claims.FirstOrDefault(c => c.Type == "unique_name")?.Value
-                               ?? claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Name)?.Value
-                               ?? "User",
-                    Email = claims.FirstOrDefault(c => c.Type == "email")?.Value
-                            ?? claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value
-                            ?? "",
-                    FirstName = claims.FirstOrDefault(c => c.Type == "given_name")?.Value
-                                ?? claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.GivenName)?.Value,
-                    LastName = claims.FirstOrDefault(c => c.Type == "family_name")?.Value
-                               ?? claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Surname)?.Value,
-                };
-            }
-        }
+        _userInfo = await CurrentUser.GetCurrentUserAsync() ?? new();
     }
 
-    private void ToggleTopNav() => _topNavHidden = !_topNavHidden;
+    private void ToggleTopNav()    => _topNavHidden    = !_topNavHidden;
     private void ToggleBottomNav() => _bottomNavHidden = !_bottomNavHidden;
 
     private void ToggleNotifications()
     {
-        _profileMenuOpen = false;
+        _profileMenuOpen  = false;
         _notificationsOpen = !_notificationsOpen;
     }
 
     private void ToggleProfileMenu()
     {
         _notificationsOpen = false;
-        _profileMenuOpen = !_profileMenuOpen;
+        _profileMenuOpen   = !_profileMenuOpen;
     }
 
     private void CloseAllPanels()
     {
         _notificationsOpen = false;
-        _profileMenuOpen = false;
+        _profileMenuOpen   = false;
     }
 
     private void OpenSettings()
@@ -207,13 +187,24 @@
     private void HandlePlantTree()
     {
         CloseAllPanels();
-        Snackbar.Add("Plant a Tree coming soon", Severity.Info);
+        if (IsActive("/field"))
+            FieldUI.RequestPlantTree();
+        else
+            Navigation.NavigateTo("/field?action=plant");
     }
 
     private void HandleGrowTree()
     {
         CloseAllPanels();
-        Snackbar.Add("Grow a Tree coming soon", Severity.Info);
+        if (IsActive("/field"))
+            FieldUI.RequestJoinTree();
+        else
+            Navigation.NavigateTo("/field?action=join");
+    }
+    private void CloseJoinMenu()
+    {
+        _notificationsOpen = false;
+        _profileMenuOpen   = false;
     }
 
     private void MarkAllRead()
@@ -229,10 +220,10 @@
         Snackbar.Add("Logged out successfully", Severity.Success);
         Navigation.NavigateTo("/", forceLoad: true);
     }
-
     private bool IsActive(string path)
     {
-      var current = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
-      return current.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        return Navigation.Uri.StartsWith(
+            baseUri + path, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -46,6 +46,14 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<CustomAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<CustomAuthStateProvider>());
+
+// Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGroupService, GroupService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddSingleton<IFieldUIService, FieldUIService>();
+builder.Services.AddScoped<IFieldPositionService, FieldPositionService>();
+builder.Services.AddScoped<IFieldSignalRService, FieldSignalRService>();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 await builder.Build().RunAsync();
