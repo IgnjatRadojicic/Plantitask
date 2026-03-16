@@ -3,6 +3,7 @@
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject ICurrentUserService CurrentUser
 
 <div class="landing-hero bg-cover" style="background-image: url('images/landing.jpg');">
 <nav class="landing-nav @(_navScrolled ? "landing-nav-scrolled" : "")">
@@ -158,27 +159,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (AuthState != null)
-        {
-            var state = await AuthState;
-            if (state.User.Identity?.IsAuthenticated == true)
-            {
-                var claims = state.User.Claims;
-                _userInfo = new UserInfo
-                {
-                    UserName = claims.FirstOrDefault(c => c.Type == "unique_name")?.Value
-                               ?? claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Name)?.Value
-                               ?? "User",
-                    Email = claims.FirstOrDefault(c => c.Type == "email")?.Value
-                            ?? claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value
-                            ?? "",
-                    FirstName = claims.FirstOrDefault(c => c.Type == "given_name")?.Value
-                                ?? claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.GivenName)?.Value,
-                    LastName = claims.FirstOrDefault(c => c.Type == "family_name")?.Value
-                               ?? claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Surname)?.Value,
-                };
-            }
-        }
+        _userInfo = await CurrentUser.GetCurrentUserAsync() ?? new();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
