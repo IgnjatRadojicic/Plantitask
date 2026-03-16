@@ -1,0 +1,74 @@
+
+
+:root {
+    /* Brand */
+    --c-primary:          #9CC103;
+    --c-primary-dark:     #7A9902;
+    --c-primary-a06:      rgba(156,193,3,0.06);
+    --c-primary-a08:      rgba(156,193,3,0.08);
+    --c-primary-a10:      rgba(156,193,3,0.1);
+    --c-primary-a30:      rgba(156,193,3,0.3);
+    --c-primary-a40:      rgba(156,193,3,0.4);
+    --c-primary-a50:      rgba(156,193,3,0.5);
+
+    /* Error */
+    --c-error:            #D32F2F;
+    --c-error-a06:        rgba(211,47,47,0.06);
+
+    /* Neutrals */
+    --c-white:            #FFFFFF;
+    --c-text-darkest:     #212121;
+    --c-text-dark:        #424242;
+    --c-text-mid:         #616161;
+    --c-text-body:        #757575;
+    --c-text-muted:       #9E9E9E;
+    --c-text-faint:       #BDBDBD;
+    --c-text-footer:      #661;
+    --c-text-footer-sub:  #999;
+
+    --c-bg-page:          #FAFAFA;
+    --c-bg-white:         #FFFFFF;
+    --c-bg-dark:          #1A1A1A;
+    --c-bg-field:         #7EB356;
+    --c-bg-loading:       rgba(245,248,232,0.95);
+    --c-bg-avatar:        #8B9A3A;
+
+    --c-border:           #E0E0E0;
+    --c-border-light:     #F0F0F0;
+    --c-border-dark:      #333;
+
+    --c-black-a06:        rgba(0,0,0,0.06);
+    --c-black-a08:        rgba(0,0,0,0.08);
+    --c-black-a10:        rgba(0,0,0,0.1);
+    --c-black-a12:        rgba(0,0,0,0.12);
+    --c-black-a15:        rgba(0,0,0,0.15);
+    --c-black-a18:        rgba(0,0,0,0.18);
+    --c-black-a30:        rgba(0,0,0,0.3);
+
+    /* Glass surfaces */
+    --c-glass-35:         rgba(255,255,255,0.35);
+    --c-glass-40:         rgba(255,255,255,0.4);
+    --c-glass-50:         rgba(255,255,255,0.5);
+    --c-glass-60:         rgba(255,255,255,0.6);
+    --c-glass-65:         rgba(255,255,255,0.65);
+    --c-glass-75:         rgba(255,255,255,0.75);
+    --c-glass-80:         rgba(255,255,255,0.8);
+    --c-glass-92:         rgba(255,255,255,0.92);
+    --c-glass-95:         rgba(255,255,255,0.95);
+
+    /* Component-specific */
+    --c-nav-scrolled:     rgba(112,139,15,0.85);
+    --c-signin-bg:        rgba(103,80,24,0.7);
+    --c-tab-inactive:     rgba(80,80,80,0.8);
+
+    /* Typography */
+    --font-body:          'DM Sans', sans-serif;
+    --font-heading:       'Sora', sans-serif;
+
+    /* Transitions */
+    --t-fast:             0.2s ease;
+    --t-base:             0.3s ease;
+    --t-slow:             0.4s ease;
+    --t-spring:           0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    --t-spring-fast:      0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
