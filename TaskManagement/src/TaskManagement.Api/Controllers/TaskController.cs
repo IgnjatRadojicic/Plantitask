@@ -22,7 +22,6 @@ namespace TaskManagement.Api.Controllers
         private readonly INotificationBroadcaster _notificationBroadcaster;
         private readonly ITreeProgressBroadcaster _treeBroadcaster;
         private readonly IKanbanBroadcaster _kanbanBroadcaster;
-        private readonly IKanbanTreeBroadcaster _treeKanbanBroadcaster;
 
 
         public TaskController(
@@ -31,7 +30,6 @@ namespace TaskManagement.Api.Controllers
             INotificationBroadcaster notificationBroadcaster,
             INotificationService notificationService,
             ITreeProgressBroadcaster treeBroadcaster,
-            IKanbanTreeBroadcaster treeKanbanBroadcaster,
             IKanbanBroadcaster kanbanBroadcaster,
             ILogger<TaskController> logger)
         {
@@ -39,7 +37,6 @@ namespace TaskManagement.Api.Controllers
             _notificationBroadcaster = notificationBroadcaster;
             _notificationService = notificationService;
             _treeBroadcaster = treeBroadcaster;
-            _treeKanbanBroadcaster = treeKanbanBroadcaster;
             _kanbanBroadcaster = kanbanBroadcaster;
             _auditService = auditService;
             _logger = logger;
@@ -183,7 +180,6 @@ namespace TaskManagement.Api.Controllers
                 await _notificationBroadcaster.BroadcastNotificationAsync(notification);
 
             await _treeBroadcaster.BroadcastTreeUpdateAsync(statusChange.Task.GroupId);
-            await _treeKanbanBroadcaster.BroadcastKanbanTreeUpdateAsync(statusChange.Task.GroupId);
 
             return Ok(statusChange);
         }

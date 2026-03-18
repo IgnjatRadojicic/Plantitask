@@ -2,6 +2,7 @@
 @layout KanbanLayout
 @attribute [Authorize]
 
+
 @inject IKanbanService KanbanService
 @inject IGroupService GroupService
 @inject ICurrentUserService CurrentUser
@@ -13,7 +14,7 @@
 
 @implements IAsyncDisposable
 
-<KanbanSidebar GroupId="@GroupId" Slug="@Slug" GroupCode="@(_groupDetails?.GroupCode ??"")"/>
+<KanbanSidebar GroupId="@GroupId" Slug="@Slug" GroupCode="@(_groupDetails?.GroupCode ?? "")" />
 
 <div class="kanban-page">
     <div class="kanban-leaves-bg"></div>
@@ -21,7 +22,7 @@
         <img src="@_currentTreeImage" alt="" class="kanban-tree-img @(_treeImageClass)" />
         @if (_nextTreeImage is not null)
         {
-            <img src="@_nextTreeImage" alt="" class="kanban-tree-img kanban-tree-entering" @onanimationend="OnTreeTransitionEnd" />
+            <img src="@_nextTreeImage" alt="" class="kanban-tree-img kanban-tree-entering" />
         }
     </div>
     <div class="kanban-tree-overlay"></div>
@@ -85,6 +86,7 @@
     [Parameter] public string Slug { get; set; } = "";
     [Parameter] public Guid GroupId { get; set; }
 
+    // ── State ──
     private bool _loading = true;
     private string? _errorMessage;
     private UserInfo _userInfo = new();
@@ -92,29 +94,31 @@
     private GroupDetailsDto? _groupDetails;
     private DotNetObjectReference<KanbanBoard>? _selfRef;
 
+    // ── Search ──
     private string _activeSearch = "";
 
-    private int _treeStage;
-    private string _currentTreeImage = "images/trees/stage-0.png";
+    // ── Tree ──
+    private int _treeStage = KanbanTreeMapper.SeedlingStage;
+    private string _currentTreeImage = KanbanTreeMapper.GetImagePath(KanbanTreeMapper.SeedlingStage);
     private string? _nextTreeImage;
     private string _treeImageClass = "";
 
+    // ── Dialogs ──
     private bool _createDialogOpen;
     private int _createInitialStatusId = 1;
     private Guid? _selectedTaskId;
     private TaskDetailViewMode _detailViewMode = TaskDetailViewMode.FullScreen;
 
- 
+    // ── Lifecycle ──
 
     protected override void OnInitialized()
     {
         KanbanSignalR.OnTaskMoved += HandleRemoteTaskMoved;
-        KanbanSignalR.OnTreeUpdated += HandleTreeUpdated;
-        LayoutState.OnCreateTaskRequested += HandleLayoutCreateTask;
-        LayoutState.OnSearchChanged += HandleLayoutSearch;
         KanbanSignalR.OnTaskCreated += HandleRemoteTaskCreated;
         KanbanSignalR.OnTaskDeleted += HandleRemoteTaskDeleted;
         KanbanSignalR.OnTaskUpdated += HandleRemoteTaskUpdated;
+        LayoutState.OnCreateTaskRequested += HandleLayoutCreateTask;
+        LayoutState.OnSearchChanged += HandleLayoutSearch;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -128,8 +132,11 @@
         await KanbanSignalR.ConnectAsync(GroupId);
         await JS.InvokeVoidAsync("kanbanDrag.init", _selfRef);
         await JS.InvokeVoidAsync("kanbanTree.observe", _selfRef);
+
         StateHasChanged();
     }
+
+    // ── Data Loading ──
 
     private async Task LoadBoard()
     {
@@ -163,6 +170,8 @@
         _loading = false;
     }
 
+    // ── Layout Events ──
+
     private void HandleLayoutCreateTask()
     {
         _createInitialStatusId = 1;
@@ -176,7 +185,7 @@
         InvokeAsync(StateHasChanged);
     }
 
- 
+    // ── JS Drag Callback ──
 
     [JSInvokable]
     public async Task OnCardDropped(string taskId, int newStatusId, int newDisplayOrder)
@@ -203,6 +212,7 @@
             if (currentIdx == newDisplayOrder) return;
         }
 
+        // Optimistic UI
         sourceCol.Tasks.Remove(movedTask);
         movedTask.StatusId = newStatusId;
         movedTask.DisplayOrder = newDisplayOrder;
@@ -214,6 +224,7 @@
         RecalculateTreeStage();
         StateHasChanged();
 
+        // Server call
         var result = await KanbanService.MoveTaskAsync(guid, new MoveTaskDto
         {
             NewStatusId = newStatusId,
@@ -234,7 +245,7 @@
         for (var i = 0; i < ordered.Count; i++) ordered[i].DisplayOrder = i;
     }
 
-
+    // ── Quick Create ──
 
     private void HandleQuickCreate(int statusId)
     {
@@ -252,6 +263,141 @@
         StateHasChanged();
     }
 
+    // ── Task Detail ──
+
+    private void OpenTaskDetail(Guid taskId) => _selectedTaskId = taskId;
+    private void CloseTaskDetail() => _selectedTaskId = null;
+
+    private void HandleTaskUpdated(TaskItemDto updated)
+    {
+        if (_board is null) return;
+
+        foreach (var col in _board.Columns)
+        {
+            var card = col.Tasks.FirstOrDefault(t => t.Id == updated.Id);
+            if (card is null) continue;
+
+            if (card.StatusId != updated.StatusId)
+            {
+                col.Tasks.Remove(card);
+                var target = _board.Columns.FirstOrDefault(c => c.StatusId == updated.StatusId);
+                if (target is not null)
+                {
+                    card.StatusId = updated.StatusId;
+                    target.Tasks.Add(card);
+                }
+            }
+
+            card.Title = updated.Title;
+            card.Description = updated.Description;
+            card.PriorityId = updated.PriorityId;
+            card.PriorityName = updated.PriorityName;
+            card.PriorityColor = updated.PriorityColor ?? "";
+            card.AssignedToId = updated.AssignedToId;
+            card.AssignedToUserName = updated.AssignedToUserName;
+            card.DueDate = updated.DueDate;
+            break;
+        }
+
+        RecalculateTreeStage();
+        StateHasChanged();
+    }
+
+    private void HandleTaskDeleted(Guid taskId)
+    {
+        _selectedTaskId = null;
+        if (_board is null) return;
+
+        foreach (var col in _board.Columns)
+        {
+            var t = col.Tasks.FirstOrDefault(x => x.Id == taskId);
+            if (t is not null) { col.Tasks.Remove(t); break; }
+        }
+
+        RecalculateTreeStage();
+        StateHasChanged();
+    }
+
+    // ── Tree Stage ──
+
+    private void RecalculateTreeStage()
+    {
+        if (_board is null) return;
+        var stage = KanbanTreeMapper.CalculateStage(_board.Columns);
+        ApplyTreeStage(stage);
+    }
+
+ private void ApplyTreeStage(int newStage)
+{
+    Console.WriteLine($"[ApplyTree] newStage={newStage} current={_treeStage} nextImage={_nextTreeImage != null}");
+    
+    if (newStage == _treeStage && _nextTreeImage is null) return;
+
+    if (_nextTreeImage is not null)
+    {
+        Console.WriteLine($"[ApplyTree] In-flight jump to {newStage}");
+        _currentTreeImage = KanbanTreeMapper.GetImagePath(newStage);
+        _nextTreeImage = null;
+        _treeImageClass = "";
+        _treeStage = newStage;
+        return;
+    }
+
+    Console.WriteLine($"[ApplyTree] Starting transition {_treeStage} -> {newStage}");
+    _treeStage = newStage;
+    _treeImageClass = "kanban-tree-exiting";
+    _nextTreeImage = KanbanTreeMapper.GetImagePath(newStage);
+}
+
+    [JSInvokable]
+    public void OnTreeAnimationEnd()
+    {
+        if (_nextTreeImage is null) return;
+        _currentTreeImage = _nextTreeImage;
+        _nextTreeImage = null;
+        _treeImageClass = "";
+        StateHasChanged();
+    }
+
+    // ── SignalR: Remote Task Moved ──
+
+    private Task HandleRemoteTaskMoved(KanbanTaskMovedEvent moved)
+    {
+        if (moved.MovedByUserId == _userInfo.Id) return Task.CompletedTask;
+        return InvokeAsync(() =>
+        {
+            if (_board is null) return;
+
+            KanbanTaskDto? task = null;
+            KanbanColumnDto? source = null;
+
+            foreach (var col in _board.Columns)
+            {
+                task = col.Tasks.FirstOrDefault(t => t.Id == moved.TaskId);
+                if (task is not null) { source = col; break; }
+            }
+
+            if (task is null || source is null) return;
+
+            var target = _board.Columns.FirstOrDefault(c => c.StatusId == moved.NewStatusId);
+            if (target is null) return;
+
+            source.Tasks.Remove(task);
+            task.StatusId = moved.NewStatusId;
+            task.DisplayOrder = moved.NewDisplayOrder;
+            var idx = Math.Clamp(moved.NewDisplayOrder, 0, target.Tasks.Count);
+            target.Tasks.Insert(idx, task);
+
+            ReindexColumn(target);
+            if (source != target) ReindexColumn(source);
+
+            RecalculateTreeStage();
+            StateHasChanged();
+        });
+    }
+
+    // ── SignalR: Remote Task Created ──
+
     private Task HandleRemoteTaskCreated(KanbanTaskCreatedEvent created)
     {
         if (created.CreatedByUserId == _userInfo.Id) return Task.CompletedTask;
@@ -267,172 +413,59 @@
         });
     }
 
+    // ── SignalR: Remote Task Deleted ──
+
     private Task HandleRemoteTaskDeleted(KanbanTaskDeletedEvent deleted)
     {
-      if (deleted.DeletedByUserId == _userInfo.Id) return Task.CompletedTask;
-      return InvokeAsync(() =>
-      {
-         if (_board is null) return;
-         var column = _board.Columns.FirstOrDefault(c => c.StatusId == deleted.StatusId);
-         var task = column?.Tasks.FirstOrDefault(t => t.Id == deleted.TaskId);
-          if (task is not null)
-          {
-             column!.Tasks.Remove(task);
-             RecalculateTreeStage();
-             StateHasChanged();
-         }
-      });
-    }
-
-    private Task HandleRemoteTaskUpdated(KanbanTaskUpdatedEvent updated)
-    {
-     if (updated.UpdatedByUserId == _userInfo.Id) return Task.CompletedTask;
-     return InvokeAsync(async () =>
-      {
-            var result = await KanbanService.GetBoardAsync(GroupId);
-            if (result.Success && result.Data is not null)
-            {
-               _board = result.Data;
-               RecalculateTreeStage();
-               StateHasChanged();
-          }
-     });
-    }
-
-    private void OpenTaskDetail(Guid taskId) => _selectedTaskId = taskId;
-    private void CloseTaskDetail() => _selectedTaskId = null;
-
-    private void HandleTaskUpdated(TaskItemDto updated)
-    {
-        if (_board is null) return;
-        foreach (var col in _board.Columns)
-        {
-            var card = col.Tasks.FirstOrDefault(t => t.Id == updated.Id);
-            if (card is null) continue;
-            if (card.StatusId != updated.StatusId)
-            {
-                col.Tasks.Remove(card);
-                var target = _board.Columns.FirstOrDefault(c => c.StatusId == updated.StatusId);
-                if (target is not null) { card.StatusId = updated.StatusId; target.Tasks.Add(card); }
-            }
-            card.Title = updated.Title;
-            card.Description = updated.Description;
-            card.PriorityId = updated.PriorityId;
-            card.PriorityName = updated.PriorityName;
-            card.PriorityColor = updated.PriorityColor ?? "";
-            card.AssignedToId = updated.AssignedToId;
-            card.AssignedToUserName = updated.AssignedToUserName;
-            card.DueDate = updated.DueDate;
-            break;
-        }
-        RecalculateTreeStage();
-        StateHasChanged();
-    }
-
-    private void HandleTaskDeleted(Guid taskId)
-    {
-        _selectedTaskId = null;
-        if (_board is null) return;
-        foreach (var col in _board.Columns)
-        {
-            var t = col.Tasks.FirstOrDefault(x => x.Id == taskId);
-            if (t is not null) { col.Tasks.Remove(t); break; }
-        }
-        RecalculateTreeStage();
-        StateHasChanged();
-    }
-
-    private void RecalculateTreeStage()
-    {
-        if (_board is null) return;
-
-       var total = _board.Columns.Sum(c => c.Tasks.Count);
-       if (total == 0) { ApplyTreeStage(1); return; }
-
-       var inProgress = _board.Columns.Where(c => c.StatusId == 2).Sum(c => c.Tasks.Count);
-       var underReview = _board.Columns.Where(c => c.StatusId == 3).Sum(c => c.Tasks.Count);
-       var completed = _board.Columns.Where(c => c.StatusId == 4).Sum(c => c.Tasks.Count);
-
-        var weighted = (inProgress * 0.33) + (underReview * 0.66) + (completed * 1.0);
-        var pct = (weighted / total) * 100.0;
-        var stage = pct switch { 0 => 0, < 25 => 0, < 50 => 1, < 100 => 2, >= 100 => 3, _ => 100 };
-        ApplyTreeStage(stage);
-    }
-
-    private void ApplyTreeStage(int newStage)
-    {
-        if (newStage == _treeStage && _nextTreeImage is null) return;
-        if (_nextTreeImage is not null)
-        {
-            _currentTreeImage = $"images/trees/stage-{newStage}.png";
-            _nextTreeImage = null;
-            _treeImageClass = "";
-            _treeStage = newStage;
-            return;
-        }
-        _treeStage = newStage;
-        _treeImageClass = "kanban-tree-exiting";
-        _nextTreeImage = $"images/trees/stage-{newStage}.png";
-    }
-
-    [JSInvokable]
-    public void OnTreeAnimationEnd()
-    {
-    if (_nextTreeImage is null) return;
-    _currentTreeImage = _nextTreeImage;
-    _nextTreeImage = null;
-    _treeImageClass = "";
-    StateHasChanged();
-    }   
-
-    private Task HandleRemoteTaskMoved(KanbanTaskMovedEvent moved)
-    {
-        if (moved.MovedByUserId == _userInfo.Id) return Task.CompletedTask;
+        if (deleted.DeletedByUserId == _userInfo.Id) return Task.CompletedTask;
         return InvokeAsync(() =>
         {
             if (_board is null) return;
-            KanbanTaskDto? task = null; KanbanColumnDto? source = null;
-            foreach (var col in _board.Columns)
+
+            var column = _board.Columns.FirstOrDefault(c => c.StatusId == deleted.StatusId);
+            var task = column?.Tasks.FirstOrDefault(t => t.Id == deleted.TaskId);
+            if (task is not null)
             {
-                task = col.Tasks.FirstOrDefault(t => t.Id == moved.TaskId);
-                if (task is not null) { source = col; break; }
+                column!.Tasks.Remove(task);
+                RecalculateTreeStage();
+                StateHasChanged();
             }
-            if (task is null || source is null) return;
-            var target = _board.Columns.FirstOrDefault(c => c.StatusId == moved.NewStatusId);
-            if (target is null) return;
-            source.Tasks.Remove(task);
-            task.StatusId = moved.NewStatusId;
-            task.DisplayOrder = moved.NewDisplayOrder;
-            var idx = Math.Clamp(moved.NewDisplayOrder, 0, target.Tasks.Count);
-            target.Tasks.Insert(idx, task);
-            ReindexColumn(target);
-            if (source != target) ReindexColumn(source);
-            RecalculateTreeStage();
-            StateHasChanged();
         });
     }
 
-    private Task HandleTreeUpdated(string groupId, int newStage, double pct)
+    // ── SignalR: Remote Task Updated ──
+
+    private Task HandleRemoteTaskUpdated(KanbanTaskUpdatedEvent updated)
     {
-        if (groupId != GroupId.ToString()) return Task.CompletedTask;
-        return InvokeAsync(() => { ApplyTreeStage(newStage); StateHasChanged(); });
+        if (updated.UpdatedByUserId == _userInfo.Id) return Task.CompletedTask;
+        return InvokeAsync(async () =>
+        {
+            var result = await KanbanService.GetBoardAsync(GroupId);
+            if (result.Success && result.Data is not null)
+            {
+                _board = result.Data;
+                RecalculateTreeStage();
+                StateHasChanged();
+            }
+        });
     }
 
-   
+
+    // ── Cleanup ──
 
     public async ValueTask DisposeAsync()
     {
         KanbanSignalR.OnTaskMoved -= HandleRemoteTaskMoved;
-        KanbanSignalR.OnTreeUpdated -= HandleTreeUpdated;
-        LayoutState.OnCreateTaskRequested -= HandleLayoutCreateTask;
-        LayoutState.OnSearchChanged -= HandleLayoutSearch;
         KanbanSignalR.OnTaskCreated -= HandleRemoteTaskCreated;
         KanbanSignalR.OnTaskDeleted -= HandleRemoteTaskDeleted;
         KanbanSignalR.OnTaskUpdated -= HandleRemoteTaskUpdated;
+        LayoutState.OnCreateTaskRequested -= HandleLayoutCreateTask;
+        LayoutState.OnSearchChanged -= HandleLayoutSearch;
 
-        try { await JS.InvokeVoidAsync("kanbanDrag.destroy"); } catch { }
+        try { await JS.InvokeVoidAsync("kanbanDrag.destroy"); }
+        catch { /* swallow — tearing down */ }
+
         _selfRef?.Dispose();
-
         await KanbanSignalR.DisconnectAsync();
     }
 }
