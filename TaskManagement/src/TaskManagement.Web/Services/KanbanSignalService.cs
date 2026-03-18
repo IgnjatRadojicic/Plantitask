@@ -5,39 +5,47 @@ using TaskManagement.Web.Models;
 
 namespace TaskManagement.Web.Services;
 
-public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
+public class KanbanSignalRService : IKanbanSignalRService
 {
     private HubConnection? _hub;
+    private Guid _currentGroupId;
     private readonly IAuthService _authService;
     private readonly IConfiguration _configuration;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
-    private HashSet<string> _joinedGroupIds = new();
 
+    public event Func<KanbanTaskMovedEvent, Task>? OnTaskMoved;
     public event Func<string, int, double, Task>? OnTreeUpdated;
-    public event Func<FieldTreeDto, Task>? OnTreeAdded;
+    public event Func<KanbanTaskCreatedEvent, Task>? OnTaskCreated;
+    public event Func<KanbanTaskDeletedEvent, Task>? OnTaskDeleted;
+    public event Func<KanbanTaskUpdatedEvent, Task>? OnTaskUpdated;
 
-    public FieldSignalRService(IAuthService authService, IConfiguration configuration)
+    public KanbanSignalRService(IAuthService authService, IConfiguration configuration)
     {
         _authService = authService;
         _configuration = configuration;
     }
 
-    public async Task ConnectAsync()
+    public async Task ConnectAsync(Guid groupId)
     {
         await _connectionLock.WaitAsync();
         try
         {
-            if (_hub is not null && _hub.State == HubConnectionState.Connected)
-                return;
-
             if (_hub is not null)
+            {
+                if (_currentGroupId == groupId && _hub.State == HubConnectionState.Connected)
+                    return;
+
                 await DisposeHub();
+            }
+
+            _currentGroupId = groupId;
 
             var token = await _authService.GetTokenAsync();
-            if (string.IsNullOrEmpty(token)) return;
+            if (string.IsNullOrEmpty(token))
+                return;
 
             var hubUrl = (_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5212")
-                         .TrimEnd('/') + "/hubs/notifications";
+                         .TrimEnd('/') + "/hubs/kanban";
 
             _hub = new HubConnectionBuilder()
                 .WithUrl(hubUrl, options =>
@@ -53,34 +61,24 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
             {
                 try
                 {
-                    await RejoinGroupsAsync();
+                    await _hub.SendAsync("JoinBoard", _currentGroupId);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Field SignalR rejoin failed: {ex.Message}");
+                    Console.WriteLine($"Kanban SignalR rejoin failed: {ex.Message}");
                 }
             };
 
             await _hub.StartAsync();
+            await _hub.SendAsync("JoinBoard", groupId);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Field SignalR connection failed: {ex.Message}");
+            Console.WriteLine($"Kanban SignalR connection failed: {ex.Message}");
         }
         finally
         {
             _connectionLock.Release();
-        }
-    }
-
-    public async Task JoinGroupRoomsAsync(IEnumerable<string> groupIds)
-    {
-        if (_hub is null || _hub.State != HubConnectionState.Connected) return;
-
-        foreach (var groupId in groupIds)
-        {
-            await _hub.SendAsync("JoinGroupRoom", groupId);
-            _joinedGroupIds.Add(groupId);
         }
     }
 
@@ -107,43 +105,50 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
 
     private void RegisterHandlers(HubConnection hub)
     {
-        hub.On<string, int, double>("TreeUpdated", async (groupId, newStage, completionPct) =>
+        hub.On<KanbanTaskMovedEvent>("TaskMoved", async moved =>
+        {
+            if (OnTaskMoved is not null)
+                await OnTaskMoved.Invoke(moved);
+        });
+
+        hub.On<string, int, double>("TreeUpdated", async (groupId, stage, pct) =>
         {
             if (OnTreeUpdated is not null)
-                await OnTreeUpdated.Invoke(groupId, newStage, completionPct);
+                await OnTreeUpdated.Invoke(groupId, stage, pct);
         });
 
-        hub.On<FieldTreeDto>("TreeAdded", async (treeData) =>
+        hub.On<KanbanTaskCreatedEvent>("TaskCreated", async created =>
         {
-            if (OnTreeAdded is not null)
-                await OnTreeAdded.Invoke(treeData);
+            if (OnTaskCreated is not null)
+                await OnTaskCreated.Invoke(created);
         });
-    }
 
-    private async Task RejoinGroupsAsync()
-    {
-        if (_hub is null || _hub.State != HubConnectionState.Connected) return;
+        hub.On<KanbanTaskDeletedEvent>("TaskDeleted", async deleted =>
+        {
+            if (OnTaskDeleted is not null)
+                await OnTaskDeleted.Invoke(deleted);
+        });
 
-        foreach (var groupId in _joinedGroupIds)
-            await _hub.SendAsync("JoinGroupRoom", groupId);
+        hub.On<KanbanTaskUpdatedEvent>("TaskUpdated", async updated =>
+        {
+            if (OnTaskUpdated is not null)
+                await OnTaskUpdated.Invoke(updated);
+        });
     }
 
     private async Task DisposeHub()
     {
-        if (_hub is null) return;
+        if (_hub is null)
+            return;
 
         try
         {
             if (_hub.State == HubConnectionState.Connected)
-            {
-                foreach (var groupId in _joinedGroupIds)
-                    await _hub.SendAsync("LeaveGroupRoom", groupId);
-            }
+                await _hub.SendAsync("LeaveBoard", _currentGroupId);
         }
         catch {}
 
         await _hub.DisposeAsync();
         _hub = null;
-        _joinedGroupIds.Clear();
     }
 }
