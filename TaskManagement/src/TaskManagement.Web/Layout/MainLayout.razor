@@ -6,6 +6,10 @@
 @inject IFieldUIService FieldUI
 
 <MudLayout>
+
+        <div class="field-overlay @((_notificationsOpen || _profileMenuOpen) ? "field-overlay-visible" : "")"
+         @onclick="CloseAllPanels"></div>
+
     <!-- Top Navbar -->
     <div class="field-top-nav @(_topNavHidden ? "field-top-nav-hidden" : "")">
         <div class="field-top-nav-inner">
@@ -55,7 +59,6 @@
     <!-- Notification Panel -->
     @if (_notificationsOpen)
     {
-        <div class="field-overlay" @onclick="CloseAllPanels"></div>
         <div class="field-notification-panel">
             <div class="field-notification-header">
                 <h3 class="text-sora">Notifications</h3>
@@ -76,7 +79,6 @@
     <!-- Profile Dropdown -->
     @if (_profileMenuOpen)
     {
-        <div class="field-overlay" @onclick="CloseAllPanels"></div>
         <div class="field-profile-menu">
             <div class="field-profile-menu-header">
                 <div class="field-profile-avatar-lg">

@@ -25,6 +25,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")),
+    ServiceLifetime.Scoped);
+
 
 // Register DbContext as IApplicationDbContext for dependency injection
 builder.Services.AddScoped<IApplicationDbContext>(provider =>
@@ -124,10 +128,11 @@ builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<INotificationBroadcaster, SignalRNotificationBroadcaster>();
+builder.Services.AddScoped<IKanbanTreeBroadcaster, KanbanTreeBroadcaster>();
 builder.Services.AddScoped<IKanbanBroadcaster, KanbanBroadcaster>();
+builder.Services.AddScoped<ITreeProgressBroadcaster, TreeProgressBroadcaster>();
 builder.Services.AddScoped<IBackgroundJobService, BackgroundJobService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
-builder.Services.AddScoped<ITreeProgressBroadcaster, TreeProgressBroadcaster>();
 builder.Services.AddScoped<NotificationBackgroundJob>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.Configure<FileStorageSettings>(

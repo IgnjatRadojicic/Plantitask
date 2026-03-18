@@ -55,5 +55,13 @@ builder.Services.AddSingleton<IFieldUIService, FieldUIService>();
 builder.Services.AddScoped<IFieldPositionService, FieldPositionService>();
 builder.Services.AddScoped<IFieldSignalRService, FieldSignalRService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IKanbanService, KanbanService>();
+builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IKanbanSignalRService, KanbanSignalRService>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
+builder.Services.AddScoped<INotificationWebService, NotificationWebService>();
+builder.Services.AddScoped<INotificationSignalRService, NotificationSignalRService>();
+builder.Services.AddScoped<KanbanLayoutState>();
 
 await builder.Build().RunAsync();
