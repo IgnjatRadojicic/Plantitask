@@ -78,7 +78,7 @@ public class CommentService : ICommentService
         var totalCount = await query.CountAsync();
 
 
-        var comments = await _context.TaskComments
+        var comments = await query
             .Include(tc => tc.User)
             .Skip((pageNumber - 1 ) * pageSize)
             .Take(pageSize)
