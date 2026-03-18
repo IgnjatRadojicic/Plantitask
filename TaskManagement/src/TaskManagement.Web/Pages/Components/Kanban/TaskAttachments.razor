@@ -1,0 +1,129 @@
+@inject IAttachmentService AttachmentService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<div class="kanban-attachments">
+    <h4 class="kanban-section-title text-sora">
+        <MudIcon Icon="@Icons.Material.Outlined.AttachFile" Size="Size.Small" />
+        Attachments
+    </h4>
+
+<div class="kanban-attachment-upload">
+    <InputFile OnChange="HandleFileSelected" id="@_inputId" style="display:none" />
+    <label for="@_inputId" style="cursor:pointer;">
+        <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                   StartIcon="@Icons.Material.Outlined.CloudUpload"
+                   Disabled="_uploading"
+                   HtmlTag="span">
+            @if (_uploading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Uploading…</span>
+            }
+            else
+            {
+                <span>Upload File</span>
+            }
+        </MudButton>
+    </label>
+</div>
+
+    @if (_loadingAttachments)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+    }
+    else
+    {
+        @foreach (var att in _attachments)
+        {
+            <div class="kanban-attachment-item">
+                <div class="kanban-attachment-icon">
+                    <MudIcon Icon="@GetFileIcon(att.ContentType)" Size="Size.Small" />
+                </div>
+                <div class="kanban-attachment-info">
+                    <a href="@att.DownloadUrl" target="_blank" rel="noopener" class="kanban-attachment-name">@att.FileName</a>
+                    <span class="kanban-attachment-meta">@att.FileSizeDisplay · @att.UploadedByUserName · @att.UploadedAt.ToLocalTime().ToString("MMM d")</span>
+                </div>
+                <button class="field-icon-btn-sm" @onclick="() => DeleteAttachment(att.Id)">
+                    <MudIcon Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" />
+                </button>
+            </div>
+        }
+
+        @if (!_loadingAttachments && _attachments.Count == 0)
+        {
+            <p style="font-size:0.82rem; color:var(--c-text-faint); padding:8px 0;">No attachments yet.</p>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Guid TaskId { get; set; }
+    [Parameter] public Guid CurrentUserId { get; set; }
+
+    private const long MaxFileSize = 10 * 1024 * 1024;
+    private List<AttachmentDto> _attachments = new();
+    private bool _loadingAttachments = true;
+    private bool _uploading;
+    private Guid _lastLoadedTaskId;
+    private readonly string _inputId = $"att-input-{Guid.NewGuid():N}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (TaskId == _lastLoadedTaskId) return;
+        _lastLoadedTaskId = TaskId;
+        _loadingAttachments = true;
+        var result = await AttachmentService.GetTaskAttachmentsAsync(TaskId);
+        _attachments = result.Success && result.Data is not null ? result.Data : new();
+        _loadingAttachments = false;
+    }
+
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+        if (file.Size > MaxFileSize) { Snackbar.Add("File must be under 10 MB.", MudBlazor.Severity.Warning); return; }
+
+        _uploading = true;
+        StateHasChanged();
+
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxFileSize);
+            var result = await AttachmentService.UploadAsync(TaskId, stream, file.Name, file.ContentType);
+            if (result.Success && result.Data is not null)
+            {
+                _attachments.Add(result.Data);
+                Snackbar.Add("File uploaded.", MudBlazor.Severity.Success);
+            }
+            else Snackbar.Add(result.Error ?? "Upload failed.", MudBlazor.Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Upload error: {ex.Message}", MudBlazor.Severity.Error);
+        }
+        finally
+        {
+            _uploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteAttachment(Guid attachmentId)
+    {
+        var result = await AttachmentService.DeleteAsync(TaskId, attachmentId);
+        if (result.Success) _attachments.RemoveAll(a => a.Id == attachmentId);
+        else Snackbar.Add(result.Error ?? "Failed to delete.", MudBlazor.Severity.Error);
+    }
+
+    private static string GetFileIcon(string contentType) => contentType switch
+    {
+        _ when contentType.StartsWith("image/") => Icons.Material.Outlined.Image,
+        _ when contentType.Contains("pdf") => Icons.Material.Outlined.PictureAsPdf,
+        _ when contentType.Contains("word") || contentType.Contains("document") => Icons.Material.Outlined.Description,
+        _ when contentType.Contains("sheet") || contentType.Contains("excel") || contentType.Contains("csv") => Icons.Material.Outlined.TableChart,
+        _ when contentType.Contains("zip") || contentType.Contains("rar") || contentType.Contains("compressed") => Icons.Material.Outlined.FolderZip,
+        _ => Icons.Material.Outlined.InsertDriveFile
+    };
+}

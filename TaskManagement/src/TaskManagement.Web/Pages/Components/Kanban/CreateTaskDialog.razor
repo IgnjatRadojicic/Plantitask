@@ -1,0 +1,156 @@
+@inject ITaskService TaskService
+@inject ISnackbar Snackbar
+
+<div class="field-overlay @(IsOpen ? "field-overlay-visible" : "")" @onclick="HandleOverlayClick"></div>
+<div class="field-create-dialog @(IsOpen ? "field-dialog-visible" : "")">
+    <h3 class="field-create-title text-sora">Create Task</h3>
+    <p class="field-create-subtitle">Add a new task to the board</p>
+
+    <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <MudTextField @bind-Value="_model.Title"
+                      Label="Title"
+                      Variant="Variant.Outlined"
+                      Class="mb-3"
+                      Required="true"
+                      RequiredError="Title is required"
+                      MaxLength="200" />
+
+        <MudTextField @bind-Value="_model.Description"
+                      Label="Description"
+                      Variant="Variant.Outlined"
+                      Lines="3"
+                      Class="mb-3"
+                      MaxLength="2000" />
+
+        <div style="display:flex; gap:12px; margin-bottom:16px;">
+            <MudSelect @bind-Value="_model.PriorityId"
+                       Label="Priority"
+                       Variant="Variant.Outlined"
+                       Style="flex:1">
+                <MudSelectItem Value="1">Critical</MudSelectItem>
+                <MudSelectItem Value="2">High</MudSelectItem>
+                <MudSelectItem Value="3">Medium</MudSelectItem>
+                <MudSelectItem Value="4">Low</MudSelectItem>
+            </MudSelect>
+
+            <MudDatePicker @bind-Date="_dueDate"
+                           Label="Due Date"
+                           Variant="Variant.Outlined"
+                           Style="flex:1"
+                           MinDate="DateTime.Today"
+                           Placeholder="Optional" />
+        </div>
+
+        <MudSelect T="Guid?" @bind-Value="_selectedAssigneeId"
+           Label="Assign To"
+           Variant="Variant.Outlined"
+           Clearable="true"
+           Class="mb-4"
+           Placeholder="Unassigned">
+         @foreach (var member in Members)
+         {
+            <MudSelectItem T="Guid?" Value="@((Guid?)member.UserId)">@member.UserName</MudSelectItem>
+         }
+        </MudSelect>
+
+        <div class="field-create-actions">
+            <MudButton Variant="Variant.Text" OnClick="HandleCancel" Disabled="_submitting">
+                Cancel
+            </MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       ButtonType="ButtonType.Submit"
+                       Disabled="_submitting"
+                       Class="auth-btn">
+                @if (_submitting)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                }
+                else
+                {
+                    <span>Create</span>
+                }
+            </MudButton>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public Guid GroupId { get; set; }
+    [Parameter] public List<GroupMemberDto> Members { get; set; } = new();
+    [Parameter] public int InitialStatusId { get; set; } = 1;
+    [Parameter] public EventCallback<KanbanTaskDto> OnCreated { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private CreateTaskDto _model = new();
+    private DateTime? _dueDate;
+    private Guid? _selectedAssigneeId;
+    private bool _submitting;
+    private bool _previousOpen;
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !_previousOpen)
+            ResetForm();
+        _previousOpen = IsOpen;
+    }
+
+    private void ResetForm()
+    {
+        _model = new CreateTaskDto { PriorityId = 3 };
+        _dueDate = null;
+        _selectedAssigneeId = null;
+        _submitting = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_submitting) return;
+        _submitting = true;
+
+        _model.DueDate = _dueDate;
+        _model.AssignedToUserId = _selectedAssigneeId;
+
+        var result = await TaskService.CreateTaskAsync(GroupId, _model);
+
+        if (result.Success && result.Data is not null)
+        {
+            var task = result.Data;
+            var kanbanTask = new KanbanTaskDto
+            {
+                Id = task.Id,
+                Title = task.Title,
+                Description = task.Description,
+                StatusId = task.StatusId,
+                PriorityId = task.PriorityId,
+                PriorityName = task.PriorityName,
+                PriorityColor = task.PriorityColor ?? "",
+                AssignedToId = task.AssignedToId,
+                AssignedToUserName = task.AssignedToUserName,
+                DueDate = task.DueDate,
+                DisplayOrder = 0,
+                CommentCount = 0,
+                AttachmentCount = task.AttachmentCount
+            };
+
+            Snackbar.Add("Task created", MudBlazor.Severity.Success);
+            await OnCreated.InvokeAsync(kanbanTask);
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to create task.", MudBlazor.Severity.Error);
+        }
+
+        _submitting = false;
+    }
+
+    private async Task HandleCancel() => await OnCancel.InvokeAsync();
+
+    private async Task HandleOverlayClick()
+    {
+        if (!_submitting) await OnCancel.InvokeAsync();
+    }
+}

@@ -1,0 +1,194 @@
+@inject ICommentService CommentService
+@inject ISnackbar Snackbar
+
+<div class="kanban-comments">
+    <div class="kanban-comment-input">
+        <MudTextField @bind-Value="_newContent"
+                      Placeholder="Add a comment…"
+                      Variant="Variant.Outlined"
+                      Lines="2"
+                      MaxLength="2000"
+                      Immediate="true"
+                      Class="mb-2" />
+        @if (!string.IsNullOrWhiteSpace(_newContent))
+        {
+            <div style="display:flex; justify-content:flex-end;">
+                <MudButton Size="Size.Small"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="AddComment"
+                           Disabled="_posting"
+                           Class="auth-btn">
+                    Post
+                </MudButton>
+            </div>
+        }
+    </div>
+
+    @if (_loadingInitial)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+    }
+    else
+    {
+        @foreach (var comment in _comments)
+        {
+            <div class="kanban-comment">
+                <div class="kanban-comment-header">
+                    <div class="kanban-card-assignee" style="width:28px; height:28px; font-size:0.65rem;">
+                        <span>@GetInitials(comment.UserName)</span>
+                    </div>
+                    <div class="kanban-comment-meta">
+                        <span class="kanban-comment-author text-sora">@comment.UserName</span>
+                        <span class="kanban-comment-time">
+                            @comment.CreatedAt.ToLocalTime().ToString("MMM d, h:mm tt")
+                            @if (comment.IsEdited) { <i>(edited)</i> }
+                        </span>
+                    </div>
+                    @if (comment.UserId == CurrentUserId)
+                    {
+                        <div class="kanban-comment-actions">
+                            <button class="field-icon-btn-sm" @onclick="() => StartEdit(comment)">
+                                <MudIcon Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" />
+                            </button>
+                            <button class="field-icon-btn-sm" @onclick="() => DeleteComment(comment.Id)">
+                                <MudIcon Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" />
+                            </button>
+                        </div>
+                    }
+                </div>
+
+                @if (_editingId == comment.Id)
+                {
+                    <MudTextField @bind-Value="_editDraft"
+                                  Variant="Variant.Outlined"
+                                  Lines="2"
+                                  MaxLength="2000"
+                                  Immediate="true"
+                                  Class="mb-1" />
+                    <div style="display:flex; gap:8px;">
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="SaveEdit" Disabled="_saving" Class="auth-btn">Save</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text"
+                                   OnClick="CancelEdit" Disabled="_saving">Cancel</MudButton>
+                    </div>
+                }
+                else
+                {
+                    <p class="kanban-comment-content">@comment.Content</p>
+                }
+            </div>
+        }
+
+        @if (_hasMore)
+        {
+            <MudButton Variant="Variant.Text" Size="Size.Small"
+                       OnClick="LoadMore" Disabled="_loadingMore" FullWidth="true">
+                @if (_loadingMore)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                }
+                Load more
+            </MudButton>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Guid TaskId { get; set; }
+    [Parameter] public Guid CurrentUserId { get; set; }
+
+    private readonly List<CommentDto> _comments = new();
+    private bool _loadingInitial = true;
+    private bool _loadingMore;
+    private bool _posting;
+    private bool _saving;
+    private bool _hasMore;
+    private int _page = 1;
+    private string _newContent = "";
+    private Guid? _editingId;
+    private string _editDraft = "";
+    private Guid _lastLoadedTaskId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (TaskId == _lastLoadedTaskId) return;
+        _lastLoadedTaskId = TaskId;
+        _page = 1;
+        _comments.Clear();
+        _loadingInitial = true;
+        await LoadPage();
+        _loadingInitial = false;
+    }
+
+    private async Task LoadPage()
+    {
+        var result = await CommentService.GetCommentsAsync(TaskId, _page);
+        if (result.Success && result.Data is not null)
+        {
+            _comments.AddRange(result.Data.Items);
+            _hasMore = result.Data.HasNextPage;
+        }
+    }
+
+    private async Task LoadMore()
+    {
+        _loadingMore = true;
+        _page++;
+        await LoadPage();
+        _loadingMore = false;
+    }
+
+    private async Task AddComment()
+    {
+        if (string.IsNullOrWhiteSpace(_newContent) || _posting) return;
+        _posting = true;
+        var result = await CommentService.AddCommentAsync(TaskId, new CreateCommentDto { Content = _newContent.Trim() });
+        if (result.Success && result.Data is not null)
+        {
+            _comments.Insert(0, result.Data);
+            _newContent = "";
+        }
+        else Snackbar.Add(result.Error ?? "Failed to add comment.", MudBlazor.Severity.Error);
+        _posting = false;
+    }
+
+    private void StartEdit(CommentDto comment) { _editingId = comment.Id; _editDraft = comment.Content; }
+    private void CancelEdit() { _editingId = null; _editDraft = ""; }
+
+    private async Task SaveEdit()
+    {
+        if (_editingId is null || _saving) return;
+        _saving = true;
+        var result = await CommentService.UpdateCommentAsync(TaskId, _editingId.Value, new UpdateCommentDto { Content = _editDraft.Trim() });
+        if (result.Success && result.Data is not null)
+        {
+            var existing = _comments.FirstOrDefault(c => c.Id == _editingId);
+            if (existing is not null) { existing.Content = result.Data.Content; existing.UpdatedAt = result.Data.UpdatedAt; }
+            CancelEdit();
+        }
+        else Snackbar.Add(result.Error ?? "Failed to update.", MudBlazor.Severity.Error);
+        _saving = false;
+    }
+
+    private async Task DeleteComment(Guid commentId)
+    {
+        var result = await CommentService.DeleteCommentAsync(TaskId, commentId);
+        if (result.Success)
+        {
+            _comments.RemoveAll(c => c.Id == commentId);
+            if (_editingId == commentId) CancelEdit();
+        }
+        else Snackbar.Add(result.Error ?? "Failed to delete.", MudBlazor.Severity.Error);
+    }
+
+    private static string GetInitials(string? name)
+	
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+}

@@ -1,0 +1,361 @@
+@inject ITaskService TaskService
+@inject ISnackbar Snackbar
+
+<div class="task-detail @(ViewMode == TaskDetailViewMode.FullScreen ? "task-detail-fullscreen" : "task-detail-side")"
+     @onclick:stopPropagation="true">
+
+    <div class="task-detail-header">
+        <div class="task-detail-header-left">
+            @if (!_loading && _task is not null)
+            {
+                <span class="task-detail-status-chip" style="background:@(_task.StatusColor ?? "#9E9E9E");">
+                    @_task.StatusDisplayName
+                </span>
+            }
+        </div>
+        <div class="task-detail-header-actions">
+            <button class="field-icon-btn-sm" title="@(ViewMode == TaskDetailViewMode.FullScreen ? "Dock to side" : "Full screen")"
+                    @onclick="ToggleViewMode">
+                <MudIcon Icon="@(ViewMode == TaskDetailViewMode.FullScreen
+                    ? Icons.Material.Outlined.ViewSidebar
+                    : Icons.Material.Outlined.Fullscreen)" Size="Size.Small" />
+            </button>
+            <button class="field-icon-btn-sm" title="Close" @onclick="OnClose">
+                <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+            </button>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="task-detail-loading">
+            <MudSkeleton Width="60%" Height="32px" Class="mb-3" />
+            <MudSkeleton Width="100%" Height="20px" Class="mb-2" />
+            <MudSkeleton Width="80%" Height="20px" Class="mb-2" />
+            <MudSkeleton Width="40%" Height="20px" />
+        </div>
+    }
+    else if (_task is not null)
+    {
+        <div class="task-detail-content">
+
+            <div class="task-detail-main">
+                <h1 class="task-detail-title text-sora">@_task.Title</h1>
+
+                <div class="task-detail-section">
+                    <h3 class="task-detail-section-label text-sora">Description</h3>
+                    @if (_editingDescription)
+                    {
+                        <MudTextField @bind-Value="_descriptionDraft"
+                                      Variant="Variant.Outlined"
+                                      Lines="5"
+                                      MaxLength="2000"
+                                      Immediate="true"
+                                      Placeholder="Add a description..."
+                                      Class="mb-2" />
+                        <div style="display:flex; gap:8px;">
+                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                       OnClick="SaveDescription" Disabled="_saving" Class="auth-btn">Save</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Text"
+                                       OnClick="CancelDescriptionEdit" Disabled="_saving">Cancel</MudButton>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="task-detail-desc-box" @onclick="StartDescriptionEdit">
+                            @if (string.IsNullOrWhiteSpace(_task.Description))
+                            {
+                                <span class="task-detail-placeholder">Add a description…</span>
+                            }
+                            else
+                            {
+                                @_task.Description
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="task-detail-section">
+                    <h3 class="task-detail-section-label text-sora">Activity</h3>
+                    <TaskComments TaskId="@TaskId" CurrentUserId="@CurrentUserId" />
+                </div>
+            </div>
+
+            <div class="task-detail-sidebar-panel">
+                <h3 class="task-detail-sidebar-title text-sora">Details</h3>
+
+                <div class="task-detail-sidebar-field">
+                    <label>Status</label>
+                    <MudSelect Value="@_task.StatusId"
+                               ValueChanged="(int val) => HandleStatusChange(val)"
+                               Variant="Variant.Outlined" Dense="true">
+                        <MudSelectItem Value="1">Not Started</MudSelectItem>
+                        <MudSelectItem Value="2">In Progress</MudSelectItem>
+                        <MudSelectItem Value="3">Under Review</MudSelectItem>
+                        <MudSelectItem Value="4">Completed</MudSelectItem>
+                    </MudSelect>
+                </div>
+
+                <div class="task-detail-sidebar-field">
+                    <label>Priority</label>
+                    <MudSelect Value="@_task.PriorityId"
+                               ValueChanged="(int val) => HandlePriorityChange(val)"
+                               Variant="Variant.Outlined" Dense="true">
+                        <MudSelectItem Value="1">Low</MudSelectItem>
+                        <MudSelectItem Value="2">Medium</MudSelectItem>
+                        <MudSelectItem Value="3">High</MudSelectItem>
+                        <MudSelectItem Value="4">Critical</MudSelectItem>
+                    </MudSelect>
+                </div>
+
+                <div class="task-detail-sidebar-field">
+                    <label>Assignee</label>
+                    <MudSelect Value="@_assigneeId"
+                               ValueChanged="(Guid val) => HandleAssigneeChange(val)"
+                               Variant="Variant.Outlined" Dense="true"
+                               Clearable="true" Placeholder="Unassigned">
+                        @foreach (var member in Members)
+                        {
+                            <MudSelectItem Value="@member.UserId">@member.UserName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+
+                <div class="task-detail-sidebar-field">
+                    <label>Due Date</label>
+                    <MudDatePicker Date="@_task.DueDate"
+                                   DateChanged="HandleDueDateChange"
+                                   Variant="Variant.Outlined"
+                                   Clearable="true"
+                                   Placeholder="None" />
+                </div>
+
+                <div class="task-detail-sidebar-divider"></div>
+
+                <TaskAttachments TaskId="@TaskId" CurrentUserId="@CurrentUserId" />
+
+                <div class="task-detail-sidebar-divider"></div>
+
+                <div class="task-detail-sidebar-meta">
+                    <span>Created by <strong>@_task.CreatedByUserName</strong></span>
+                    <span>@_task.CreatedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt")</span>
+                    @if (_task.CompletedAt.HasValue)
+                    {
+                        <span style="color:#4CAF50;">Completed @_task.CompletedAt.Value.ToLocalTime().ToString("MMM d, yyyy")</span>
+                    }
+                </div>
+
+                <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true"
+                           StartIcon="@Icons.Material.Outlined.Delete"
+                           OnClick="HandleDelete" Disabled="_saving"
+                           Style="margin-top:16px;">
+                    Delete Task
+                </MudButton>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Guid TaskId { get; set; }
+    [Parameter, EditorRequired] public Guid GroupId { get; set; }
+    [Parameter] public List<GroupMemberDto> Members { get; set; } = new();
+    [Parameter] public Guid CurrentUserId { get; set; }
+    [Parameter] public TaskDetailViewMode ViewMode { get; set; } = TaskDetailViewMode.FullScreen;
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<TaskDetailViewMode> OnViewModeChanged { get; set; }
+    [Parameter] public EventCallback<TaskItemDto> OnTaskUpdated { get; set; }
+    [Parameter] public EventCallback<Guid> OnTaskDeleted { get; set; }
+
+    private TaskItemDto? _task;
+    private bool _loading = true;
+    private bool _saving;
+    private bool _editingDescription;
+    private string _descriptionDraft = "";
+    private Guid _assigneeId;
+    private Guid _lastLoadedTaskId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (TaskId == _lastLoadedTaskId) return;
+        _lastLoadedTaskId = TaskId;
+        _loading = true;
+        _editingDescription = false;
+
+        var result = await TaskService.GetTaskByIdAsync(TaskId);
+        if (result.Success && result.Data is not null)
+        {
+            _task = result.Data;
+            _assigneeId = _task.AssignedToId ?? Guid.Empty;
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to load task.", MudBlazor.Severity.Error);
+        }
+        _loading = false;
+    }
+
+    private async Task ToggleViewMode()
+    {
+        var newMode = ViewMode == TaskDetailViewMode.FullScreen
+            ? TaskDetailViewMode.SidePanel
+            : TaskDetailViewMode.FullScreen;
+        await OnViewModeChanged.InvokeAsync(newMode);
+    }
+
+
+    private async Task HandleStatusChange(int newStatusId)
+    {
+        if (_task is null || _task.StatusId == newStatusId || _saving) return;
+        _saving = true;
+
+        var result = await TaskService.ChangeStatusAsync(TaskId, new ChangeTaskStatusDto { NewStatusId = newStatusId });
+        if (result.Success && result.Data?.Task is not null)
+        {
+            var u = result.Data.Task;
+            _task.StatusId = u.StatusId;
+            _task.StatusName = u.StatusName;
+            _task.StatusDisplayName = u.StatusDisplayName;
+            _task.StatusColor = u.StatusColor;
+            if (newStatusId == 4) _task.CompletedAt = DateTime.UtcNow;
+            else _task.CompletedAt = null;
+            await OnTaskUpdated.InvokeAsync(_task);
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to update status.", MudBlazor.Severity.Error);
+        }
+        _saving = false;
+    }
+
+    // Priority
+
+    private async Task HandlePriorityChange(int newPriorityId)
+    {
+        if (_task is null || _task.PriorityId == newPriorityId || _saving) return;
+        _saving = true;
+
+        var result = await TaskService.ChangePriorityAsync(TaskId, newPriorityId);
+        if (result.Success && result.Data?.Task is not null)
+        {
+            var u = result.Data.Task;
+            _task.PriorityId = u.PriorityId;
+            _task.PriorityName = u.PriorityName;
+            _task.PriorityColor = u.PriorityColor;
+            await OnTaskUpdated.InvokeAsync(_task);
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to update priority.", MudBlazor.Severity.Error);
+        }
+        _saving = false;
+    }
+
+
+    private async Task HandleAssigneeChange(Guid userId)
+    {
+        if (_task is null || _saving) return;
+        _saving = true;
+
+        if (userId != Guid.Empty)
+        {
+            var result = await TaskService.AssignTaskAsync(TaskId, new AssignTaskDto { UserId = userId });
+            if (result.Success)
+            {
+                _task.AssignedToId = userId;
+                _task.AssignedToUserName = Members.FirstOrDefault(m => m.UserId == userId)?.UserName;
+                _assigneeId = userId;
+                await OnTaskUpdated.InvokeAsync(_task);
+            }
+            else
+            {
+                Snackbar.Add(result.Error ?? "Failed to assign.", MudBlazor.Severity.Error);
+            }
+        }
+        else
+        {
+            var result = await TaskService.UnassignTaskAsync(TaskId);
+            if (result.Success)
+            {
+                _task.AssignedToId = null;
+                _task.AssignedToUserName = null;
+                _assigneeId = Guid.Empty;
+                await OnTaskUpdated.InvokeAsync(_task);
+            }
+            else
+            {
+                Snackbar.Add(result.Error ?? "Failed to unassign.", MudBlazor.Severity.Error);
+            }
+        }
+        _saving = false;
+    }
+
+
+    private async Task HandleDueDateChange(DateTime? newDate)
+    {
+        if (_task is null || _saving) return;
+        _saving = true;
+
+        var result = await TaskService.UpdateTaskAsync(TaskId, new UpdateTaskDto 
+        { 
+            DueDate = newDate.HasValue ? DateTime.SpecifyKind(newDate.Value, DateTimeKind.Utc) : null 
+        });
+        if (result.Success && result.Data is not null)
+        {
+            _task.DueDate = result.Data.DueDate;
+            await OnTaskUpdated.InvokeAsync(_task);
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to update.", MudBlazor.Severity.Error);
+        }
+        _saving = false;
+    }
+
+
+    private void StartDescriptionEdit()
+    {
+        _descriptionDraft = _task?.Description ?? "";
+        _editingDescription = true;
+    }
+
+    private void CancelDescriptionEdit() => _editingDescription = false;
+
+    private async Task SaveDescription()
+    {
+        if (_task is null || _saving) return;
+        _saving = true;
+
+        var result = await TaskService.UpdateTaskAsync(TaskId, new UpdateTaskDto { Description = _descriptionDraft });
+        if (result.Success && result.Data is not null)
+        {
+            _task.Description = result.Data.Description;
+            _editingDescription = false;
+            await OnTaskUpdated.InvokeAsync(_task);
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to update.", MudBlazor.Severity.Error);
+        }
+        _saving = false;
+    }
+
+
+    private async Task HandleDelete()
+    {
+        if (_saving) return;
+        _saving = true;
+
+        var result = await TaskService.DeleteTaskAsync(TaskId);
+        if (result.Success)
+        {
+            Snackbar.Add("Task deleted.", MudBlazor.Severity.Success);
+            await OnTaskDeleted.InvokeAsync(TaskId);
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to delete.", MudBlazor.Severity.Error);
+        }
+        _saving = false;
+    }
+}

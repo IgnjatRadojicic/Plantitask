@@ -1,0 +1,48 @@
+<div class="kanban-column" data-status-id="@Column.StatusId">
+    <div class="kanban-column-header">
+        <div class="kanban-column-header-left">
+            <span class="kanban-column-dot" style="background:@Column.Color"></span>
+            <h3 class="kanban-column-title text-sora">@Column.DisplayName</h3>
+            <span class="kanban-column-count">@FilteredTasks.Count</span>
+        </div>
+        <button class="field-icon-btn-sm" @onclick="() => OnQuickCreate.InvokeAsync(Column.StatusId)">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Small" />
+        </button>
+    </div>
+
+    <div class="kanban-column-body">
+        @if (FilteredTasks.Count == 0)
+        {
+            <div class="kanban-column-empty">
+                <p>No tasks</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var task in FilteredTasks)
+            {
+                <KanbanCard Task="@task"
+                            CurrentUserId="@CurrentUserId"
+                            OnClicked="() => OnTaskClicked.InvokeAsync(task.Id)" />
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public KanbanColumnDto Column { get; set; } = null!;
+    [Parameter] public string SearchTerm { get; set; } = "";
+    [Parameter] public Guid CurrentUserId { get; set; }
+    [Parameter] public EventCallback<Guid> OnTaskClicked { get; set; }
+    [Parameter] public EventCallback<int> OnQuickCreate { get; set; }
+
+    private List<KanbanTaskDto> FilteredTasks =>
+        string.IsNullOrWhiteSpace(SearchTerm)
+            ? Column.Tasks.OrderBy(t => t.DisplayOrder).ToList()
+            : Column.Tasks
+                .Where(t =>
+                    t.Title.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)
+                    || (t.AssignedToUserName?.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
+                .OrderBy(t => t.DisplayOrder)
+                .ToList();
+}
