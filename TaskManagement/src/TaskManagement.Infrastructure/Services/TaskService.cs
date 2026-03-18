@@ -72,6 +72,8 @@ namespace TaskManagement.Infrastructure.Services
             _context.Tasks.Add(task);
             await _context.SaveChangesAsync();
 
+            var result = await GetTaskByIdAsync(task.Id, userId);
+
             if (task.DueDate.HasValue && task.AssignedToId.HasValue)
             {
                 _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
@@ -80,7 +82,7 @@ namespace TaskManagement.Infrastructure.Services
             _logger.LogInformation("Task {TaskId} created in group {GroupId} by user {UserId}",
                 task.Id, groupId, userId);
 
-            return await GetTaskByIdAsync(task.Id, userId);
+            return result;
         }
 
         public async Task<Result<List<TaskDto>>> GetGroupTasksAsync(Guid groupId, TaskFilterDto? filter, Guid userId)
@@ -247,6 +249,8 @@ namespace TaskManagement.Infrastructure.Services
 
             await _context.SaveChangesAsync();
 
+            var result = await GetTaskByIdAsync(task.Id, userId);
+
             if (task.DueDate.HasValue && task.AssignedToId.HasValue)
             {
                 _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
@@ -254,7 +258,7 @@ namespace TaskManagement.Infrastructure.Services
 
             _logger.LogInformation("Task {TaskId} updated by user {UserId}", taskId, userId);
 
-            return await GetTaskByIdAsync(taskId, userId);
+            return result;
         }
 
         public async Task<Result<TaskStatusChangeResult>> ChangeTaskStatusAsync(Guid taskId, ChangeTaskStatusDto statusDto, Guid userId)
@@ -298,10 +302,11 @@ namespace TaskManagement.Infrastructure.Services
 
             await _context.SaveChangesAsync();
 
+            var taskDtoResult = await GetTaskByIdAsync(taskId, userId);
+
             _logger.LogInformation("Task {TaskId} status changed to {StatusId} by user {UserId}",
                 taskId, statusDto.NewStatusId, userId);
 
-            var taskDtoResult = await GetTaskByIdAsync(taskId, userId);
             if (taskDtoResult.IsFailure)
                 return taskDtoResult.Error!;
 

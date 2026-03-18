@@ -88,6 +88,26 @@ namespace TaskManagement.Infrastructure.Services
                 })
                 .ToListAsync();
 
+
+            const int TrendWindowDays = 30;
+            var trendStart = DateTime.UtcNow.Date.AddDays(-(TrendWindowDays - 1));
+
+            var completedByDate = myTasks
+                .Where(t => t.StatusId == (int)TaskStatusItem.Completed
+                         && t.CompletedAt.HasValue
+                         && t.CompletedAt.Value >= trendStart)
+                .GroupBy(t => t.CompletedAt!.Value.Date)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var completionTrend = Enumerable.Range(0, TrendWindowDays)
+                .Select(i => trendStart.AddDays(i))
+                .Select(date => new TrendPointDto
+                {
+                    Date = date,
+                    CompletedCount = completedByDate.GetValueOrDefault(date, 0)
+                })
+                .ToList();
+
             return new PersonalDashboardDto
             {
                 OverdueTasks = overdueTasks,
@@ -95,6 +115,7 @@ namespace TaskManagement.Infrastructure.Services
                 DueThisWeek = dueThisWeek,
                 RecentlyCompleted = recentlyCompleted,
                 RecentActivity = recentActivity,
+                CompletionTrend = completionTrend,
                 TotalAssignedTasks = myTasks.Count(t => t.StatusId != (int)TaskStatusItem.Completed),
                 TotalCompletedTasks = myTasks.Count(t => t.StatusId == (int)TaskStatusItem.Completed),
                 GroupCount = userGroupIds.Count
