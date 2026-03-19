@@ -13,6 +13,14 @@ namespace Plantitask.Web.Services
         {
             return await PostAsync<GroupDto>("api/groups", request);
         }
+        public Task<ServiceResult<GroupMemberDto>> ChangeUserRoleAsync(Guid groupId, Guid memberId, int newRoleId)
+         => PutAsync<GroupMemberDto>($"api/groups/{groupId}/members/{memberId}/role", new { NewRole = newRoleId });
+
+        public Task<ServiceResult<object>> RemoveMemberAsync(Guid groupId, Guid memberId)
+            => DeleteAsync<object>($"api/groups/{groupId}/members/{memberId}");
+
+        public Task<ServiceResult<UserProfileDto>> UpdateProfileAsync(UpdateUserProfileDto dto)
+         => PutAsync<UserProfileDto>("api/user/profile", dto);
 
         public async Task<ServiceResult<GroupDetailsDto>> GetGroupDetailsAsync(Guid groupId)
         {

@@ -1,0 +1,356 @@
+﻿@page "/groups/{Slug}/{GroupId:guid}/members"
+@layout PublicLayout
+@inject IGroupService GroupService
+@inject ICurrentUserService CurrentUserService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<PageTitle>Member Management</PageTitle>
+
+<div class="members-page">
+    <div class="members-header">
+        <button class="members-back-btn" @onclick="GoBack">
+            <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" />
+            <span>Back to Board</span>
+        </button>
+        <div class="members-header-title-row">
+            <h1 class="members-page-title text-sora">Member Management</h1>
+            <span class="members-count-badge">
+                <MudIcon Icon="@Icons.Material.Outlined.People" Size="Size.Small" />
+                @_members.Count member@(_members.Count != 1 ? "s" : "")
+            </span>
+        </div>
+    </div>
+
+    <div class="members-toolbar">
+        <div class="members-search-wrapper">
+            <MudIcon Icon="@Icons.Material.Outlined.Search" Size="Size.Small" Class="members-search-icon" />
+            <input type="text" class="members-search" placeholder="Search members..."
+                   @bind="_searchQuery" @bind:event="oninput" />
+            @if (!string.IsNullOrEmpty(_searchQuery))
+            {
+                <button class="members-search-clear" @onclick="() => _searchQuery = string.Empty">
+                    <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                </button>
+            }
+        </div>
+        <button class="members-invite-btn" @onclick="CopyGroupCode">
+            <MudIcon Icon="@Icons.Material.Outlined.PersonAdd" Size="Size.Small" />
+            <span>Copy Invite Code</span>
+        </button>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="members-loading">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+        </div>
+    }
+    else if (!_members.Any())
+    {
+        <div class="members-empty">
+            <MudIcon Icon="@Icons.Material.Outlined.GroupOff" Style="font-size:48px; color:var(--c-text-faint);" />
+            <p>No members found.</p>
+        </div>
+    }
+    else
+    {
+        <div class="members-role-summary">
+            <div class="members-role-card">
+                <span class="members-role-card-count text-sora">@_members.Count(m => m.Role == 1)</span>
+                <span class="members-role-card-label">Owners</span>
+            </div>
+            <div class="members-role-card">
+                <span class="members-role-card-count text-sora">@_members.Count(m => m.Role == 2)</span>
+                <span class="members-role-card-label">Managers</span>
+            </div>
+            <div class="members-role-card">
+                <span class="members-role-card-count text-sora">@_members.Count(m => m.Role == 3)</span>
+                <span class="members-role-card-label">Team Leads</span>
+            </div>
+        </div>
+
+        <div class="members-table-card">
+            <div class="members-table-header">
+                <span class="members-th-name">Member</span>
+                <span class="members-th">Role</span>
+                <span class="members-th">Joined</span>
+                <span class="members-th-actions">Actions</span>
+            </div>
+
+            @foreach (var member in FilteredMembers)
+            {
+                var isCurrentUser = member.UserId == CurrentUserId;
+                var isOwner = member.Role == 1;
+
+                <div class="members-table-row @(isCurrentUser ? "members-row-self" : "")">
+                    <div class="members-td-name">
+                        <div class="members-avatar">
+                            @(GetInitials(member))
+                        </div>
+                        <div class="members-user-info">
+                            <span class="members-user-name">
+                                @member.UserName
+                                @if (isCurrentUser)
+                                {
+                                    <span class="members-you-badge">You</span>
+                                }
+                            </span>
+                            @if (!string.IsNullOrEmpty(member.FirstName) || !string.IsNullOrEmpty(member.LastName))
+                            {
+                                <span class="members-user-fullname">@member.FirstName @member.LastName</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="members-td">
+                        @if (CanManageRoles && !isOwner && !isCurrentUser)
+                        {
+                            <MudSelect T="int" Value="@member.Role"
+                                       ValueChanged="(int val) => HandleRoleChange(member, val)"
+                                       Variant="Variant.Outlined" Dense="true"
+                                       Class="members-role-select">
+                                <MudSelectItem T="int" Value="2">Manager</MudSelectItem>
+                                <MudSelectItem T="int" Value="3">Team Lead</MudSelectItem>
+                                <MudSelectItem T="int" Value="4">Member</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <span class="members-role-chip members-role-@member.Role">
+                                @GetRoleName(member.Role)
+                            </span>
+                        }
+                    </div>
+
+                    <div class="members-td">
+                        <span class="members-joined-date">@member.JoinedAt.ToLocalTime().ToString("MMM d, yyyy")</span>
+                    </div>
+
+                    <div class="members-td-actions">
+                        @if (CanManageRoles && !isOwner && !isCurrentUser)
+                        {
+                            <button class="members-action-btn members-action-remove"
+                                    title="Remove member"
+                                    @onclick="() => ConfirmRemove(member)"
+                                    disabled="@_saving">
+                                <MudIcon Icon="@Icons.Material.Outlined.PersonRemove" Size="Size.Small" />
+                            </button>
+                        }
+                        else if (isCurrentUser && !isOwner)
+                        {
+                            <button class="members-action-btn members-action-leave"
+                                    title="Leave group"
+                                    @onclick="ConfirmLeave"
+                                    disabled="@_saving">
+                                <MudIcon Icon="@Icons.Material.Outlined.ExitToApp" Size="Size.Small" />
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (_showConfirmDialog)
+{
+    <div class="members-overlay" @onclick="CancelConfirm">
+        <div class="members-confirm-dialog" @onclick:stopPropagation="true">
+            <h3 class="members-confirm-title text-sora">@_confirmTitle</h3>
+            <p class="members-confirm-message">@_confirmMessage</p>
+            <div class="members-confirm-actions">
+                <MudButton Variant="Variant.Text" OnClick="CancelConfirm" Disabled="_saving">Cancel</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ExecuteConfirm"
+                           Disabled="_saving" Class="auth-btn">
+                    @if (_saving)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Default" />
+                    }
+                    else
+                    {
+                        @_confirmAction
+                    }
+                </MudButton>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    [Parameter] public Guid GroupId { get; set; }
+
+    private List<GroupMemberDto> _members = new();
+    private bool _loading = true;
+    private bool _saving;
+    private string _searchQuery = "";
+    private string _groupCode = "";
+
+    private bool _showConfirmDialog;
+    private string _confirmTitle = "";
+    private string _confirmMessage = "";
+    private string _confirmAction = "";
+    private Func<Task>? _confirmCallback;
+
+    private Guid CurrentUserId { get; set; }
+    private int CurrentUserRole { get; set; }
+    private bool CanManageRoles => CurrentUserRole is 1 or 2;
+
+    private IEnumerable<GroupMemberDto> FilteredMembers => string.IsNullOrWhiteSpace(_searchQuery)
+        ? _members.OrderBy(m => m.Role).ThenBy(m => m.UserName)
+        : _members
+            .Where(m => m.UserName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)
+                || (m.FirstName?.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (m.LastName?.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderBy(m => m.Role).ThenBy(m => m.UserName);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await CurrentUserService.GetCurrentUserAsync();
+        if (user is not null)
+        {
+            CurrentUserId = user.Id;
+        }
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+
+        var detailsResult = await GroupService.GetGroupDetailsAsync(GroupId);
+        if (detailsResult.Success && detailsResult.Data is not null)
+        {
+            _members = detailsResult.Data.Members;
+            _groupCode = detailsResult.Data.GroupCode;
+
+            var currentMember = _members.FirstOrDefault(m => m.UserId == CurrentUserId);
+            if (currentMember is not null)
+            {
+                CurrentUserRole = currentMember.Role;
+            }
+        }
+        else
+        {
+            Snackbar.Add(detailsResult.Error ?? "Failed to load group details.", MudBlazor.Severity.Error);
+        }
+
+        _loading = false;
+    }
+
+    private static string GetRoleName(int role) => role switch
+    {
+        1 => "Owner",
+        2 => "Manager",
+        3 => "Team Lead",
+        4 => "Member",
+        _ => "Unknown"
+    };
+
+    private string GetInitials(GroupMemberDto member)
+    {
+        if (!string.IsNullOrEmpty(member.FirstName) && !string.IsNullOrEmpty(member.LastName))
+            return $"{member.FirstName[0]}{member.LastName[0]}".ToUpper();
+        return member.UserName.Length > 0 ? member.UserName[0].ToString().ToUpper() : "?";
+    }
+
+    private async Task CopyGroupCode()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", _groupCode);
+        Snackbar.Add("Invite code copied!", MudBlazor.Severity.Success);
+    }
+
+    private async Task HandleRoleChange(GroupMemberDto member, int newRole)
+    {
+        if (member.Role == newRole || _saving) return;
+        _saving = true;
+
+        var result = await GroupService.ChangeUserRoleAsync(GroupId, member.UserId, newRole);
+        if (result.Success)
+        {
+            member.Role = newRole;
+            Snackbar.Add($"Role updated for {member.UserName}.", MudBlazor.Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to change role.", MudBlazor.Severity.Error);
+        }
+
+        _saving = false;
+    }
+
+    private void ConfirmRemove(GroupMemberDto member)
+    {
+        _confirmTitle = "Remove Member";
+        _confirmMessage = $"Are you sure you want to remove {member.UserName} from this group? This action cannot be undone.";
+        _confirmAction = "Remove";
+        _confirmCallback = async () => await RemoveMember(member);
+        _showConfirmDialog = true;
+    }
+
+    private async Task RemoveMember(GroupMemberDto member)
+    {
+        _saving = true;
+
+        var result = await GroupService.RemoveMemberAsync(GroupId, member.UserId);
+        if (result.Success)
+        {
+            _members.Remove(member);
+            Snackbar.Add($"{member.UserName} has been removed.", MudBlazor.Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to remove member.", MudBlazor.Severity.Error);
+        }
+
+        _saving = false;
+        _showConfirmDialog = false;
+    }
+
+    private void ConfirmLeave()
+    {
+        _confirmTitle = "Leave Group";
+        _confirmMessage = "Are you sure you want to leave this group? You will lose access to all tasks and data.";
+        _confirmAction = "Leave";
+        _confirmCallback = LeaveGroup;
+        _showConfirmDialog = true;
+    }
+
+    private async Task LeaveGroup()
+    {
+        _saving = true;
+
+        var result = await GroupService.RemoveMemberAsync(GroupId, CurrentUserId);
+        if (result.Success)
+        {
+            Snackbar.Add("You have left the group.", MudBlazor.Severity.Info);
+            Navigation.NavigateTo("/");
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Failed to leave group.", MudBlazor.Severity.Error);
+        }
+
+        _saving = false;
+        _showConfirmDialog = false;
+    }
+
+    private void CancelConfirm()
+    {
+        _showConfirmDialog = false;
+        _confirmCallback = null;
+    }
+
+    private async Task ExecuteConfirm()
+    {
+        if (_confirmCallback is not null)
+            await _confirmCallback();
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo($"/groups/{Slug}/{GroupId}");
+    }
+}

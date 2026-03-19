@@ -32,8 +32,7 @@ public class GroupMemberDto
     public string UserName { get; set; } = string.Empty;
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
-    public int RoleId { get; set; }
-    public string RoleName { get; set; } = string.Empty;
+    public int Role { get; set; }
     public DateTime JoinedAt { get; set; }
 }
 
