@@ -336,7 +336,7 @@ All application queries execute under 3ms. Task updates average 0.40ms thanks to
   <img src="Plantitask/docs/metrics/index_usage.png" alt="Index Usage by Table" width="640" />
 </p>
 
-Core lookup tables (GroupMembers, Groups, Users) achieve 96-100% index hit rates. Tables showing lower percentages (Tasks at 2.84%, AuditLogs at 12.68%) reflect PostgreSQL's query planner correctly choosing sequential scans on small datasets — index usage scales naturally as data grows.
+Core lookup tables (GroupMembers, Groups, Users) achieve 96-100% index hit rates. Tables showing lower percentages (Tasks at 2.84%, AuditLogs at 12.68%) reflect PostgreSQL's query planner correctly choosing sequential scans on small datasets index usage scales naturally as data grows.
 
 ---
 
