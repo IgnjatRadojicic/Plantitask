@@ -29,6 +29,15 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<GroupDto>> CreateGroupAsync(CreateGroupDto createGroupDto, Guid userId)
         {
+
+            var user = await _context.Users.FindAsync(userId);
+            var currentGroupCount = await _context.GroupMembers
+                .CountAsync(gm => gm.UserId == userId);
+
+            if (currentGroupCount >= user?.MaxGroups)
+                return Error.Forbidden($"You've reached your limit of {user.MaxGroups} groups. Upgrade to Premium for more.");
+
+
             var groupCode = await GenerateUniqueGroupCode(createGroupDto.Name);
 
             string? passwordHash = null;
@@ -77,6 +86,13 @@ namespace Plantitask.Infrastructure.Services
 
             if (!group.IsActive)
                 return Error.BadRequest("This group is no longer active");
+
+            var user = await _context.Users.FindAsync(userId);
+            var currentGroupCount = await _context.GroupMembers
+                .CountAsync(gm => gm.UserId == userId);
+
+            if (currentGroupCount >= user?.MaxGroups)
+                return Error.Forbidden($"You've reached your limit of {user.MaxGroups} groups. Upgrade to Premium for more.");
 
             var existingMember = await _context.GroupMembers
                 .IgnoreQueryFilters()

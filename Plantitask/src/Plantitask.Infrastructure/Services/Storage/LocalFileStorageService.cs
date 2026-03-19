@@ -36,6 +36,8 @@ namespace Plantitask.Infrastructure.Services.Storage
                 var uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
                 var fullPath = Path.Combine(_settings.LocalStorage.BasePath, uniqueFileName);
 
+                Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+
                 using (var fileStreamOutput = new FileStream(fullPath, FileMode.Create, FileAccess.Write))
                 {
                     await fileStream.CopyToAsync(fileStreamOutput);

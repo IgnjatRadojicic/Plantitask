@@ -9,7 +9,7 @@ namespace Plantitask.Core.Interfaces
 {
     public interface IJwtTokenGenerator
     {
-        string GenerateAccessToken(User User);
+        string GenerateAccessToken(User user, bool rememberMe = false);
         string GenerateRefreshToken();
 
 

@@ -79,6 +79,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.Email).HasMaxLength(256).IsRequired();
             entity.Property(e => e.PasswordHash).HasMaxLength(500).IsRequired();
             entity.Property(e => e.FirstName).HasMaxLength(50);
+            entity.Property(e => e.MaxGroups).HasDefaultValue(5);
             entity.Property(e => e.LastName).HasMaxLength(50);
             entity.Property(e => e.ProfilePictureUrl).HasMaxLength(500);
 

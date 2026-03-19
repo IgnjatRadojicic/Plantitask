@@ -20,6 +20,8 @@ namespace Plantitask.Core.Entities
         public bool IsEmailConfirmed { get; set; } = false;
         public DateTime? LastLoginAt { get; set; }
 
+        public int MaxGroups { get; set; } = 5;
+
 
 
         public ICollection<GroupMember> GroupMemberships { get; set; } = new List<GroupMember>();
