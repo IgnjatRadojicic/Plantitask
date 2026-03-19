@@ -1,0 +1,200 @@
+﻿@page "/"
+@layout PublicLayout
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ICurrentUserService CurrentUser
+
+<div class="landing-hero bg-cover" style="background-image: url('images/landing.jpg');">
+<nav class="landing-nav @(_navScrolled ? "landing-nav-scrolled" : "")">
+        <div class="landing-nav-left">
+            <AuthorizeView>
+                <Authorized>
+                    <a href="/profile" class="landing-user-avatar-link" title="@_userInfo.DisplayName">
+                        <div class="landing-user-avatar">
+                            @if (!string.IsNullOrEmpty(_userInfo.ProfilePictureUrl))
+                            {
+                                <img src="@_userInfo.ProfilePictureUrl" alt="@_userInfo.DisplayName" class="landing-user-avatar-img" />
+                            }
+                            else
+                            {
+                                <span class="landing-user-avatar-initials">@_userInfo.Initials</span>
+                            }
+                        </div>
+                    </a>
+                </Authorized>
+                <NotAuthorized>
+                    <img src="images/logo.png" alt="Plantitask" class="landing-logo" />
+                </NotAuthorized>
+            </AuthorizeView>
+            <span class="landing-brand text-sora">PLANTITASK</span>
+        </div>
+        <div class="landing-nav-center">
+            <AuthorizeView>
+                <Authorized>
+                    <a href="#" class="landing-nav-link">Pricing</a>
+                    <a href="/field" class="landing-nav-logo-link" title="Go to My Field">
+                        <img src="images/logo.png" alt="Go to My Field" class="landing-nav-center-logo" />
+                    </a>
+                    <a href="#" class="landing-nav-link">News</a>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="#features" class="landing-nav-link">Features</a>
+                    <a href="#about" class="landing-nav-link">About</a>
+                    <a href="#pricing" class="landing-nav-link">Pricing</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+        <div class="landing-nav-right">
+            <AuthorizeView>
+                <Authorized>
+                    <button class="landing-logout-btn" @onclick="HandleLogout">Log Out</button>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="landing-signin-btn">Sign in</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </nav>
+
+    <div class="landing-hero-content fade-in">
+        <AuthorizeView>
+            <Authorized>
+                <h1 class="landing-headline text-sora">
+                    Welcome back<br />
+                    <span class="text-accent">@_userInfo.DisplayName</span>
+                </h1>
+                <p class="landing-subtext">
+                    Ready to plant some trees?
+                </p>
+                <a href="/field" class="landing-cta">GO TO MY FIELD</a>
+            </Authorized>
+            <NotAuthorized>
+                <h1 class="landing-headline text-sora">
+                    For <span class="text-accent">Small</span> Teams<br />
+                    Who Plant <span class="text-accent">Trees</span>
+                </h1>
+                <p class="landing-subtext">
+                    Task management that grows with your team. Simple, rewarding, and rooted in real impact.
+                </p>
+                <a href="/login" class="landing-cta">START HERE</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</div>
+
+<section class="landing-features" id="features">
+    <div class="landing-features-inner">
+        <div class="landing-feature-card">
+            <div class="landing-feature-icon">
+                <MudIcon Icon="@Icons.Material.Outlined.Dashboard" Size="Size.Large" Style="color:#9CC103;" />
+            </div>
+            <h3 class="text-sora landing-feature-title">Kanban Boards</h3>
+            <p class="landing-feature-desc">Drag, drop, and watch your tasks flow from start to finish.</p>
+        </div>
+        <div class="landing-feature-card">
+            <div class="landing-feature-icon">
+                <MudIcon Icon="@Icons.Material.Outlined.Groups" Size="Size.Large" Style="color:#9CC103;" />
+            </div>
+            <h3 class="text-sora landing-feature-title">Real-time Collaboration</h3>
+            <p class="landing-feature-desc">Work together with your team. See changes as they happen.</p>
+        </div>
+        <div class="landing-feature-card">
+            <div class="landing-feature-icon">
+                <MudIcon Icon="@Icons.Material.Outlined.Park" Size="Size.Large" Style="color:#9CC103;" />
+            </div>
+            <h3 class="text-sora landing-feature-title">Watch Progress Grow</h3>
+            <p class="landing-feature-desc">Complete tasks, grow trees, and plant real ones along the way.</p>
+        </div>
+    </div>
+</section>
+
+<footer class="landing-footer" id="contact">
+    <div class="landing-footer-inner">
+        <div class="landing-footer-brand">
+            <img src="images/logo.png" alt="Plantitask" class="landing-footer-logo" />
+            <span class="text-sora landing-footer-name">PLANTITASK</span>
+            <p class="landing-footer-tagline">Small Teams who Plant Trees</p>
+        </div>
+        <div class="landing-footer-links">
+            <div class="landing-footer-col">
+                <h4 class="landing-footer-col-title">Product</h4>
+                <a href="/login" class="landing-footer-link">Get Started</a>
+                <a href="#features" class="landing-footer-link">Features</a>
+            </div>
+            <div class="landing-footer-col">
+                <h4 class="landing-footer-col-title">Company</h4>
+                <a href="#" class="landing-footer-link">About</a>
+                <a href="#contact" class="landing-footer-link">Contact</a>
+            </div>
+            <div class="landing-footer-col">
+                <h4 class="landing-footer-col-title">Legal</h4>
+                <a href="/privacy" class="landing-footer-link">Privacy Policy</a>
+                <a href="/terms" class="landing-footer-link">Terms of Service</a>
+            </div>
+        </div>
+    </div>
+    <div class="landing-footer-bottom">
+        <span>&copy; @DateTime.Now.Year Plantitask. All rights reserved.</span>
+        <span class="landing-footer-mission">
+            A portion of all revenue plants real trees
+        </span>
+    </div>
+</footer>
+
+<button class="back-to-top @(_showBackToTop ? "visible" : "")" @onclick="ScrollToTop">
+    <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Medium" />
+</button>
+
+@inject IJSRuntime JS
+
+@code {
+    private bool _showBackToTop;
+    private bool _navScrolled;
+    private DotNetObjectReference<Landing>? _selfRef;
+    private UserInfo _userInfo = new();
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _userInfo = await CurrentUser.GetCurrentUserAsync() ?? new();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("scrollWatcher.init", _selfRef);
+        }
+    }
+
+    [JSInvokable]
+    public void OnScroll(bool scrolled)
+    {
+        var changed = false;
+        if (scrolled != _navScrolled) { _navScrolled = scrolled; changed = true; }
+        if (scrolled != _showBackToTop) { _showBackToTop = scrolled; changed = true; }
+        if (changed) StateHasChanged();
+    }
+
+    private async Task ScrollToTop()
+    {
+        await JS.InvokeVoidAsync("window.scrollTo", new { top = 0, behavior = "smooth" });
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        Snackbar.Add("Logged out successfully", Severity.Success);
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        JS.InvokeVoidAsync("scrollWatcher.destroy");
+        _selfRef?.Dispose();
+    }
+}

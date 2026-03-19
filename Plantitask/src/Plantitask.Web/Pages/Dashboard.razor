@@ -1,0 +1,438 @@
+﻿@page "/dashboard"
+@attribute [Authorize]
+@inject ICurrentUserService CurrentUser
+@inject IDashboardService DashboardService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@implements IAsyncDisposable
+
+<div class="dashboard-page">
+    <div class="dash-vine dash-vine--left"></div>
+    <div class="dash-vine dash-vine--right"></div>
+    @if (_loading)
+    {
+        <div class="dashboard-loading">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            <p class="text-sora">Growing your dashboard...</p>
+        </div>
+    }
+
+    @if (_error != null)
+    {
+        <div class="dashboard-error fade-in">
+            <MudIcon Icon="@Icons.Material.Outlined.ErrorOutline" Size="Size.Large" Style="color:var(--c-error);" />
+            <p>@_error</p>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync" Class="auth-btn">
+                Try Again
+            </MudButton>
+        </div>
+    }
+
+    @if (_data != null)
+    {
+        <!-- Header  -->
+        <div class="dash-header fade-in">
+            <div class="dash-greeting">
+                <h1 class="text-sora dash-greeting-name">@GetGreeting(), @(_userInfo.FirstName ?? _userInfo.UserName)</h1>
+                <p class="dash-greeting-sub">@GetMotivationalSubtitle()</p>
+            </div>
+            <span class="dash-date text-sora">@DateTime.Now.ToString("ddd, MMM d yyyy")</span>
+        </div>
+
+        <!-- KPI Row -->
+        <div class="dash-kpi-row fade-in">
+            <div class="dash-kpi-card">
+                <span class="dash-kpi-icon"><MudIcon Icon="@Icons.Material.Outlined.Assignment" /></span>
+                <span class="dash-kpi-value text-sora">@_data.TotalAssignedTasks</span>
+                <span class="dash-kpi-label">Active Tasks</span>
+            </div>
+            <div class="dash-kpi-card">
+                <span class="dash-kpi-icon dash-kpi-icon--green"><MudIcon Icon="@Icons.Material.Outlined.CheckCircleOutline" /></span>
+                <span class="dash-kpi-value text-sora">@_data.TotalCompletedTasks</span>
+                <span class="dash-kpi-label">Completed</span>
+            </div>
+            <div class="dash-kpi-card @(_data.OverdueTasks.Count > 0 ? "dash-kpi-card--alert" : "")">
+                <span class="dash-kpi-icon dash-kpi-icon--red"><MudIcon Icon="@Icons.Material.Outlined.Warning" /></span>
+                <span class="dash-kpi-value text-sora">@_data.OverdueTasks.Count</span>
+                <span class="dash-kpi-label">Overdue</span>
+            </div>
+            <div class="dash-kpi-card">
+                <span class="dash-kpi-icon dash-kpi-icon--olive"><MudIcon Icon="@Icons.Material.Outlined.Forest" /></span>
+                <span class="dash-kpi-value text-sora">@_data.GroupCount</span>
+                <span class="dash-kpi-label">Groups</span>
+            </div>
+        </div>
+
+        <!--  Overdue / Due Today — dash panel  -->
+        <div class="dash-section fade-in">
+
+            <div class="dash-dash-panel dash-card hide-mobile">
+                <div class="dash-dash-col">
+                    <div class="dash-dash-col-header dash-dash-col-header--overdue">
+                        <MudIcon Icon="@Icons.Material.Outlined.Warning" Size="Size.Small" />
+                        <span class="text-sora">Overdue</span>
+                        <span class="dash-badge dash-badge--red">@_data.OverdueTasks.Count</span>
+                    </div>
+                    <div class="dash-dash-items">
+                        @if (_data.OverdueTasks.Count == 0)
+                        {
+                            <p class="dash-empty">No overdue tasks 🎉</p>
+                        }
+                        else
+                        {
+                            @foreach (var task in _data.OverdueTasks)
+                            {
+                                <div class="dash-task-row" @onclick="() => GoToGroup(task.GroupId)">
+                                    <div class="dash-task-main">
+                                        <span class="dash-task-title">@task.Title</span>
+                                        <span class="dash-task-group">@task.GroupName</span>
+                                    </div>
+                                    <div class="dash-task-meta">
+                                        <span class="dash-priority-badge" style="--badge-color: @task.PriorityColor">
+                                            @task.PriorityName
+                                        </span>
+                                        <span class="dash-task-time dash-task-time--red">
+                                            @GetRelativeTime(task.DueDate)
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <div class="dash-dash-divider"></div>
+
+                <div class="dash-dash-col">
+                    <div class="dash-dash-col-header dash-dash-col-header--today">
+                        <MudIcon Icon="@Icons.Material.Outlined.Today" Size="Size.Small" />
+                        <span class="text-sora">Due Today</span>
+                        <span class="dash-badge dash-badge--primary">@_data.DueToday.Count</span>
+                    </div>
+                    <div class="dash-dash-items">
+                        @if (_data.DueToday.Count == 0)
+                        {
+                            <p class="dash-empty">Nothing due today ✨</p>
+                        }
+                        else
+                        {
+                            @foreach (var task in _data.DueToday)
+                            {
+                                <div class="dash-task-row" @onclick="() => GoToGroup(task.GroupId)">
+                                    <div class="dash-task-main">
+                                        <span class="dash-task-title">@task.Title</span>
+                                        <span class="dash-task-group">@task.GroupName</span>
+                                    </div>
+                                    <div class="dash-task-meta">
+                                        <span class="dash-priority-badge" style="--badge-color: @task.PriorityColor">
+                                            @task.PriorityName
+                                        </span>
+                                        <span class="dash-task-time">
+                                            @(task.DueDate.HasValue ? task.DueDate.Value.ToString("h:mm tt") : "")
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile: tabs -->
+            <div class="dash-card show-mobile-only">
+                <div class="dash-mobile-tabs">
+                    <button class="dash-mobile-tab @(_mobileTab == 0 ? "dash-mobile-tab--active" : "")"
+                            @onclick="() => _mobileTab = 0">
+                        <MudIcon Icon="@Icons.Material.Outlined.Warning" Size="Size.Small" />
+                        Overdue
+                        @if (_data.OverdueTasks.Count > 0)
+                        {
+                            <span class="dash-badge dash-badge--red">@_data.OverdueTasks.Count</span>
+                        }
+                    </button>
+                    <button class="dash-mobile-tab @(_mobileTab == 1 ? "dash-mobile-tab--active" : "")"
+                            @onclick="() => _mobileTab = 1">
+                        <MudIcon Icon="@Icons.Material.Outlined.Today" Size="Size.Small" />
+                        Due Today
+                        @if (_data.DueToday.Count > 0)
+                        {
+                            <span class="dash-badge dash-badge--primary">@_data.DueToday.Count</span>
+                        }
+                    </button>
+                </div>
+                <div class="dash-dash-items">
+                    @{
+                        var mobileItems  = _mobileTab == 0 ? _data.OverdueTasks : _data.DueToday;
+                        var mobileEmpty  = _mobileTab == 0 ? "No overdue tasks 🎉" : "Nothing due today ✨";
+                        var isOverdueTab = _mobileTab == 0;
+                    }
+                    @if (mobileItems.Count == 0)
+                    {
+                        <p class="dash-empty">@mobileEmpty</p>
+                    }
+                    else
+                    {
+                        @foreach (var task in mobileItems)
+                        {
+                            <div class="dash-task-row" @onclick="() => GoToGroup(task.GroupId)">
+                                <div class="dash-task-main">
+                                    <span class="dash-task-title">@task.Title</span>
+                                    <span class="dash-task-group">@task.GroupName</span>
+                                </div>
+                                <div class="dash-task-meta">
+                                    <span class="dash-priority-badge" style="--badge-color: @task.PriorityColor">
+                                        @task.PriorityName
+                                    </span>
+                                    <span class="dash-task-time @(isOverdueTab ? "dash-task-time--red" : "")">
+                                        @(isOverdueTab
+                                            ? GetRelativeTime(task.DueDate)
+                                            : task.DueDate.HasValue ? task.DueDate.Value.ToString("h:mm tt") : "")
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!--  Due This Week  -->
+        @if (_data.DueThisWeek.Count > 0)
+        {
+            <div class="dash-section fade-in">
+                <div class="dash-card">
+                    <div class="dash-card-header">
+                        <MudIcon Icon="@Icons.Material.Outlined.DateRange" Size="Size.Small" />
+                        <h3 class="text-sora">Due This Week</h3>
+                        <span class="dash-badge dash-badge--muted">@_data.DueThisWeek.Count</span>
+                    </div>
+                    <div class="dash-table">
+                        <div class="dash-table-header">
+                            <span>Task</span>
+                            <span>Group</span>
+                            <span>Priority</span>
+                            <span>Due</span>
+                        </div>
+                        @foreach (var task in _data.DueThisWeek)
+                        {
+                            <div class="dash-table-row" @onclick="() => GoToGroup(task.GroupId)">
+                                <span class="dash-table-title">@task.Title</span>
+                                <span class="dash-table-group">@task.GroupName</span>
+                                <span>
+                                    <span class="dash-priority-badge" style="--badge-color: @task.PriorityColor">
+                                        @task.PriorityName
+                                    </span>
+                                </span>
+                                <span class="dash-table-date">
+                                    @(task.DueDate.HasValue ? task.DueDate.Value.ToString("ddd MMM d") : "—")
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!--  Completion Trend  -->
+        <div class="dash-section fade-in">
+            <div class="dash-card">
+                <div class="dash-card-header">
+                    <MudIcon Icon="@Icons.Material.Outlined.TrendingUp" Size="Size.Small" />
+                    <h3 class="text-sora">Completion Trend</h3>
+                    <span class="dash-card-header-sub">last 30 days</span>
+                </div>
+                @if (_hasChartData)
+                {
+                    <div class="dash-chart-wrap">
+                        <canvas id="trend-chart"></canvas>
+                    </div>
+                }
+                else
+                {
+                    <p class="dash-empty dash-empty--center">
+                        No completed tasks in the last 30 days yet — start growing 🌱
+                    </p>
+                }
+            </div>
+        </div>
+
+        <!--  Recently Completed  -->
+        @if (_data.RecentlyCompleted.Count > 0)
+        {
+            <div class="dash-section fade-in">
+                <div class="dash-card">
+                    <div class="dash-card-header">
+                        <MudIcon Icon="@Icons.Material.Outlined.CheckCircleOutline" Size="Size.Small" />
+                        <h3 class="text-sora">Recently Completed</h3>
+                        <span class="dash-card-header-sub">last 7 days</span>
+                    </div>
+                    <div class="dash-table">
+                        @foreach (var task in _data.RecentlyCompleted)
+                        {
+                            <div class="dash-table-row">
+                                <span class="dash-table-title">
+                                    <span class="dash-completed-dot"></span>
+                                    @task.Title
+                                </span>
+                                <span class="dash-table-group">@task.GroupName</span>
+                                <span></span>
+                                <span class="dash-table-date dash-table-date--muted">
+                                    @GetRelativeTime(task.CompletedAt)
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!--  Recent Activity  -->
+        @if (_data.RecentActivity.Count > 0)
+        {
+            <div class="dash-section fade-in">
+                <div class="dash-card">
+                    <div class="dash-card-header">
+                        <MudIcon Icon="@Icons.Material.Outlined.History" Size="Size.Small" />
+                        <h3 class="text-sora">Recent Activity</h3>
+                    </div>
+                    <div class="dash-activity-feed">
+                        @foreach (var item in _data.RecentActivity)
+                        {
+                            <div class="dash-activity-row">
+                                <div class="dash-activity-avatar">
+                                    @GetInitials(item.UserName)
+                                </div>
+                                <div class="dash-activity-body">
+                                    <span class="dash-activity-actor">@item.UserName</span>
+                                    <span class="dash-activity-verb">@item.Action.ToLower()</span>
+                                    <span class="dash-activity-entity">@item.EntityType</span>
+                                </div>
+                                <span class="dash-activity-time">@GetRelativeTime(item.Timestamp)</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+          </div>
+        }
+    }
+
+</div>
+
+@code {
+    private bool                  _loading     = true;
+    private string?               _error;
+    private PersonalDashboardDto? _data;
+    private UserInfo              _userInfo    = new();
+    private int                   _mobileTab   = 0;
+    private bool                  _hasChartData;
+    private bool                  _chartRendered;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _userInfo = await CurrentUser.GetCurrentUserAsync() ?? new();
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_hasChartData && !_chartRendered && _data?.CompletionTrend != null)
+        {
+            _chartRendered = true;
+
+            var labels = _data.CompletionTrend
+                .Select(t => t.Date.ToString("MMM d"))
+                .ToArray();
+
+            var data = _data.CompletionTrend
+                .Select(t => (double)t.CompletedCount)
+                .ToArray();
+
+            await JS.InvokeVoidAsync("dashboardChart.render", "trend-chart", labels, data);
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading       = true;
+        _error         = null;
+        _chartRendered = false;
+        StateHasChanged();
+
+        var result = await DashboardService.GetPersonalDashboardAsync();
+
+        if (!result.Success)
+        {
+            _error   = result.Error ?? "Could not load dashboard.";
+            _loading = false;
+            StateHasChanged();
+            return;
+        }
+
+        _data         = result.Data;
+        _hasChartData = _data?.CompletionTrend?.Any(t => t.CompletedCount > 0) == true;
+        _loading      = false;
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("dashboardChart.destroy"); }
+        catch { }
+    }
+
+
+    private void GoToGroup(Guid groupId)
+        => Navigation.NavigateTo($"/groups/{groupId}");
+
+
+    private static string GetGreeting()
+    {
+        var hour = DateTime.Now.Hour;
+        return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    }
+
+    private string GetMotivationalSubtitle()
+    {
+        if (_data == null) return "";
+
+        var overdue   = _data.OverdueTasks.Count;
+        var today     = _data.DueToday.Count;
+        var completed = _data.TotalCompletedTasks;
+
+        if (overdue > 0 && today > 0)
+            return $"{overdue} overdue and {today} due today time to catch up 💪";
+        if (overdue > 0)
+            return $"{overdue} task{(overdue == 1 ? "" : "s")} need your attention 🔥";
+        if (today > 0)
+            return $"{today} task{(today == 1 ? "" : "s")} due today you've got this 🌿";
+        if (completed > 0)
+            return "All clear today great work keeping up 🌳";
+
+        return "Plant your first tree to get started 🌱";
+    }
+
+
+    private static string GetInitials(string? name)
+	
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    private static string GetRelativeTime(DateTime? dt)
+    {
+        if (dt == null) return "";
+        var diff = DateTime.UtcNow - dt.Value.ToUniversalTime();
+
+        if (diff.TotalMinutes < 1)  return "just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours   < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays    < 2)  return "yesterday";
+        if (diff.TotalDays    < 7)  return $"{(int)diff.TotalDays} days ago";
+        return dt.Value.ToString("MMM d");
+    }
+}

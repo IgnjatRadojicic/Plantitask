@@ -1,0 +1,77 @@
+<div class="kanban-card @(Task.IsOverdue ? "kanban-card-overdue" : "")"
+     data-task-id="@Task.Id"
+     data-status-id="@Task.StatusId"
+     @onclick="OnClicked"
+     @onclick:stopPropagation="true">
+
+    <div class="kanban-card-top">
+        <span class="kanban-card-priority" style="background:@Task.PriorityColor">
+            @Task.PriorityName
+        </span>
+        @if (Task.IsOverdue)
+        {
+            <span class="kanban-card-overdue-badge">Overdue</span>
+        }
+    </div>
+
+    <h4 class="kanban-card-title text-sora">@Task.Title</h4>
+
+    @if (!string.IsNullOrWhiteSpace(Task.Description))
+    {
+        <p class="kanban-card-desc">@Truncate(Task.Description, 80)</p>
+    }
+
+    <div class="kanban-card-footer">
+        <div class="kanban-card-footer-left">
+            @if (Task.DueDate.HasValue)
+            {
+                <span class="kanban-card-due @(Task.IsOverdue ? "kanban-card-due-overdue" : "")">
+                    <MudIcon Icon="@Icons.Material.Outlined.CalendarToday" Size="Size.Small" />
+                    @Task.DueDate.Value.ToString("MMM d")
+                </span>
+            }
+        </div>
+        <div class="kanban-card-footer-right">
+            @if (Task.CommentCount > 0)
+            {
+                <span class="kanban-card-meta">
+                    <MudIcon Icon="@Icons.Material.Outlined.ChatBubbleOutline" Size="Size.Small" />
+                    @Task.CommentCount
+                </span>
+            }
+            @if (Task.AttachmentCount > 0)
+            {
+                <span class="kanban-card-meta">
+                    <MudIcon Icon="@Icons.Material.Outlined.AttachFile" Size="Size.Small" />
+                    @Task.AttachmentCount
+                </span>
+            }
+            @if (Task.AssignedToId.HasValue)
+            {
+                <div class="kanban-card-assignee" title="@Task.AssignedToUserName">
+                    <span>@GetInitials(Task.AssignedToUserName)</span>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public KanbanTaskDto Task { get; set; } = null!;
+    [Parameter] public Guid CurrentUserId { get; set; }
+    [Parameter] public EventCallback OnClicked { get; set; }
+
+    private static string Truncate(string text, int maxLength)
+        => text.Length <= maxLength ? text : string.Concat(text.AsSpan(0, maxLength), "…");
+
+    private static string GetInitials(string? name)
+	
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+}

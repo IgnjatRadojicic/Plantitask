@@ -1,0 +1,432 @@
+﻿@page "/login"
+@layout PublicLayout
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<div class="auth-page">
+    <img src="images/leaf-top-right.png" alt="" class="auth-leaf-tr" />
+    <img src="images/leaf-bottom-left.png" alt="" class="auth-leaf-bl" />
+
+    <MudCard Class="auth-card fade-in" Elevation="2">
+        <MudCardContent>
+            <div class="auth-logo-section">
+                <img src="images/logo.png" alt="Plantitask" class="auth-logo" />
+                <span class="text-sora auth-brand-text">PLANTITASK</span>
+            </div>
+
+            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-6"
+                     Style="font-weight:700;">
+                @GetStepTitle()
+            </MudText>
+
+            @if (_step == AuthStep.Email)
+            {
+                <EditForm Model="_emailModel" OnValidSubmit="HandleEmailSubmit">
+                    <DataAnnotationsValidator />
+
+                    <MudTextField @bind-Value="_emailModel.Email"
+                                  Label="Email"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Email"
+                                  Required="true"
+                                  RequiredError="Email is required"
+                                  Class="mb-4"
+                                  Disabled="_loading"
+                                  Immediate="true" />
+
+                    <MudCheckBox @bind-Value="_rememberMe"
+                                 Label="Remember me"
+                                 Color="Color.Primary"
+                                 Class="mb-4"
+                                 Dense="true" />
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Size="Size.Large"
+                               Disabled="_loading"
+                               Class="mb-4 auth-btn">
+                        @if (_loading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true"
+                                                 Color="Color.Surface" Class="mr-2" />
+                        }
+                        Continue
+                    </MudButton>
+
+                    <div class="auth-divider">
+                        <span>Or continue with</span>
+                    </div>
+
+                    <MudButton Variant="Variant.Outlined"
+                               FullWidth="true"
+                               Size="Size.Large"
+                               Class="mb-4 auth-google-btn"
+                               StartIcon="@Icons.Custom.Brands.Google"
+                               OnClick="HandleGoogleLogin">
+                        Google
+                    </MudButton>
+
+                    <div class="auth-links">
+                        <MudLink Href="/forgot-password" Typo="Typo.body2">
+                            Can't log in?
+                        </MudLink>
+                    </div>
+                </EditForm>
+            }
+
+            @if (_step == AuthStep.Password)
+            {
+                <EditForm Model="_loginModel" OnValidSubmit="HandleLogin">
+                    <DataAnnotationsValidator />
+
+                    <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4"
+                             Color="Color.Secondary">
+                        @_emailModel.Email
+                    </MudText>
+
+                    <MudTextField @bind-Value="_loginModel.Password"
+                                  Label="Password"
+                                  Variant="Variant.Outlined"
+                                  InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="() => _showPassword = !_showPassword"
+                                  Required="true"
+                                  RequiredError="Password is required"
+                                  Class="mb-4"
+                                  Disabled="_loading" />
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Size="Size.Large"
+                               Disabled="_loading"
+                               Class="mb-4 auth-btn">
+                        @if (_loading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true"
+                                                 Color="Color.Surface" Class="mr-2" />
+                        }
+                        Log in
+                    </MudButton>
+
+                    <div class="auth-links">
+                        <MudLink Href="/forgot-password" Typo="Typo.body2">
+                            Forgot password?
+                        </MudLink>
+                        <span class="auth-link-separator">&bull;</span>
+                        <MudLink Typo="Typo.body2" OnClick="() => _step = AuthStep.Email"
+                                 Style="cursor:pointer;">
+                            Use a different email
+                        </MudLink>
+                    </div>
+                </EditForm>
+            }
+
+            @if (_step == AuthStep.VerifyCode)
+            {
+                <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4"
+                         Color="Color.Secondary">
+                    A 6-digit code was sent to @_emailModel.Email
+                </MudText>
+
+                <MudTextField @bind-Value="_verificationCode"
+                              Label="Verification Code"
+                              Variant="Variant.Outlined"
+                              MaxLength="6"
+                              Class="mb-4 verification-code-input"
+                              Disabled="_loading"
+                              Immediate="true"
+                              />
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"    
+                           FullWidth="true"
+                           Size="Size.Large"
+                           Disabled="@(_loading || _verificationCode?.Length != 6)"
+                           OnClick="HandleVerifyCode"
+                           Class="mb-4 auth-btn">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true"
+                                             Color="Color.Surface" Class="mr-2" />
+                    }
+                    Verify
+                </MudButton>
+
+                <div class="auth-links">
+                    <MudLink Typo="Typo.body2" OnClick="HandleResendCode"
+                             Style="cursor:pointer;" Disabled="_loading">
+                        Resend code
+                    </MudLink>
+                    <span class="auth-link-separator">&bull;</span>
+                    <MudLink Typo="Typo.body2" OnClick="() => _step = AuthStep.Email"
+                             Style="cursor:pointer;">
+                        Use a different email
+                    </MudLink>
+                </div>
+            }
+
+            @if (_step == AuthStep.Register)
+            {
+                <EditForm Model="_registerModel" OnValidSubmit="HandleRegister">
+                    <DataAnnotationsValidator />
+
+                    <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4"
+                             Color="Color.Secondary">
+                        @_emailModel.Email
+                    </MudText>
+
+                    <MudTextField @bind-Value="_registerModel.UserName"
+                                  Label="Username"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="Username is required"
+                                  Class="mb-3"
+                                  Disabled="_loading"
+                                  HelperText="3-24 characters, letters, numbers, underscores"
+                                  Immediate="true" />
+
+                    <MudTextField @bind-Value="_registerModel.FirstName"
+                                  Label="First Name"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="First name is required"
+                                  Class="mb-3"
+                                  Disabled="_loading" />
+
+                    <MudTextField @bind-Value="_registerModel.LastName"
+                                  Label="Last Name"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="Last name is required"
+                                  Class="mb-3"
+                                  Disabled="_loading" />
+
+                    <MudTextField Value="_registerModel.Password"
+                                  Label="Password"
+                                  Variant="Variant.Outlined"
+                                  InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="() => _showPassword = !_showPassword"
+                                  Required="true"
+                                  RequiredError="Password is required"
+                                  Class="mb-1"
+                                  Disabled="_loading"
+                                  Immediate="true"
+                                  ValueChanged="@((string val) => OnPasswordChanged(val))" />
+
+                    <div class="strength-bar mb-4">
+                        <div class="strength-bar-fill"
+                             style="width:@(_strengthPercent)%; background-color:@_strengthColor;">
+                        </div>
+                    </div>
+                    <MudText Typo="Typo.caption" Color="@_strengthMudColor" Class="mb-4">
+                        @_strengthLabel
+                    </MudText>
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Size="Size.Large"
+                               Disabled="_loading"
+                               Class="mb-4 auth-btn">
+                        @if (_loading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true"
+                                                 Color="Color.Surface" Class="mr-2" />
+                        }
+                        Create Account
+                    </MudButton>
+
+                    <div class="auth-links">
+                        <MudLink Typo="Typo.body2" OnClick="() => _step = AuthStep.Email"
+                                 Style="cursor:pointer;">
+                            Use a different email
+                        </MudLink>
+                    </div>
+                </EditForm>
+            }
+
+            <div class="auth-footer">
+                <hr class="auth-footer-line" />
+                <div class="auth-footer-logo">
+                    <img src="images/logo.png" alt="" width="28" />
+                    <span class="text-sora" style="color:#BDBDBD; font-size:0.75rem;">
+                        PLANTITASK
+                    </span>
+                </div>
+                <MudText Typo="Typo.caption" Align="Align.Center" Style="color:#BDBDBD; display:block; text-align:center;">
+                    <MudLink Href="/privacy" Typo="Typo.caption" Color="Color.Primary">Privacy policy</MudLink>
+                    and
+                    <MudLink Href="/terms" Typo="Typo.caption" Color="Color.Primary">Terms of Service</MudLink>
+                    apply
+                </MudText>
+            </div>
+
+        </MudCardContent>
+    </MudCard>
+</div>
+
+@code {
+    private enum AuthStep { Email, Password, VerifyCode, Register }
+
+    private AuthStep _step = AuthStep.Email;
+    private bool _loading;
+    private bool _rememberMe;
+    private bool _showPassword;
+
+    private CheckEmailRequest _emailModel = new();
+    private LoginRequest _loginModel = new();
+    private RegisterRequest _registerModel = new();
+    private string _verificationCode = string.Empty;
+
+    private int _strengthPercent;
+    private string _strengthColor = "#E0E0E0";
+    private string _strengthLabel = string.Empty;
+    private Color _strengthMudColor = Color.Default;
+
+    private string GetStepTitle() => _step switch
+    {
+        AuthStep.Email => "Log in to continue",
+        AuthStep.Password => "Enter your password",
+        AuthStep.VerifyCode => "Check your email",
+        AuthStep.Register => "Create your account",
+        _ => string.Empty
+    };
+
+    private async Task HandleEmailSubmit()
+    {
+        _loading = true;
+        var result = await AuthService.CheckEmailAsync(_emailModel.Email);
+        _loading = false;
+
+        if (!result.Success)
+        {
+            Snackbar.Add(result.Error, Severity.Error);
+            return;
+        }
+
+        if (result.Data!.Exists)
+        {
+            _loginModel.Email = _emailModel.Email;
+            _step = AuthStep.Password;
+        }
+        else
+        {
+            _loading = true;
+            var sendResult = await AuthService.SendVerificationCodeAsync(_emailModel.Email);
+            _loading = false;
+
+            if (sendResult.Success)
+            {
+                _step = AuthStep.VerifyCode;
+            }
+            else
+            {
+                Snackbar.Add(sendResult.Error, Severity.Error);
+            }
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        _loading = true;
+        var result = await AuthService.LoginAsync(_loginModel);
+        _loading = false;
+
+        if (result.Success)
+        {
+            Navigation.NavigateTo("/field", forceLoad: false);
+        }
+        else
+        {
+            Snackbar.Add(result.Error, Severity.Error);
+        }
+    }
+
+    private async Task HandleVerifyCode()
+    {
+        _loading = true;
+        var result = await AuthService.VerifyCodeAsync(_emailModel.Email, _verificationCode);
+        _loading = false;
+
+        if (result.Success)
+        {
+            _registerModel.Email = _emailModel.Email;
+            _step = AuthStep.Register;
+        }
+        else
+        {
+            Snackbar.Add(result.Error, Severity.Error);
+        }
+    }
+
+    private async Task HandleResendCode()
+    {
+        _loading = true;
+        var result = await AuthService.SendVerificationCodeAsync(_emailModel.Email);
+        _loading = false;
+
+        if (result.Success)
+            Snackbar.Add("Code resent", Severity.Success);
+        else
+            Snackbar.Add(result.Error, Severity.Error);
+    }
+
+    private async Task HandleRegister()
+    {
+        _loading = true;
+        var result = await AuthService.RegisterAsync(_registerModel);
+        _loading = false;
+
+        if (result.Success)
+        {
+            Snackbar.Add("Account created. Welcome to Plantitask!", Severity.Success);
+            Navigation.NavigateTo("/field", forceLoad: false);
+        }
+        else
+        {
+            Snackbar.Add(result.Error, Severity.Error);
+        }
+    }
+
+    private async Task HandleGoogleLogin()
+    {
+        await Task.CompletedTask;
+        Snackbar.Add("Google login coming soon", Severity.Info);
+    }
+
+    private void OnPasswordChanged(string password)
+    {
+        _registerModel.Password = password;
+        CalculateStrength(password);
+    }
+
+    private void CalculateStrength(string password)
+    {
+        var score = 0;
+
+        if (password.Length >= 8) score++;
+        if (password.Any(char.IsUpper)) score++;
+        if (password.Any(char.IsLower)) score++;
+        if (password.Any(char.IsDigit)) score++;
+        if (password.Any(c => "@$!%*?&#".Contains(c))) score++;
+
+        (_strengthPercent, _strengthColor, _strengthLabel, _strengthMudColor) = score switch
+        {
+            0 => (0, "#E0E0E0", string.Empty, Color.Default),
+            1 => (20, "#D32F2F", "Weak", Color.Error),
+            2 => (40, "#F44336", "Fair", Color.Error),
+            3 => (60, "#F9A825", "Good", Color.Warning),
+            4 => (80, "#9CC103", "Strong", Color.Success),
+            _ => (100, "#4CAF50", "Very strong", Color.Success),
+        };
+    }
+}

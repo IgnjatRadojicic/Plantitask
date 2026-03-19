@@ -1,0 +1,121 @@
+﻿<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData"
+                                DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <RedirectToLogin />
+                </NotAuthorized>
+            </AuthorizeRouteView>
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(PublicLayout)">
+                <MudContainer MaxWidth="MaxWidth.Small"
+                              Class="d-flex align-center justify-center"
+                              Style="min-height:80vh;">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="4">
+                        <MudIcon Icon="@Icons.Material.Outlined.SearchOff"
+                                 Size="Size.Large"
+                                 Color="Color.Default" />
+                        <MudText Typo="Typo.h5">Page not found</MudText>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   Href="/">Go Home</MudButton>
+                    </MudStack>
+                </MudContainer>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+@code {
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#9CC103",
+            PrimaryDarken = "#7A9902",
+            PrimaryLighten = "#B8D64D",
+            Secondary = "#5C4B37",
+            SecondaryDarken = "#3E3226",
+            SecondaryLighten = "#8B7355",
+            Tertiary = "#2E7D32",
+            Background = "#FAFAFA",
+            Surface = "#FFFFFF",
+            AppbarBackground = "#FFFFFF",
+            AppbarText = "#212121",
+            TextPrimary = "#212121",
+            TextSecondary = "#757575",
+            ActionDefault = "#9E9E9E",
+            Success = "#9CC103",
+            Warning = "#F9A825",
+            Error = "#D32F2F",
+            Info = "#0288D1",
+        },
+        Typography = new Typography()
+        {
+            Default = new DefaultTypography()
+            {
+                FontFamily = new[] { "DM Sans", "Helvetica", "Arial", "sans-serif" },
+                FontSize = "0.9375rem",
+                FontWeight = "400",
+                LineHeight = "1.6",
+            },
+            H1 = new H1Typography()
+            {
+                FontFamily = new[] { "Sora", "sans-serif" },
+                FontSize = "3rem",
+                FontWeight = "800",
+                LineHeight = "1.15",
+            },
+            H2 = new H2Typography()
+            {
+                FontFamily = new[] { "Sora", "sans-serif" },
+                FontSize = "2.25rem",
+                FontWeight = "700",
+                LineHeight = "1.2",
+            },
+            H3 = new H3Typography()
+            {
+                FontFamily = new[] { "Sora", "sans-serif" },
+                FontSize = "1.75rem",
+                FontWeight = "700",
+                LineHeight = "1.3",
+            },
+            H4 = new H4Typography()
+            {
+                FontFamily = new[] { "Sora", "sans-serif" },
+                FontSize = "1.25rem",
+                FontWeight = "600",
+                LineHeight = "1.4",
+            },
+            H5 = new H5Typography()
+            {
+                FontFamily = new[] { "Sora", "sans-serif" },
+                FontSize = "1rem",
+                FontWeight = "600",
+            },
+            H6 = new H6Typography()
+            {
+                FontFamily = new[] { "Sora", "sans-serif" },
+                FontSize = "0.875rem",
+                FontWeight = "600",
+            },
+            Button = new ButtonTypography()
+            {
+                FontFamily = new[] { "DM Sans", "sans-serif" },
+                FontSize = "0.875rem",
+                FontWeight = "600",
+                TextTransform = "none",
+            },
+        },
+        LayoutProperties = new LayoutProperties()
+        {
+            DefaultBorderRadius = "8px",
+        },
+    };
+}

@@ -1,0 +1,112 @@
+﻿@inject IGroupService GroupService
+@inject ISnackbar Snackbar
+
+<!-- Overlay -->
+<div class="field-overlay @(IsOpen ? "field-overlay-visible" : "")" @onclick="HandleCancel"></div>
+
+<!-- Dialog -->
+<div class="field-create-dialog @(IsOpen ? "field-dialog-visible" : "")">
+    <h3 class="text-sora field-create-title">Join a Tree</h3>
+    <p class="field-create-subtitle">Enter the group code to join an existing project</p>
+
+    @if (_error != null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-3" Dense="true">
+            @_error
+        </MudAlert>
+    }
+
+    <MudTextField @bind-Value="_model.GroupCode"
+                  Label="Group Code"
+                  Variant="Variant.Outlined"
+                  Required="true"
+                  RequiredError="Group code is required"
+                  Placeholder="e.g. PLANT-A1B2"
+                  Class="mb-3"
+                  Disabled="_isBusy"
+                  Immediate="true" />
+
+    <MudTextField @bind-Value="_model.Password"
+                  Label="Password (if required)"
+                  Variant="Variant.Outlined"
+                  InputType="InputType.Password"
+                  Class="mb-4"
+                  Disabled="_isBusy" />
+
+    <div class="field-create-actions">
+        <MudButton Variant="Variant.Text"
+                   OnClick="HandleCancel"
+                   Disabled="_isBusy">
+            Cancel
+        </MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   OnClick="HandleSubmit"
+                   Disabled="@(_isBusy || string.IsNullOrWhiteSpace(_model.GroupCode))"
+                   Class="auth-btn">
+            @if (_isBusy)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true"
+                                     Color="Color.Surface" Class="mr-2" />
+            }
+            Join
+        </MudButton>
+    </div>
+</div>
+
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+
+    [Parameter] public EventCallback<GroupDto> OnJoined { get; set; }
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private JoinGroupRequest _model  = new();
+    private bool             _isBusy;
+    private string?          _error;
+
+    protected override void OnParametersSet()
+    {
+        if (!IsOpen)
+        {
+            _model  = new();
+            _error  = null;
+            _isBusy = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(_model.GroupCode))
+        {
+            _error = "Please enter a group code.";
+            return;
+        }
+
+        _isBusy = true;
+
+        var result = await GroupService.JoinGroupAsync(_model);
+
+        _isBusy = false;
+
+        if (result.Success && result.Data != null)
+        {
+            Snackbar.Add("You joined the group! A new sprout appeared.", Severity.Success);
+            await OnJoined.InvokeAsync(result.Data);
+        }
+        else
+        {
+            _error = result.Error;
+        }
+    }
+
+    private async Task HandleCancel()
+    {
+        _model = new();
+        _error = null;
+        await OnCancel.InvokeAsync();
+    }
+}

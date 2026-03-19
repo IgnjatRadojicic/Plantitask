@@ -1,0 +1,117 @@
+﻿@inject IGroupService GroupService
+@inject ISnackbar Snackbar
+
+<!-- Overlay -->
+<div class="field-overlay @(IsOpen ? "field-overlay-visible" : "")" @onclick="HandleCancel"></div>
+
+<!-- Dialog -->
+<div class="field-create-dialog @(IsOpen ? "field-dialog-visible" : "")">
+    <h3 class="text-sora field-create-title">Plant a New Sapling</h3>
+    <p class="field-create-subtitle">Give your group a name to start growing</p>
+
+    @if (_error != null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-3" Dense="true">
+            @_error
+        </MudAlert>
+    }
+
+    <MudTextField @bind-Value="_model.Name"
+                  Label="Group Name"
+                  Variant="Variant.Outlined"
+                  Required="true"
+                  RequiredError="Group name is required"
+                  HelperText="3 to 100 characters"
+                  Class="mb-3"
+                  Disabled="_isBusy"
+                  Immediate="true" />
+
+    <MudTextField @bind-Value="_model.Password"
+                  Label="Password (optional)"
+                  Variant="Variant.Outlined"
+                  HelperText="Others will need this to join"
+                  InputType="InputType.Password"
+                  Class="mb-4"
+                  Disabled="_isBusy" />
+
+    <div class="field-create-actions">
+        <MudButton Variant="Variant.Text"
+                   OnClick="HandleCancel"
+                   Disabled="_isBusy">
+            Cancel
+        </MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   OnClick="HandleSubmit"
+                   Disabled="@(_isBusy || string.IsNullOrWhiteSpace(_model.Name) || _model.Name.Length < 3)"
+                   Class="auth-btn">
+            @if (_isBusy)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true"
+                                     Color="Color.Surface" Class="mr-2" />
+            }
+            Plant
+        </MudButton>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsOpen    { get; set; }
+    [Parameter] public double PlantX  { get; set; }
+    [Parameter] public double PlantY  { get; set; }
+
+    /// <summary>Fires with the new GroupDto on success.</summary>
+    [Parameter] public EventCallback<GroupDto> OnCreated { get; set; }
+
+    /// <summary>Fires when the user cancels.</summary>
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private CreateGroupRequest _model  = new();
+    private bool               _isBusy;
+    private string?            _error;
+
+    // Reset state whenever the dialog opens
+    protected override void OnParametersSet()
+    {
+        if (!IsOpen)
+        {
+            _model  = new();
+            _error  = null;
+            _isBusy = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(_model.Name) || _model.Name.Length < 3)
+        {
+            _error = "Group name must be at least 3 characters.";
+            return;
+        }
+
+        _isBusy = true;
+
+        var result = await GroupService.CreateGroupAsync(_model);
+
+        _isBusy = false;
+
+        if (result.Success && result.Data != null)
+        {
+            Snackbar.Add("Sapling planted! Your group is growing.", Severity.Success);
+            await OnCreated.InvokeAsync(result.Data);
+        }
+        else
+        {
+            _error = result.Error;
+        }
+    }
+
+    private async Task HandleCancel()
+    {
+        _model = new();
+        _error = null;
+        await OnCancel.InvokeAsync();
+    }
+}

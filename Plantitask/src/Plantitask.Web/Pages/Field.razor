@@ -1,0 +1,366 @@
+﻿@page "/field"
+@attribute [Authorize]
+@inject ICurrentUserService CurrentUser
+@inject IDashboardService DashboardService
+@inject IFieldUIService FieldUI
+@inject IFieldPositionService FieldPositions
+@inject IFieldSignalRService FieldSignalR
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+@implements IAsyncDisposable
+
+<div class="field-page">
+    <div id="field-canvas" class="field-canvas"></div>
+
+    @if (_loading)
+    {
+        <div class="field-loading">
+            <MudProgressCircular Size="Size.Large" Indeterminate="true" Color="Color.Primary" />
+            <p class="text-sora">Growing your field...</p>
+        </div>
+    }
+
+    @if (_errorMessage != null)
+    {
+        <div class="field-error">
+            <MudIcon Icon="@Icons.Material.Outlined.ErrorOutline" Size="Size.Large" Style="color:#D32F2F;" />
+            <p>@_errorMessage</p>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RetryLoad" Class="auth-btn">
+                Try Again
+            </MudButton>
+        </div>
+    }
+
+    <!-- Plant a Tree Inventory Dropdown -->
+    @if (_plantMenuOpen)
+    {
+        <div class="field-plant-menu fade-in">
+            <div class="field-plant-menu-header">
+                <h4 class="text-sora">Inventory</h4>
+                <button class="field-icon-btn-sm" @onclick="ClosePlantMenu">
+                    <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                </button>
+            </div>
+            <div class="field-plant-menu-items">
+                <div class="field-plant-item" @onclick="StartSeedDrag">
+                    <div class="field-plant-item-icon">
+                        <MudIcon Icon="@Icons.Material.Outlined.Grass" Style="color:#9CC103;" />
+                    </div>
+                    <div class="field-plant-item-info">
+                        <span class="field-plant-item-name text-sora">Basic Seed</span>
+                        <span class="field-plant-item-desc">Drag onto field to plant</span>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Outlined.DragIndicator" Size="Size.Small" Style="color:#BDBDBD;" />
+                </div>
+            </div>
+            <div class="field-plant-menu-hint">
+                Drag the seed onto the grass to create a group
+            </div>
+        </div>
+    }
+
+    <CreateGroupDialog IsOpen="_createGroupOpen"
+                       PlantX="_plantX"
+                       PlantY="_plantY"
+                       OnCreated="HandleGroupCreated"
+                       OnCancel="CancelCreate" />
+
+    <JoinGroupDialog IsOpen="_joinGroupOpen"
+                     OnJoined="HandleGroupJoined"
+                     OnCancel="CloseJoinMenu" />
+</div>
+
+@code {
+    private bool    _loading = true;
+    private bool    _plantMenuOpen;
+    private bool    _createGroupOpen;
+    private bool    _joinGroupOpen;
+    private string? _errorMessage;
+    private double  _plantX;
+    private double  _plantY;
+
+    private UserInfo             _userInfo    = new();
+    private List<FieldTreeDto>   _fieldTrees  = new();
+    private DotNetObjectReference<Field>? _selfRef;
+
+
+    protected override void OnInitialized()
+    {
+        FieldUI.OnPlantTreeRequested += OpenPlantMenu;
+        FieldUI.OnJoinTreeRequested  += OpenJoinMenu;
+        FieldSignalR.OnTreeUpdated   += HandleTreeUpdated;
+        FieldSignalR.OnTreeAdded     += HandleTreeAdded;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _userInfo = await CurrentUser.GetCurrentUserAsync() ?? new();
+        _selfRef  = DotNetObjectReference.Create(this);
+
+        try
+        {
+            var width  = await JS.InvokeAsync<int>("domHelpers.getElementWidth",  "field-canvas");
+            var height = await JS.InvokeAsync<int>("domHelpers.getElementHeight", "field-canvas");
+
+            var userSeed = _userInfo.Id.GetHashCode();
+            await JS.InvokeVoidAsync("fieldEngine.init", "field-canvas", _selfRef, width, height, userSeed);
+
+            await LoadFieldData();
+            await FieldSignalR.ConnectAsync();
+            await FieldSignalR.JoinGroupRoomsAsync(
+    _fieldTrees.Select(t => t.GroupId.ToString()));
+
+            var uri    = new Uri(Navigation.Uri);
+            var query  = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            var action = query["action"];
+            if      (action == "plant") OpenPlantMenu();
+            else if (action == "join")  OpenJoinMenu();
+
+            _loading      = false;
+            _errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            _loading      = false;
+            _errorMessage = "Could not load the field. Please try again.";
+            Console.WriteLine($"Field init error: {ex.Message}");
+        }
+
+        StateHasChanged();
+    }
+
+
+    private async Task LoadFieldData()
+    {
+        var result = await DashboardService.GetFieldDataAsync();
+
+        if (!result.Success)
+        {
+            _errorMessage = result.Error;
+            return;
+        }
+
+        if (result.Data == null || result.Data.Count == 0)
+            return;
+
+        _fieldTrees = result.Data;
+
+        var savedPositions = await FieldPositions.GetPositionsAsync(_userInfo.Id);
+
+        var width  = await JS.InvokeAsync<int>("domHelpers.getElementWidth",  "field-canvas");
+        var height = await JS.InvokeAsync<int>("domHelpers.getElementHeight", "field-canvas");
+
+        var rng          = new Random(_userInfo.Id.GetHashCode());
+        var margin       = 120;
+        var newPositions = new Dictionary<string, TreePosition>();
+
+        var viewModels = _fieldTrees.Select(t =>
+        {
+            var gid = t.GroupId.ToString();
+            double x, y;
+
+            if (savedPositions.ContainsKey(gid))
+            {
+                x = savedPositions[gid].X;
+                y = savedPositions[gid].Y;
+            }
+            else
+            {
+                x = margin + rng.NextDouble() * (width  - margin * 2);
+                y = margin + rng.NextDouble() * (height - margin * 2);
+                newPositions[gid] = new TreePosition { X = x, Y = y };
+            }
+
+            return new
+            {
+                groupId             = t.GroupId.ToString(),
+                groupName           = t.GroupName,
+                completionPercentage = t.CompletionPercentage,
+                currentTreeStage    = (int)t.CurrentTreeStage,
+                memberCount         = t.MemberCount,
+                totalTasks          = t.TotalTasks,
+                completedTasks      = t.CompletedTasks,
+                x,
+                y
+            };
+        }).ToList();
+
+        if (newPositions.Count > 0)
+        {
+            foreach (var kv in newPositions)
+                savedPositions[kv.Key] = kv.Value;
+            await FieldPositions.SaveAllPositionsAsync(_userInfo.Id, savedPositions);
+        }
+
+        var json = System.Text.Json.JsonSerializer.Serialize(viewModels);
+        await JS.InvokeVoidAsync("fieldEngine.loadTrees", json);
+    }
+
+    private async Task RetryLoad()
+    {
+        _errorMessage = null;
+        _loading      = true;
+        StateHasChanged();
+
+        try
+        {
+            await LoadFieldData();
+            _loading = false;
+        }
+        catch
+        {
+            _errorMessage = "Still could not load. Please check your connection.";
+            _loading      = false;
+        }
+
+        StateHasChanged();
+    }
+
+    // ---- Plant menu ----
+
+    private void OpenPlantMenu()
+    {
+        _plantMenuOpen = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ClosePlantMenu()
+    {
+        _plantMenuOpen = false;
+        CancelPlanting();
+    }
+
+    private async Task StartSeedDrag()
+    {
+        _plantMenuOpen = false;
+        StateHasChanged();
+        await Task.Delay(100);
+        await JS.InvokeVoidAsync("fieldEngine.startSeedDrag");
+    }
+
+    private void CancelPlanting()
+    {
+        JS.InvokeVoidAsync("fieldEngine.cancelPlanting");
+    }
+
+    // ---- Join menu ----
+
+    private void OpenJoinMenu()
+    {
+        _joinGroupOpen = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void CloseJoinMenu()
+    {
+        _joinGroupOpen = false;
+    }
+
+    // ---- Create dialog callbacks ----
+
+    private void CancelCreate()
+    {
+        _createGroupOpen = false;
+        CancelPlanting();
+    }
+
+    private async Task HandleGroupCreated(GroupDto group)
+    {
+        _createGroupOpen = false;
+
+        await FieldPositions.SavePositionAsync(
+            _userInfo.Id,
+            group.Id.ToString(),
+            _plantX,
+            _plantY);
+
+        await LoadFieldData();
+    }
+
+    private async Task HandleGroupJoined(GroupDto group)
+    {
+        _joinGroupOpen = false;
+        await LoadFieldData();
+    }
+
+
+    [JSInvokable]
+    public void OnTreeClicked(string groupId)
+    {
+    var tree = _fieldTrees.FirstOrDefault(t => t.GroupId.ToString() == groupId);
+    var slug = tree != null
+        ? Uri.EscapeDataString(tree.GroupName.ToLower().Replace(" ", "-"))
+        : groupId;
+
+    InvokeAsync(() => Navigation.NavigateTo($"/groups/{slug}/{groupId}"));
+    }
+
+    [JSInvokable]
+    public async Task OnTreeMoved(string groupId, double x, double y)
+    {
+        await FieldPositions.SavePositionAsync(_userInfo.Id, groupId, x, y);
+    }
+
+    [JSInvokable]
+    public void OnPlantSeed(double x, double y)
+    {
+        _plantX          = x;
+        _plantY          = y;
+        _createGroupOpen = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnSeedCancelled()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+
+    private async Task HandleTreeUpdated(string groupId, int newStage, double completionPct)
+    {
+        await JS.InvokeVoidAsync("fieldEngine.updateTree", groupId, newStage, completionPct);
+    }
+
+    private async Task HandleTreeAdded(FieldTreeDto treeData)
+    {
+        var width  = await JS.InvokeAsync<int>("domHelpers.getElementWidth",  "field-canvas");
+        var height = await JS.InvokeAsync<int>("domHelpers.getElementHeight", "field-canvas");
+        var rng    = new Random();
+
+        var vm = new
+        {
+            groupId              = treeData.GroupId.ToString(),
+            groupName            = treeData.GroupName,
+            completionPercentage = treeData.CompletionPercentage,
+            currentTreeStage     = (int)treeData.CurrentTreeStage,
+            memberCount          = treeData.MemberCount,
+            totalTasks           = treeData.TotalTasks,
+            completedTasks       = treeData.CompletedTasks,
+            x = 120 + rng.NextDouble() * (width  - 240),
+            y = 120 + rng.NextDouble() * (height - 240)
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(vm);
+        await JS.InvokeVoidAsync("fieldEngine.addTreeLive", json);
+    }
+
+ 
+
+    public async ValueTask DisposeAsync()
+    {
+        FieldUI.OnPlantTreeRequested -= OpenPlantMenu;
+        FieldUI.OnJoinTreeRequested  -= OpenJoinMenu;
+        FieldSignalR.OnTreeUpdated   -= HandleTreeUpdated;
+        FieldSignalR.OnTreeAdded     -= HandleTreeAdded;
+
+        try { await JS.InvokeVoidAsync("fieldEngine.destroy"); }
+        catch { }
+
+        _selfRef?.Dispose();
+    }
+}

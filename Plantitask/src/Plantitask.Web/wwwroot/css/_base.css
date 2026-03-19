@@ -1,0 +1,72 @@
+/* ----- PLANTITASK — Base ----- */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+.verification-code-input {
+    --mud-input-font-size: 1.5rem;
+}
+
+.verification-code-input input {
+    text-align: center;
+    font-size: 1.5rem;
+    letter-spacing: 8px;
+}
+
+html, body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+.text-sora {
+    font-family: var(--font-heading) !important;
+}
+
+.text-accent {
+    color: var(--c-primary) !important;
+}
+
+.bg-cover {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.strength-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--c-border);
+    overflow: hidden;
+    transition: all var(--t-base);
+}
+
+.strength-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width var(--t-base), background-color var(--t-base);
+}
+
+::-webkit-scrollbar         { width: 8px; }
+::-webkit-scrollbar-track   { background: #f5f5f5; }
+::-webkit-scrollbar-thumb   { background: #ccc; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-primary); }
+
+#blazor-error-ui { display: none; }

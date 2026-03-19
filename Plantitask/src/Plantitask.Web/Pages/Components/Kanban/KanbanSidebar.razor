@@ -1,0 +1,32 @@
+﻿@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+<div class="kanban-sidebar">
+    <div class="kanban-sidebar-nav">
+        <div class="kanban-sidebar-code" @onclick="CopyGroupCode" style="cursor:pointer;" title="Click to copy">
+            <span class="kanban-sidebar-code-label">Group Code</span>
+            <span class="kanban-sidebar-code-value text-sora">@GroupCode</span>
+        </div>
+        <button class="kanban-sidebar-btn" @onclick="GoToGroupStats">
+            <MudIcon Icon="@Icons.Material.Outlined.BarChart" Size="Size.Small" />
+            <span>Group Statistics</span>
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string GroupCode { get; set; } = "";
+    [Parameter, EditorRequired] public Guid GroupId { get; set; }
+    [Parameter] public string Slug { get; set; } = "";
+
+    private async Task CopyGroupCode()
+{
+    await JS.InvokeVoidAsync("navigator.clipboard.writeText", GroupCode);
+    Snackbar.Add("Group code copied!", MudBlazor.Severity.Success);
+}
+
+    private void GoToGroupStats()
+    {
+        Navigation.NavigateTo($"/groups/{Slug}/{GroupId}/statistics");
+    }
+}

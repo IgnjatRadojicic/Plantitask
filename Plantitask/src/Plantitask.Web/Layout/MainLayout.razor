@@ -1,0 +1,231 @@
+﻿@inherits LayoutComponentBase
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ICurrentUserService CurrentUser
+@inject IFieldUIService FieldUI
+
+<MudLayout>
+
+        <div class="field-overlay @((_notificationsOpen || _profileMenuOpen) ? "field-overlay-visible" : "")"
+         @onclick="CloseAllPanels"></div>
+
+    <!-- Top Navbar -->
+    <div class="field-top-nav @(_topNavHidden ? "field-top-nav-hidden" : "")">
+        <div class="field-top-nav-inner">
+            <div class="field-top-nav-left">
+                <button class="field-nav-btn field-nav-btn-accent" @onclick="HandlePlantTree">
+                    <MudIcon Icon="@Icons.Material.Outlined.Park" Size="Size.Small" />
+                    <span>Plant a Tree</span>
+                </button>
+                <button class="field-nav-btn" @onclick="HandleGrowTree">
+                    <MudIcon Icon="@Icons.Material.Outlined.Spa" Size="Size.Small" />
+                    <span>Grow a Tree</span>
+                </button>
+            </div>
+            <div class="field-top-nav-right">
+                <button class="field-icon-btn" @onclick="ToggleNotifications" title="Notifications">
+                    <MudBadge Content="@_unreadCount" Visible="@(_unreadCount > 0)" Color="Color.Error" Overlap="true">
+                        <MudIcon Icon="@Icons.Material.Outlined.Notifications" />
+                    </MudBadge>
+                </button>
+                <button class="field-icon-btn" @onclick="OpenSettings" title="Settings">
+                    <MudIcon Icon="@Icons.Material.Outlined.Settings" />
+                </button>
+                <button class="field-profile-btn" @onclick="ToggleProfileMenu">
+                    <div class="field-profile-avatar">
+                        @if (!string.IsNullOrEmpty(_userInfo.ProfilePictureUrl))
+                        {
+                            <img src="@_userInfo.ProfilePictureUrl" alt="@_userInfo.DisplayName" />
+                        }
+                        else
+                        {
+                            <span>@_userInfo.Initials</span>
+                        }
+                    </div>
+                </button>
+            </div>
+        </div>
+        <button class="field-nav-toggle-top" @onclick="ToggleTopNav" title="Hide toolbar">
+            <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small" />
+        </button>
+    </div>
+
+    <!-- Top Nav Reveal Arrow -->
+    <button class="field-nav-reveal field-nav-reveal-top @(_topNavHidden ? "field-nav-reveal-visible" : "")" @onclick="ToggleTopNav" title="Show toolbar">
+        <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" />
+    </button>
+
+    <!-- Notification Panel -->
+    @if (_notificationsOpen)
+    {
+        <div class="field-notification-panel">
+            <div class="field-notification-header">
+                <h3 class="text-sora">Notifications</h3>
+                <button class="field-notification-mark-all" @onclick="MarkAllRead">Mark all as read</button>
+                <button class="field-icon-btn-sm" @onclick="ToggleNotifications">
+                    <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                </button>
+            </div>
+            <div class="field-notification-list">
+                <div class="field-notification-empty">
+                    <MudIcon Icon="@Icons.Material.Outlined.NotificationsNone" Size="Size.Large" Style="color:#BDBDBD;" />
+                    <p>No notifications yet</p>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Profile Dropdown -->
+    @if (_profileMenuOpen)
+    {
+        <div class="field-profile-menu">
+            <div class="field-profile-menu-header">
+                <div class="field-profile-avatar-lg">
+                    @if (!string.IsNullOrEmpty(_userInfo.ProfilePictureUrl))
+                    {
+                        <img src="@_userInfo.ProfilePictureUrl" alt="@_userInfo.DisplayName" />
+                    }
+                    else
+                    {
+                        <span>@_userInfo.Initials</span>
+                    }
+                </div>
+                <div>
+                    <div class="field-profile-menu-name text-sora">@_userInfo.DisplayName</div>
+                    <div class="field-profile-menu-email">@_userInfo.Email</div>
+                </div>
+            </div>
+            <div class="field-profile-menu-divider"></div>
+            <a href="/dashboard" class="field-profile-menu-item" @onclick="CloseAllPanels">
+                <MudIcon Icon="@Icons.Material.Outlined.Yard" Size="Size.Small" />
+                <span>My Garden</span>
+            </a>
+            <a href="/profile" class="field-profile-menu-item" @onclick="CloseAllPanels">
+                <MudIcon Icon="@Icons.Material.Outlined.Person" Size="Size.Small" />
+                <span>Profile</span>
+            </a>
+            <a href="/settings" class="field-profile-menu-item" @onclick="CloseAllPanels">
+                <MudIcon Icon="@Icons.Material.Outlined.Settings" Size="Size.Small" />
+                <span>Settings</span>
+            </a>
+            <div class="field-profile-menu-divider"></div>
+            <button class="field-profile-menu-item field-profile-menu-logout" @onclick="HandleLogout">
+                <MudIcon Icon="@Icons.Material.Outlined.Logout" Size="Size.Small" />
+                <span>Log Out</span>
+            </button>
+        </div>
+    }
+
+    <!-- Main Content -->
+    <MudMainContent Style="padding:0 !important; min-height:100vh;">
+        @Body
+    </MudMainContent>
+
+    <!-- Bottom Navbar -->
+<!-- Bottom Navbar -->
+    <div class="field-bottom-nav @(_bottomNavHidden ? "field-bottom-nav-hidden" : "")">
+        <div class="field-bottom-nav-inner">
+            <a href="/field" class="field-bottom-tab @(IsActive("/field") ? "active" : "")">
+                <MudIcon Icon="@Icons.Material.Outlined.Forest" Size="Size.Small" />
+                <span>My Field</span>
+            </a>
+            <a href="/dashboard" class="field-bottom-tab @(IsActive("/dashboard") ? "active" : "")">
+                <MudIcon Icon="@Icons.Material.Outlined.Yard" Size="Size.Small" />
+                <span>My Garden</span>
+            </a>
+        </div>
+        <button class="field-bottom-hide" @onclick="ToggleBottomNav" title="Hide navigation">
+            <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" />
+        </button>
+    </div>
+
+    <!-- Bottom Nav Reveal Arrow -->
+    <button class="field-nav-reveal field-nav-reveal-bottom @(_bottomNavHidden ? "field-nav-reveal-visible" : "")" @onclick="ToggleBottomNav" title="Show navigation">
+        <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small" />
+    </button>
+</MudLayout>
+
+@code {
+    private bool _topNavHidden;
+    private bool _bottomNavHidden;
+    private bool _notificationsOpen;
+    private bool _profileMenuOpen;
+    private int _unreadCount = 0;
+    private UserInfo _userInfo = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _userInfo = await CurrentUser.GetCurrentUserAsync() ?? new();
+    }
+
+    private void ToggleTopNav()    => _topNavHidden    = !_topNavHidden;
+    private void ToggleBottomNav() => _bottomNavHidden = !_bottomNavHidden;
+
+    private void ToggleNotifications()
+    {
+        _profileMenuOpen  = false;
+        _notificationsOpen = !_notificationsOpen;
+    }
+
+    private void ToggleProfileMenu()
+    {
+        _notificationsOpen = false;
+        _profileMenuOpen   = !_profileMenuOpen;
+    }
+
+    private void CloseAllPanels()
+    {
+        _notificationsOpen = false;
+        _profileMenuOpen   = false;
+    }
+
+    private void OpenSettings()
+    {
+        CloseAllPanels();
+        Navigation.NavigateTo("/settings");
+    }
+
+    private void HandlePlantTree()
+    {
+        CloseAllPanels();
+        if (IsActive("/field"))
+            FieldUI.RequestPlantTree();
+        else
+            Navigation.NavigateTo("/field?action=plant");
+    }
+
+    private void HandleGrowTree()
+    {
+        CloseAllPanels();
+        if (IsActive("/field"))
+            FieldUI.RequestJoinTree();
+        else
+            Navigation.NavigateTo("/field?action=join");
+    }
+    private void CloseJoinMenu()
+    {
+        _notificationsOpen = false;
+        _profileMenuOpen   = false;
+    }
+
+    private void MarkAllRead()
+    {
+        _unreadCount = 0;
+        Snackbar.Add("All notifications marked as read", Severity.Success);
+    }
+
+    private async Task HandleLogout()
+    {
+        CloseAllPanels();
+        await AuthService.LogoutAsync();
+        Snackbar.Add("Logged out successfully", Severity.Success);
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+    private bool IsActive(string path)
+    {
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        return Navigation.Uri.StartsWith(
+            baseUri + path, StringComparison.OrdinalIgnoreCase);
+    }
+}
