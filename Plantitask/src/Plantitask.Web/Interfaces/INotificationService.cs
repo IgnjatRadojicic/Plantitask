@@ -2,7 +2,7 @@
 
 namespace Plantitask.Web.Interfaces;
 
-public interface INotificationWebService
+public interface INotificationService
 {
     Task<ServiceResult<PaginatedResult<NotificationDto>>> GetNotificationsAsync(bool unreadOnly = false, int page = 1, int pageSize = 20);
     Task<ServiceResult<UnreadCountModel>> GetUnreadCountAsync();

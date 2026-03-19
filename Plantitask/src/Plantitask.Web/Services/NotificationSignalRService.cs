@@ -1,6 +1,5 @@
 ﻿using Plantitask.Web.Interfaces;
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.Configuration;
 using Plantitask.Web.Models;
 
 

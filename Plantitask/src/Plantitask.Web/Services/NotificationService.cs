@@ -3,9 +3,9 @@ using Plantitask.Web.Models;
 
 namespace Plantitask.Web.Services;
 
-public class NotificationWebService : BaseApiService, INotificationWebService
+public class NotificationService : BaseApiService, INotificationService
 {
-    public NotificationWebService(HttpClient http) : base(http) { }
+    public NotificationService(HttpClient http) : base(http) { }
 
     public Task<ServiceResult<PaginatedResult<NotificationDto>>> GetNotificationsAsync(bool unreadOnly = false, int page = 1, int pageSize = 20)
         => GetAsync<PaginatedResult<NotificationDto>>($"api/notifications?unreadOnly={unreadOnly}&pageNumber={page}&pageSize={pageSize}");
