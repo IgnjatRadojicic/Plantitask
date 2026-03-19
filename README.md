@@ -317,7 +317,7 @@ Real metrics captured from PostgreSQL 17 using `pg_stat_statements` and system s
 ### Cache Hit Ratio
 
 <p align="center">
-  <img src="docs/metrics/cache_hit_ratio.png" alt="Cache Hit Ratio - 99.98%" width="480" />
+  <img src="Plantitask/docs/metrics/cache_hit_ratio.png" alt="Cache Hit Ratio - 99.98%" width="480" />
 </p>
 
 99.98% of all data reads are served from memory. Out of 352,966 total block requests, only 61 required disk access.
@@ -325,7 +325,7 @@ Real metrics captured from PostgreSQL 17 using `pg_stat_statements` and system s
 ### Query Execution Times
 
 <p align="center">
-  <img src="docs/metrics/query_execution_times.png" alt="Query Execution Times" width="640" />
+  <img src="Plantitask/docs/metrics/query_execution_times.png" alt="Query Execution Times" width="640" />
 </p>
 
 All application queries execute under 3ms. Task updates average 0.40ms thanks to targeted index usage and `.AsNoTracking()` on read paths. Audit log inserts are the heaviest write operation at 1.48ms average due to denormalized snapshot creation.
@@ -333,7 +333,7 @@ All application queries execute under 3ms. Task updates average 0.40ms thanks to
 ### Index Usage
 
 <p align="center">
-  <img src="docs/metrics/index_usage.png" alt="Index Usage by Table" width="640" />
+  <img src="Plantitask/docs/metrics/index_usage.png" alt="Index Usage by Table" width="640" />
 </p>
 
 Core lookup tables (GroupMembers, Groups, Users) achieve 96-100% index hit rates. Tables showing lower percentages (Tasks at 2.84%, AuditLogs at 12.68%) reflect PostgreSQL's query planner correctly choosing sequential scans on small datasets — index usage scales naturally as data grows.
