@@ -33,10 +33,6 @@ Plantitask is a full-stack SaaS application that reimagines project management f
 
 The platform is built on a real mission: a portion of all future revenue will go to tree-planting foundations like One Tree Planted and Trees for the Future.
 
-<p align="center">
-  <img src="Plantitask/docs/screenshots/landing-hero.PNG" alt="Plantitask Landing Page" width="100%" />
-</p>
-
 ---
 
 ## Screenshots
