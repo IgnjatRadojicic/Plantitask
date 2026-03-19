@@ -216,14 +216,6 @@ src/
 - Audit logging for compliance tracking
 - Comprehensive test suite (xUnit + Moq)
 
-### In Progress
-
-- Blazor WebAssembly frontend (Phase 10 - active development)
-  - Field page (complete)
-  - Kanban board UI
-  - Dashboard
-  - User settings
-
 ### Planned
 
 - Sprint planning
@@ -246,24 +238,6 @@ The login experience adapts based on whether the user already has an account:
 4. **New user** receives a 6-digit verification code via SendGrid, completes email verification, sets up their account (username, password), and is then sent to The Field
 
 Verification codes are cached in Redis with a short TTL. JWT access tokens expire after 15 minutes and are silently refreshed via a `DelegatingHandler` in the HTTP pipeline. Refresh tokens use rotation with automatic revocation of the previous token on each renewal.
-
----
-
-## The Tree Growth System
-
-Trees on the field visually represent project health. Growth is calculated from the percentage of completed tasks within a group:
-
-| Completion | Stage | Visual |
-|-----------|-------|--------|
-| 0% | Empty Soil | Seed sprite |
-| 1-19% | Seed | Small sprout |
-| 20-39% | Sprout | Sprouting plant |
-| 40-59% | Sapling | Small bush |
-| 60-79% | Young Tree | Medium tree |
-| 80-99% | Full Tree | Large tree |
-| 100% | Flowering Tree | Full tree with flowers |
-
-All tree sprites are original pixel art assets rendered on an HTML5 canvas via PixiJS 8.
 
 ---
 
@@ -334,22 +308,35 @@ Tests cover critical paths and edge cases, not 100% coverage for the sake of it.
 - SignalR with Redis backplane for multi-server sticky sessions
 - Hangfire job distribution across workers
 
+## Database Performance Metrics
+
 ---
 
-## Deployment
+Real metrics captured from PostgreSQL 17 using `pg_stat_statements` and system statistics views during active application usage.
 
-**Current:** Local development environment
+### Cache Hit Ratio
 
-**Planned:** Azure full-stack deployment
-```
-Target Architecture:
-- Azure App Service (API)
-- Azure Database for PostgreSQL
-- Azure Cache for Redis
-- Azure Blob Storage (file attachments)
-- Azure SignalR Service (for horizontal scaling)
-- GitHub Actions CI/CD pipeline
-```
+<p align="center">
+  <img src="docs/metrics/cache_hit_ratio.png" alt="Cache Hit Ratio - 99.98%" width="480" />
+</p>
+
+99.98% of all data reads are served from memory. Out of 352,966 total block requests, only 61 required disk access.
+
+### Query Execution Times
+
+<p align="center">
+  <img src="docs/metrics/query_execution_times.png" alt="Query Execution Times" width="640" />
+</p>
+
+All application queries execute under 3ms. Task updates average 0.40ms thanks to targeted index usage and `.AsNoTracking()` on read paths. Audit log inserts are the heaviest write operation at 1.48ms average due to denormalized snapshot creation.
+
+### Index Usage
+
+<p align="center">
+  <img src="docs/metrics/index_usage.png" alt="Index Usage by Table" width="640" />
+</p>
+
+Core lookup tables (GroupMembers, Groups, Users) achieve 96-100% index hit rates. Tables showing lower percentages (Tasks at 2.84%, AuditLogs at 12.68%) reflect PostgreSQL's query planner correctly choosing sequential scans on small datasets — index usage scales naturally as data grows.
 
 ---
 
@@ -493,11 +480,6 @@ Professional software engineering is about making informed trade-offs, not writi
 
 ---
 
-## Project Status
-
-This project is under active development. The backend is feature-complete for the MVP with comprehensive test coverage. The frontend is in Phase 10 (Blazor WebAssembly) with the Field page complete and Kanban board UI in progress. The next milestones are the dashboard page and user settings.
-
----
 
 ## Author
 
