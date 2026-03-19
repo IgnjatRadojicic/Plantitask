@@ -56,23 +56,17 @@ window.fieldEngine = {
     ],
     displayTileSize: 16,
 
-    // ---- Tree assets ----
-    // Keyed by TreeStage enum int value from C#.
-    // Stage 0 (EmptySoil) and 6 (FloweringTree) share the same
-    // asset intentionally — adjust if you add unique art later
     treeAssets: {
-        0: 'images/field/tree-flowering.png',
-        1: 'images/field/tree-sprout-seed.png',
-        2: 'images/field/tree-sprout-seed.png',
-        3: 'images/field/tree-sapling.png',
-        4: 'images/field/young-tree.png',
-        5: 'images/field/tree.png',
-        6: 'images/field/tree-flowering.png',
+        0: 'images/field/stage-0.png',
+        1: 'images/field/stage-0.png',
+        2: 'images/field/stage-1.png',
+        3: 'images/field/stage-2.png',
+        4: 'images/field/stage-3.png',
+        5: 'images/field/stage-4.png',
+        6: 'images/field/stage-5.png',
     },
 
-    // All sizes are the same today. This map is kept explicit so
-    // per-stage sizes can be differentiated without a refactor
-    treeSizes: { 0: 160, 1: 160, 2: 160, 3: 160, 4: 160, 5: 160, 6: 160 },
+    treeSizes: { 0: 240, 1: 240, 2: 240, 3: 240, 4: 240, 5: 240, 6: 240 },
 
     // Trees collection — Map<groupId string, treeObj>
     trees: new Map(),
@@ -243,7 +237,6 @@ window.fieldEngine = {
     },
 
 
-
     _onResize: function () {
         if (!this.app || !this.containerEl) return;
 
@@ -252,6 +245,25 @@ window.fieldEngine = {
 
         this.app.renderer.resize(this.viewportW, this.viewportH);
         this.app.stage.hitArea = new PIXI.Rectangle(0, 0, this.viewportW, this.viewportH);
+
+        // Field must cover at least the viewport at scale 1
+        const neededW = Math.ceil(this.viewportW);
+        const neededH = Math.ceil(this.viewportH);
+
+        const needsRegen = (neededW > this.fieldWidth || neededH > this.fieldHeight);
+        if (needsRegen) {
+            this.fieldWidth = Math.max(this.fieldWidth, neededW);
+            this.fieldHeight = Math.max(this.fieldHeight, neededH);
+
+            this.terrainLayer.removeChildren();
+            this._generateTerrain();
+
+            this.overlayLayer.removeChildren();
+            const overlay = new PIXI.Graphics();
+            overlay.rect(0, 0, this.fieldWidth, this.fieldHeight);
+            overlay.fill({ color: 0x9CC103, alpha: 0.35 });
+            this.overlayLayer.addChild(overlay);
+        }
 
         this._calcScale();
         this.camera.scale.set(this.worldScale);
