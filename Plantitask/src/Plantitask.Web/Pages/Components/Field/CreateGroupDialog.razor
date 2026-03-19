@@ -60,10 +60,7 @@
     [Parameter] public double PlantX  { get; set; }
     [Parameter] public double PlantY  { get; set; }
 
-    /// <summary>Fires with the new GroupDto on success.</summary>
     [Parameter] public EventCallback<GroupDto> OnCreated { get; set; }
-
-    /// <summary>Fires when the user cancels.</summary>
     [Parameter] public EventCallback OnCancel { get; set; }
 
     private CreateGroupRequest _model  = new();
