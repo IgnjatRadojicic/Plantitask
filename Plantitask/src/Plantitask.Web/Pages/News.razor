@@ -1,0 +1,166 @@
+@page "/news"
+@layout PublicLayout
+
+<PageTitle>News - Plantitask</PageTitle>
+
+<div class="news-hero">
+    <nav class="landing-nav landing-nav-scrolled">
+        <div class="landing-nav-left">
+            <a href="/">
+                <img src="images/logo.png" alt="Plantitask" class="landing-logo" />
+            </a>
+            <a href="/" class="landing-brand text-sora" style="text-decoration:none;">PLANTITASK</a>
+        </div>
+        <div class="landing-nav-center">
+            <a href="/" class="landing-nav-link">Home</a>
+            <a href="/news" class="landing-nav-link" style="color:var(--c-primary);">News</a>
+            <a href="/pricing" class="landing-nav-link">Pricing</a>
+        </div>
+        <div class="landing-nav-right">
+            <AuthorizeView>
+                <Authorized>
+                    <a href="/field" class="landing-signin-btn">My Field</a>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="landing-signin-btn">Sign in</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </nav>
+
+    <div class="news-hero-content fade-in">
+        <h1 class="news-hero-title text-sora">Latest <span class="text-accent">News</span></h1>
+        <p class="news-hero-sub">Updates, announcements, and stories from the Plantitask team.</p>
+    </div>
+</div>
+
+<section class="news-section">
+    <div class="news-inner">
+
+        <article class="news-article news-article-featured">
+            <div class="news-article-badge">ANNOUNCEMENT</div>
+            <div class="news-article-content">
+                <div class="news-article-meta">
+                    <span class="news-article-date">
+                        <MudIcon Icon="@Icons.Material.Outlined.CalendarToday" Size="Size.Small" />
+                        March 20, 2026
+                    </span>
+                    <span class="news-article-reading">5 min read</span>
+                </div>
+                <h2 class="news-article-title text-sora">Plantitask is Launching Soon — Here's What to Expect</h2>
+                <div class="news-article-body">
+                    <p>
+                        We're thrilled to announce that <strong>Plantitask</strong> is preparing for its official public launch.
+                        After months of development, testing, and refining, we're almost ready to open our doors to
+                        teams everywhere who want a fresh take on task management.
+                    </p>
+
+                    <h3 class="news-article-subtitle text-sora">What is Plantitask?</h3>
+                    <p>
+                        Plantitask is a task management platform built for small teams. But we're not just another
+                        Kanban board. Every group you create is represented by a <strong>tree</strong> — and as your team
+                        completes tasks, that tree grows from a tiny seed into a full, flowering tree. It's a visual,
+                        rewarding way to track progress that actually feels good.
+                    </p>
+
+                    <h3 class="news-article-subtitle text-sora">What's included at launch?</h3>
+                    <p>
+                        The launch version includes everything you need to get productive with your team:
+                    </p>
+                    <div class="news-feature-grid">
+                        <div class="news-feature-item">
+                            <MudIcon Icon="@Icons.Material.Outlined.Dashboard" Size="Size.Small" Style="color:#9CC103;" />
+                            <span>Full Kanban boards with drag-and-drop</span>
+                        </div>
+                        <div class="news-feature-item">
+                            <MudIcon Icon="@Icons.Material.Outlined.Groups" Size="Size.Small" Style="color:#9CC103;" />
+                            <span>Real-time collaboration via SignalR</span>
+                        </div>
+                        <div class="news-feature-item">
+                            <MudIcon Icon="@Icons.Material.Outlined.Park" Size="Size.Small" Style="color:#9CC103;" />
+                            <span>Interactive pixel-art field with your trees</span>
+                        </div>
+                        <div class="news-feature-item">
+                            <MudIcon Icon="@Icons.Material.Outlined.BarChart" Size="Size.Small" Style="color:#9CC103;" />
+                            <span>Group statistics and completion tracking</span>
+                        </div>
+                        <div class="news-feature-item">
+                            <MudIcon Icon="@Icons.Material.Outlined.AttachFile" Size="Size.Small" Style="color:#9CC103;" />
+                            <span>File attachments and comments on tasks</span>
+                        </div>
+                        <div class="news-feature-item">
+                            <MudIcon Icon="@Icons.Material.Outlined.AdminPanelSettings" Size="Size.Small" Style="color:#9CC103;" />
+                            <span>Role-based member management</span>
+                        </div>
+                    </div>
+
+                    <h3 class="news-article-subtitle text-sora">Premium is coming</h3>
+                    <p>
+                        Alongside the free tier, we'll be rolling out <strong>Plantitask Premium</strong> — a paid plan
+                        that unlocks additional features for power users. Premium members will enjoy up to
+                        <strong>10 groups</strong> (vs 5 on free), a <strong>dark mode</strong> theme, and an exclusive
+                        <strong>premium profile ring</strong> that shows off your supporter status across the platform.
+                    </p>
+                    <p>
+                        Premium pricing will be <strong>$4.99/month</strong> — simple, fair, and no hidden fees. Check out
+                        our <a href="/pricing" class="news-inline-link">Pricing page</a> for the full comparison.
+                    </p>
+
+                    <h3 class="news-article-subtitle text-sora">A mission rooted in impact</h3>
+                    <p>
+                        We believe productivity tools should do more than just organize tasks. A portion of every
+                        premium subscription goes directly to our reforestation partners. When your virtual trees grow,
+                        real trees get planted too. It's productivity with purpose.
+                    </p>
+
+                    <div class="news-article-cta-box">
+                        <MudIcon Icon="@Icons.Material.Outlined.Park" Size="Size.Large" Style="color:#9CC103;" />
+                        <div>
+                            <strong class="text-sora">Ready to start planting?</strong>
+                            <p>Create your free account today and be among the first to grow your field.</p>
+                        </div>
+                        <a href="/register" class="news-article-cta-btn">Sign Up Free</a>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <div class="news-upcoming">
+            <h3 class="news-upcoming-title text-sora">More updates coming soon</h3>
+            <p class="news-upcoming-desc">We'll be sharing development updates, feature spotlights, and community stories. Stay tuned.</p>
+        </div>
+
+    </div>
+</section>
+
+<footer class="landing-footer">
+    <div class="landing-footer-inner">
+        <div class="landing-footer-brand">
+            <img src="images/logo.png" alt="Plantitask" class="landing-footer-logo" />
+            <span class="text-sora landing-footer-name">PLANTITASK</span>
+            <p class="landing-footer-tagline">Small Teams who Plant Trees</p>
+        </div>
+        <div class="landing-footer-links">
+            <div class="landing-footer-col">
+                <h4 class="landing-footer-col-title">Product</h4>
+                <a href="/login" class="landing-footer-link">Get Started</a>
+                <a href="/#features" class="landing-footer-link">Features</a>
+                <a href="/pricing" class="landing-footer-link">Pricing</a>
+            </div>
+            <div class="landing-footer-col">
+                <h4 class="landing-footer-col-title">Company</h4>
+                <a href="/news" class="landing-footer-link">News</a>
+                <a href="#" class="landing-footer-link">Contact</a>
+            </div>
+            <div class="landing-footer-col">
+                <h4 class="landing-footer-col-title">Legal</h4>
+                <a href="/privacy" class="landing-footer-link">Privacy Policy</a>
+                <a href="/terms" class="landing-footer-link">Terms of Service</a>
+            </div>
+        </div>
+    </div>
+    <div class="landing-footer-bottom">
+        <span>&copy; @DateTime.Now.Year Plantitask. All rights reserved.</span>
+        <span class="landing-footer-mission">A portion of all revenue plants real trees</span>
+    </div>
+</footer>

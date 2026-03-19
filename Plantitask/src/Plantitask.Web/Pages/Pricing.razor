@@ -1,0 +1,192 @@
+@page "/pricing"
+@layout PublicLayout
+
+<PageTitle>Pricing - Plantitask</PageTitle>
+
+<div class="pricing-hero">
+    <nav class="landing-nav landing-nav-scrolled">
+        <div class="landing-nav-left">
+            <a href="/">
+                <img src="images/logo.png" alt="Plantitask" class="landing-logo" />
+            </a>
+            <a href="/" class="landing-brand text-sora" style="text-decoration:none;">PLANTITASK</a>
+        </div>
+        <div class="landing-nav-center">
+            <a href="/" class="landing-nav-link">Home</a>
+            <a href="/news" class="landing-nav-link">News</a>
+            <a href="/pricing" class="landing-nav-link" style="color:var(--c-primary);">Pricing</a>
+        </div>
+        <div class="landing-nav-right">
+            <AuthorizeView>
+                <Authorized>
+                    <a href="/field" class="landing-signin-btn">My Field</a>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="landing-signin-btn">Sign in</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </nav>
+
+    <div class="pricing-hero-content fade-in">
+        <h1 class="pricing-hero-title text-sora">Simple, Honest <span class="text-accent">Pricing</span></h1>
+        <p class="pricing-hero-sub">Start free. Grow when you're ready.</p>
+    </div>
+</div>
+
+<section class="pricing-cards-section">
+    <div class="pricing-cards-inner">
+
+        <div class="pricing-card">
+            <div class="pricing-card-header">
+                <span class="pricing-plan-badge pricing-plan-free">FREE</span>
+                <h2 class="pricing-price text-sora">$0</h2>
+                <span class="pricing-period">forever</span>
+            </div>
+            <div class="pricing-card-body">
+                <ul class="pricing-features-list">
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Up to <strong>5 groups</strong> (trees)</span>
+                    </li>
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Unlimited tasks per group</span>
+                    </li>
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Kanban boards</span>
+                    </li>
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Real-time collaboration</span>
+                    </li>
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Tree growth visualization</span>
+                    </li>
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Group statistics</span>
+                    </li>
+                    <li class="pricing-feature-item pricing-feature-disabled">
+                        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" Style="color:#BDBDBD;" />
+                        <span>Dark mode</span>
+                    </li>
+                    <li class="pricing-feature-item pricing-feature-disabled">
+                        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" Style="color:#BDBDBD;" />
+                        <span>Premium profile ring</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="pricing-card-footer">
+                <a href="/register" class="pricing-btn pricing-btn-outline">Get Started</a>
+            </div>
+        </div>
+
+        <div class="pricing-card pricing-card-premium">
+            <div class="pricing-card-popular">MOST POPULAR</div>
+            <div class="pricing-card-header">
+                <span class="pricing-plan-badge pricing-plan-premium">PREMIUM</span>
+                <h2 class="pricing-price text-sora">$4.99</h2>
+                <span class="pricing-period">/ month</span>
+            </div>
+            <div class="pricing-card-body">
+                <ul class="pricing-features-list">
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Up to <strong>10 groups</strong> (trees)</span>
+                    </li>
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Unlimited tasks per group</span>
+                    </li>
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Kanban boards</span>
+                    </li>
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Real-time collaboration</span>
+                    </li>
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Tree growth visualization</span>
+                    </li>
+                    <li class="pricing-feature-item">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <span>Group statistics</span>
+                    </li>
+                    <li class="pricing-feature-item pricing-feature-highlight">
+                        <MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" Style="color:#9CC103;" />
+                        <span><strong>Dark mode</strong></span>
+                    </li>
+                    <li class="pricing-feature-item pricing-feature-highlight">
+                        <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Small" Style="color:#9CC103;" />
+                        <span><strong>Premium profile ring</strong></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="pricing-card-footer">
+                <a href="/register" class="pricing-btn pricing-btn-filled">Coming Soon</a>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<section class="pricing-faq">
+    <div class="pricing-faq-inner">
+        <h2 class="pricing-faq-title text-sora">Frequently Asked Questions</h2>
+        <div class="pricing-faq-grid">
+            <div class="pricing-faq-item">
+                <h4 class="pricing-faq-q text-sora">Can I switch plans anytime?</h4>
+                <p class="pricing-faq-a">Yes. Upgrade or downgrade at any time. Changes take effect immediately.</p>
+            </div>
+            <div class="pricing-faq-item">
+                <h4 class="pricing-faq-q text-sora">What happens to my groups if I downgrade?</h4>
+                <p class="pricing-faq-a">Your existing groups remain intact. You just won't be able to create new ones beyond the free limit until you remove some.</p>
+            </div>
+            <div class="pricing-faq-item">
+                <h4 class="pricing-faq-q text-sora">Is there a team or enterprise plan?</h4>
+                <p class="pricing-faq-a">Not yet, but we're working on it. Stay tuned on our News page for updates.</p>
+            </div>
+            <div class="pricing-faq-item">
+                <h4 class="pricing-faq-q text-sora">Do you really plant trees?</h4>
+                <p class="pricing-faq-a">A portion of all premium revenue goes directly to reforestation partners. Every subscription plants real trees.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer class="landing-footer">
+    <div class="landing-footer-inner">
+        <div class="landing-footer-brand">
+            <img src="images/logo.png" alt="Plantitask" class="landing-footer-logo" />
+            <span class="text-sora landing-footer-name">PLANTITASK</span>
+            <p class="landing-footer-tagline">Small Teams who Plant Trees</p>
+        </div>
+        <div class="landing-footer-links">
+            <div class="landing-footer-col">
+                <h4 class="landing-footer-col-title">Product</h4>
+                <a href="/login" class="landing-footer-link">Get Started</a>
+                <a href="/#features" class="landing-footer-link">Features</a>
+                <a href="/pricing" class="landing-footer-link">Pricing</a>
+            </div>
+            <div class="landing-footer-col">
+                <h4 class="landing-footer-col-title">Company</h4>
+                <a href="/news" class="landing-footer-link">News</a>
+                <a href="#" class="landing-footer-link">Contact</a>
+            </div>
+            <div class="landing-footer-col">
+                <h4 class="landing-footer-col-title">Legal</h4>
+                <a href="/privacy" class="landing-footer-link">Privacy Policy</a>
+                <a href="/terms" class="landing-footer-link">Terms of Service</a>
+            </div>
+        </div>
+    </div>
+    <div class="landing-footer-bottom">
+        <span>&copy; @DateTime.Now.Year Plantitask. All rights reserved.</span>
+        <span class="landing-footer-mission">A portion of all revenue plants real trees</span>
+    </div>
+</footer>

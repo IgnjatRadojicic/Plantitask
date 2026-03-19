@@ -1,0 +1,555 @@
+﻿/* ===== PRICING PAGE ===== */
+
+.pricing-hero {
+    background: var(--c-bg-dark);
+    padding: 160px 80px 80px;
+    text-align: center;
+}
+
+.pricing-hero-content {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.pricing-hero-title {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--c-white);
+    line-height: 1.15;
+    margin-bottom: 16px;
+}
+
+.pricing-hero-sub {
+    font-family: var(--font-body);
+    font-size: 1.1rem;
+    color: var(--c-text-footer-sub);
+    line-height: 1.6;
+}
+
+/* ---- Pricing Cards ---- */
+
+.pricing-cards-section {
+    padding: 80px 64px;
+    background: var(--c-bg-white);
+}
+
+.pricing-cards-inner {
+    max-width: 820px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: start;
+}
+
+.pricing-card {
+    position: relative;
+    background: var(--c-bg-white);
+    border: 1.5px solid var(--c-border-light);
+    border-radius: 16px;
+    padding: 40px 32px;
+    display: flex;
+    flex-direction: column;
+    transition: all var(--t-base);
+}
+
+.pricing-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px var(--c-black-a08);
+}
+
+.pricing-card-premium {
+    border-color: var(--c-primary);
+    box-shadow: 0 8px 30px var(--c-primary-a10);
+}
+
+.pricing-card-premium:hover {
+    box-shadow: 0 16px 50px var(--c-primary-a20);
+}
+
+.pricing-card-popular {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--c-primary);
+    color: var(--c-white);
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 6px 20px;
+    border-radius: 20px;
+}
+
+.pricing-card-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.pricing-plan-badge {
+    display: inline-block;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 4px 14px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+.pricing-plan-free {
+    background: var(--c-black-a06);
+    color: var(--c-text-mid);
+}
+
+.pricing-plan-premium {
+    background: var(--c-primary-a10);
+    color: var(--c-primary);
+}
+
+.pricing-price {
+    font-size: 3.2rem;
+    font-weight: 800;
+    color: var(--c-text-darkest);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.pricing-period {
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--c-text-muted);
+}
+
+.pricing-card-body {
+    flex: 1;
+    margin-bottom: 32px;
+}
+
+.pricing-features-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.pricing-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--c-text-dark);
+}
+
+.pricing-feature-disabled {
+    color: var(--c-text-faint);
+}
+
+.pricing-feature-disabled span {
+    text-decoration: line-through;
+}
+
+.pricing-feature-highlight span {
+    color: var(--c-primary);
+}
+
+.pricing-card-footer {
+    text-align: center;
+}
+
+.pricing-btn {
+    display: inline-block;
+    padding: 14px 40px;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-decoration: none;
+    transition: all var(--t-base);
+    cursor: pointer;
+}
+
+.pricing-btn-outline {
+    border: 2px solid var(--c-border);
+    color: var(--c-text-dark);
+    background: transparent;
+}
+
+.pricing-btn-outline:hover {
+    border-color: var(--c-primary);
+    color: var(--c-primary);
+    transform: translateY(-2px);
+}
+
+.pricing-btn-filled {
+    border: 2px solid var(--c-primary);
+    background: var(--c-primary);
+    color: var(--c-white);
+}
+
+.pricing-btn-filled:hover {
+    background: var(--c-primary-dark);
+    border-color: var(--c-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px var(--c-primary-a40);
+}
+
+/* ---- FAQ ---- */
+
+.pricing-faq {
+    padding: 80px 64px;
+    background: var(--c-bg-page);
+}
+
+.pricing-faq-inner {
+    max-width: 820px;
+    margin: 0 auto;
+}
+
+.pricing-faq-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--c-text-darkest);
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.pricing-faq-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+}
+
+.pricing-faq-item {
+    padding: 24px;
+    background: var(--c-bg-white);
+    border: 1px solid var(--c-border-light);
+    border-radius: 12px;
+    transition: box-shadow var(--t-fast);
+}
+
+.pricing-faq-item:hover {
+    box-shadow: 0 4px 16px var(--c-black-a06);
+}
+
+.pricing-faq-q {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--c-text-darkest);
+    margin-bottom: 8px;
+}
+
+.pricing-faq-a {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--c-text-body);
+    line-height: 1.6;
+}
+
+/* ===== NEWS PAGE ===== */
+
+.news-hero {
+    background: var(--c-bg-dark);
+    padding: 160px 80px 80px;
+    text-align: center;
+}
+
+.news-hero-content {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.news-hero-title {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--c-white);
+    line-height: 1.15;
+    margin-bottom: 16px;
+}
+
+.news-hero-sub {
+    font-family: var(--font-body);
+    font-size: 1.1rem;
+    color: var(--c-text-footer-sub);
+    line-height: 1.6;
+}
+
+.news-section {
+    padding: 80px 64px;
+    background: var(--c-bg-white);
+}
+
+.news-inner {
+    max-width: 780px;
+    margin: 0 auto;
+}
+
+/* ---- Article ---- */
+
+.news-article {
+    margin-bottom: 48px;
+}
+
+.news-article-featured {
+    background: var(--c-bg-white);
+    border: 1px solid var(--c-border-light);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.news-article-badge {
+    display: inline-block;
+    background: var(--c-primary);
+    color: var(--c-white);
+    font-family: var(--font-body);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 8px 20px;
+}
+
+.news-article-content {
+    padding: 32px 40px 40px;
+}
+
+.news-article-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.news-article-date {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: var(--c-text-muted);
+}
+
+.news-article-reading {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: var(--c-text-faint);
+}
+
+.news-article-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--c-text-darkest);
+    line-height: 1.25;
+    margin-bottom: 24px;
+}
+
+.news-article-body p {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    color: var(--c-text-body);
+    line-height: 1.75;
+    margin-bottom: 20px;
+}
+
+.news-article-subtitle {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--c-text-darkest);
+    margin-top: 32px;
+    margin-bottom: 12px;
+}
+
+.news-inline-link {
+    color: var(--c-primary);
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+.news-inline-link:hover {
+    color: var(--c-primary-dark);
+}
+
+/* ---- Feature Grid in Article ---- */
+
+.news-feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 20px 0 28px;
+}
+
+.news-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--c-primary-a06);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--c-text-dark);
+    font-weight: 500;
+}
+
+/* ---- CTA Box in Article ---- */
+
+.news-article-cta-box {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 28px;
+    background: var(--c-primary-a06);
+    border: 1.5px solid var(--c-primary-a20);
+    border-radius: 12px;
+    margin-top: 32px;
+}
+
+.news-article-cta-box div {
+    flex: 1;
+}
+
+.news-article-cta-box strong {
+    font-size: 1rem;
+    color: var(--c-text-darkest);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.news-article-cta-box p {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--c-text-mid);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.news-article-cta-btn {
+    display: inline-block;
+    padding: 12px 28px;
+    background: var(--c-primary);
+    color: var(--c-white);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all var(--t-base);
+    white-space: nowrap;
+}
+
+.news-article-cta-btn:hover {
+    background: var(--c-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px var(--c-primary-a30);
+}
+
+/* ---- Upcoming Placeholder ---- */
+
+.news-upcoming {
+    text-align: center;
+    padding: 48px 24px;
+    border: 2px dashed var(--c-border-light);
+    border-radius: 12px;
+}
+
+.news-upcoming-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--c-text-mid);
+    margin-bottom: 8px;
+}
+
+.news-upcoming-desc {
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--c-text-faint);
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+    .pricing-hero {
+        padding: 120px 24px 60px;
+    }
+
+    .pricing-hero-title {
+        font-size: 2.2rem;
+    }
+
+    .pricing-cards-section {
+        padding: 48px 24px;
+    }
+
+    .pricing-cards-inner {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .pricing-faq {
+        padding: 48px 24px;
+    }
+
+    .pricing-faq-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pricing-faq-title {
+        font-size: 1.4rem;
+    }
+
+    .news-hero {
+        padding: 120px 24px 60px;
+    }
+
+    .news-hero-title {
+        font-size: 2.2rem;
+    }
+
+    .news-section {
+        padding: 48px 24px;
+    }
+
+    .news-article-content {
+        padding: 24px 20px 28px;
+    }
+
+    .news-article-title {
+        font-size: 1.4rem;
+    }
+
+    .news-feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .news-article-cta-box {
+        flex-direction: column;
+        text-align: center;
+        gap: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .pricing-hero-title {
+        font-size: 1.8rem;
+    }
+
+    .pricing-price {
+        font-size: 2.5rem;
+    }
+
+    .pricing-card {
+        padding: 28px 20px;
+    }
+
+    .news-hero-title {
+        font-size: 1.8rem;
+    }
+
+    .news-article-subtitle {
+        font-size: 1rem;
+    }
+}
