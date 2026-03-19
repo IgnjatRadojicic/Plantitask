@@ -11,6 +11,10 @@
             <MudIcon Icon="@Icons.Material.Outlined.BarChart" Size="Size.Small" />
             <span>Group Statistics</span>
         </button>
+        <button class="kanban-sidebar-btn" @onclick="GoToMemberManagement">
+            <MudIcon Icon="@Icons.Material.Outlined.People" Size="Size.Small" />
+            <span>Member Management</span>
+        </button>
     </div>
 </div>
 
@@ -28,5 +32,9 @@
     private void GoToGroupStats()
     {
         Navigation.NavigateTo($"/groups/{Slug}/{GroupId}/statistics");
+    }
+    private void GoToMemberManagement()
+    {
+        Navigation.NavigateTo($"/groups/{Slug}/{GroupId}/members");
     }
 }

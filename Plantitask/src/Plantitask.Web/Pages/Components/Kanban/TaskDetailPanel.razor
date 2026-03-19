@@ -110,13 +110,13 @@
 
                 <div class="task-detail-sidebar-field">
                     <label>Assignee</label>
-                    <MudSelect Value="@_assigneeId"
-                               ValueChanged="(Guid val) => HandleAssigneeChange(val)"
+                    <MudSelect T="Guid?" Value="@_assigneeId"
+                               ValueChanged="(Guid? val) => HandleAssigneeChange(val)"
                                Variant="Variant.Outlined" Dense="true"
                                Clearable="true" Placeholder="Unassigned">
                         @foreach (var member in Members)
                         {
-                            <MudSelectItem Value="@member.UserId">@member.UserName</MudSelectItem>
+                            <MudSelectItem T="Guid?" Value="@((Guid?)member.UserId)">@member.UserName</MudSelectItem>
                         }
                     </MudSelect>
                 </div>
@@ -172,7 +172,7 @@
     private bool _saving;
     private bool _editingDescription;
     private string _descriptionDraft = "";
-    private Guid _assigneeId;
+    private Guid? _assigneeId;
     private Guid _lastLoadedTaskId;
 
     protected override async Task OnParametersSetAsync()
@@ -186,7 +186,7 @@
         if (result.Success && result.Data is not null)
         {
             _task = result.Data;
-            _assigneeId = _task.AssignedToId ?? Guid.Empty;
+            _assigneeId = _task.AssignedToId;
         }
         else
         {
@@ -252,14 +252,14 @@
     }
 
 
-    private async Task HandleAssigneeChange(Guid userId)
+    private async Task HandleAssigneeChange(Guid? userId)
     {
         if (_task is null || _saving) return;
         _saving = true;
 
-        if (userId != Guid.Empty)
+        if (userId.HasValue)
         {
-            var result = await TaskService.AssignTaskAsync(TaskId, new AssignTaskDto { UserId = userId });
+            var result = await TaskService.AssignTaskAsync(TaskId, new AssignTaskDto { UserId = userId.Value });
             if (result.Success)
             {
                 _task.AssignedToId = userId;

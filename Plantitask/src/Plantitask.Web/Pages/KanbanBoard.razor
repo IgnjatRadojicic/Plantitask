@@ -86,7 +86,7 @@
     [Parameter] public string Slug { get; set; } = "";
     [Parameter] public Guid GroupId { get; set; }
 
-    // ── State ──
+    //  State 
     private bool _loading = true;
     private string? _errorMessage;
     private UserInfo _userInfo = new();
@@ -94,22 +94,22 @@
     private GroupDetailsDto? _groupDetails;
     private DotNetObjectReference<KanbanBoard>? _selfRef;
 
-    // ── Search ──
+    //  Search 
     private string _activeSearch = "";
 
-    // ── Tree ──
+    //  Tree 
     private int _treeStage = KanbanTreeMapper.SeedlingStage;
     private string _currentTreeImage = KanbanTreeMapper.GetImagePath(KanbanTreeMapper.SeedlingStage);
     private string? _nextTreeImage;
     private string _treeImageClass = "";
 
-    // ── Dialogs ──
+    //  Dialogs 
     private bool _createDialogOpen;
     private int _createInitialStatusId = 1;
     private Guid? _selectedTaskId;
     private TaskDetailViewMode _detailViewMode = TaskDetailViewMode.FullScreen;
 
-    // ── Lifecycle ──
+    //  Lifecycle 
 
     protected override void OnInitialized()
     {
@@ -136,7 +136,7 @@
         StateHasChanged();
     }
 
-    // ── Data Loading ──
+    //  Data Loading 
 
     private async Task LoadBoard()
     {
@@ -170,7 +170,7 @@
         _loading = false;
     }
 
-    // ── Layout Events ──
+    //  Layout Events 
 
     private void HandleLayoutCreateTask()
     {
@@ -185,7 +185,7 @@
         InvokeAsync(StateHasChanged);
     }
 
-    // ── JS Drag Callback ──
+    //  JS Drag Callback 
 
     [JSInvokable]
     public async Task OnCardDropped(string taskId, int newStatusId, int newDisplayOrder)
@@ -245,7 +245,7 @@
         for (var i = 0; i < ordered.Count; i++) ordered[i].DisplayOrder = i;
     }
 
-    // ── Quick Create ──
+    //  Quick Create 
 
     private void HandleQuickCreate(int statusId)
     {
@@ -263,7 +263,7 @@
         StateHasChanged();
     }
 
-    // ── Task Detail ──
+    //  Task Detail 
 
     private void OpenTaskDetail(Guid taskId) => _selectedTaskId = taskId;
     private void CloseTaskDetail() => _selectedTaskId = null;
@@ -318,7 +318,7 @@
         StateHasChanged();
     }
 
-    // ── Tree Stage ──
+    //  Tree Stage 
 
     private void RecalculateTreeStage()
     {
@@ -359,7 +359,7 @@
         StateHasChanged();
     }
 
-    // ── SignalR: Remote Task Moved ──
+    //  SignalR: Remote Task Moved 
 
     private Task HandleRemoteTaskMoved(KanbanTaskMovedEvent moved)
     {
@@ -396,7 +396,7 @@
         });
     }
 
-    // ── SignalR: Remote Task Created ──
+    //  SignalR: Remote Task Created 
 
     private Task HandleRemoteTaskCreated(KanbanTaskCreatedEvent created)
     {
@@ -413,7 +413,7 @@
         });
     }
 
-    // ── SignalR: Remote Task Deleted ──
+    //  SignalR: Remote Task Deleted 
 
     private Task HandleRemoteTaskDeleted(KanbanTaskDeletedEvent deleted)
     {
@@ -433,7 +433,7 @@
         });
     }
 
-    // ── SignalR: Remote Task Updated ──
+    //  SignalR: Remote Task Updated 
 
     private Task HandleRemoteTaskUpdated(KanbanTaskUpdatedEvent updated)
     {
@@ -451,7 +451,7 @@
     }
 
 
-    // ── Cleanup ──
+    //  Cleanup 
 
     public async ValueTask DisposeAsync()
     {
