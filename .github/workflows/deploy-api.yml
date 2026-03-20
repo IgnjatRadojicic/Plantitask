@@ -1,0 +1,37 @@
+name: Deploy API to Azure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Plantitask/src/TaskManagement.Core/**'
+      - 'Plantitask/src/TaskManagement.Infrastructure/**'
+      - 'Plantitask/src/TaskManagement.Api/**'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore Plantitask/src/TaskManagement.Api/TaskManagement.Api.csproj
+
+      - name: Publish
+        run: dotnet publish Plantitask/src/TaskManagement.Api/TaskManagement.Api.csproj --configuration Release --output ./publish/api
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'plantitask-api'
+          publish-profile: ${{ secrets.AZURE_API_PUBLISH_PROFILE }}
+          package: ./publish/api
