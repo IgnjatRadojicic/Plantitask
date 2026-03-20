@@ -130,19 +130,20 @@
         if (!firstRender) return;
 
         _userInfo = await CurrentUser.GetCurrentUserAsync() ?? new();
-        _selfRef = DotNetObjectReference.Create(this);
+    
+          _selfRef?.Dispose();
+         _selfRef = DotNetObjectReference.Create(this);
 
-        await LoadBoard();
-        await KanbanSignalR.ConnectAsync(GroupId);
+          await LoadBoard();
+          await KanbanSignalR.ConnectAsync(GroupId);
 
-        // Tear down any stale JS state before initializing
-        await TryInvokeVoidAsync("kanbanDrag.destroy");
-        await TryInvokeVoidAsync("kanbanTree.cleanup");
+          await TryInvokeVoidAsync("kanbanDrag.destroy");
+          await TryInvokeVoidAsync("kanbanTree.cleanup");
 
-        await JS.InvokeVoidAsync("kanbanDrag.init", _selfRef);
-        await JS.InvokeVoidAsync("kanbanTree.observe", _selfRef);
+          await JS.InvokeVoidAsync("kanbanDrag.init", _selfRef);
+          await JS.InvokeVoidAsync("kanbanTree.observe", _selfRef);
 
-        StateHasChanged();
+    StateHasChanged();
     }
 
     //  Data Loading 
