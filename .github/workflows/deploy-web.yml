@@ -32,4 +32,4 @@ jobs:
         with:
           app-name: 'plantitask-web2'
           publish-profile: ${{ secrets.AZURE_WEB_PUBLISH_PROFILE }}
-          package: ./publish/web/wwwroot
+          package: ./publish/web
