@@ -221,21 +221,54 @@
                                   Immediate="true"
                                   ValueChanged="@((string val) => OnPasswordChanged(val))" />
 
-                    <div class="strength-bar mb-4">
+                    <div class="strength-bar mb-2">
                         <div class="strength-bar-fill"
                              style="width:@(_strengthPercent)%; background-color:@_strengthColor;">
                         </div>
                     </div>
-                    <MudText Typo="Typo.caption" Color="@_strengthMudColor" Class="mb-4">
+                    <MudText Typo="Typo.caption" Color="@_strengthMudColor" Class="mb-2">
                         @_strengthLabel
                     </MudText>
+
+                    @* ── Password requirement checklist ── *@
+                    @if (!string.IsNullOrEmpty(_registerModel.Password))
+                    {
+                        <div class="password-rules mb-4" style="font-size: 0.8rem; line-height: 1.8;">
+                            <div style="color: @(PasswordHasMinLength ? "#4CAF50" : "#9E9E9E")">
+                                <MudIcon Icon="@(PasswordHasMinLength ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)"
+                                         Size="Size.Small" Style="@($"color: {(PasswordHasMinLength ? "#4CAF50" : "#9E9E9E")}; vertical-align: middle; margin-right: 4px;")" />
+                                At least 8 characters
+                            </div>
+                            <div style="color: @(PasswordHasUpper ? "#4CAF50" : "#9E9E9E")">
+                                <MudIcon Icon="@(PasswordHasUpper ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)"
+                                         Size="Size.Small" Style="@($"color: {(PasswordHasUpper ? "#4CAF50" : "#9E9E9E")}; vertical-align: middle; margin-right: 4px;")" />
+                                One uppercase letter
+                            </div>
+                            <div style="color: @(PasswordHasLower ? "#4CAF50" : "#9E9E9E")">
+                                <MudIcon Icon="@(PasswordHasLower ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)"
+                                         Size="Size.Small" Style="@($"color: {(PasswordHasLower ? "#4CAF50" : "#9E9E9E")}; vertical-align: middle; margin-right: 4px;")" />
+                                One lowercase letter
+                            </div>
+                            <div style="color: @(PasswordHasDigit ? "#4CAF50" : "#9E9E9E")">
+                                <MudIcon Icon="@(PasswordHasDigit ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)"
+                                         Size="Size.Small" Style="@($"color: {(PasswordHasDigit ? "#4CAF50" : "#9E9E9E")}; vertical-align: middle; margin-right: 4px;")" />
+                                One number
+                            </div>
+                            <div style="color: @(PasswordHasSpecial ? "#4CAF50" : "#9E9E9E")">
+                                <MudIcon Icon="@(PasswordHasSpecial ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)"
+                                         Size="Size.Small" Style="@($"color: {(PasswordHasSpecial ? "#4CAF50" : "#9E9E9E")}; vertical-align: middle; margin-right: 4px;")" />
+                                All of the above         
+                            </div>
+                   
+                        </div>
+                    }
 
                     <MudButton ButtonType="ButtonType.Submit"
                                Variant="Variant.Filled"
                                Color="Color.Primary"
                                FullWidth="true"
                                Size="Size.Large"
-                               Disabled="_loading"
+                               Disabled="@(_loading || !PasswordMeetsAllRequirements)"
                                Class="mb-4 auth-btn">
                         @if (_loading)
                         {
@@ -292,6 +325,17 @@
     private string _strengthLabel = string.Empty;
     private Color _strengthMudColor = Color.Default;
 
+    // ── Password requirement flags (computed in OnPasswordChanged) ──
+    private bool PasswordHasMinLength;
+    private bool PasswordHasUpper;
+    private bool PasswordHasLower;
+    private bool PasswordHasDigit;
+    private bool PasswordHasSpecial;
+
+    private bool PasswordMeetsAllRequirements =>
+        PasswordHasMinLength && PasswordHasUpper && PasswordHasLower &&
+        PasswordHasDigit && PasswordHasSpecial;
+
     private string GetStepTitle() => _step switch
     {
         AuthStep.Email => "Log in to continue",
@@ -336,21 +380,21 @@
     }
 
     private async Task HandleLogin()
-{
-    _loading = true;
-    _loginModel.RememberMe = _rememberMe;
-    var result = await AuthService.LoginAsync(_loginModel);
-    _loading = false;
+    {
+        _loading = true;
+        _loginModel.RememberMe = _rememberMe;
+        var result = await AuthService.LoginAsync(_loginModel);
+        _loading = false;
 
-    if (result.Success)
-    {
-        Navigation.NavigateTo("/field", forceLoad: false);
+        if (result.Success)
+        {
+            Navigation.NavigateTo("/field", forceLoad: false);
+        }
+        else
+        {
+            Snackbar.Add(result.Error, Severity.Error);
+        }
     }
-    else
-    {
-        Snackbar.Add(result.Error, Severity.Error);
-    }
-}   
 
     private async Task HandleVerifyCode()
     {
@@ -383,6 +427,14 @@
 
     private async Task HandleRegister()
     {
+        // Frontend guard — should not happen since button is disabled,
+        // but protects against edge cases
+        if (!PasswordMeetsAllRequirements)
+        {
+            Snackbar.Add("Password does not meet all requirements", Severity.Warning);
+            return;
+        }
+
         _loading = true;
         var result = await AuthService.RegisterAsync(_registerModel);
         _loading = false;
@@ -407,6 +459,14 @@
     private void OnPasswordChanged(string password)
     {
         _registerModel.Password = password;
+
+        // Update individual requirement flags
+        PasswordHasMinLength = password.Length >= 8;
+        PasswordHasUpper = password.Any(char.IsUpper);
+        PasswordHasLower = password.Any(char.IsLower);
+        PasswordHasDigit = password.Any(char.IsDigit);
+        PasswordHasSpecial = password.Any(c => "@$!%*?&#".Contains(c));
+
         CalculateStrength(password);
     }
 
@@ -414,11 +474,11 @@
     {
         var score = 0;
 
-        if (password.Length >= 8) score++;
-        if (password.Any(char.IsUpper)) score++;
-        if (password.Any(char.IsLower)) score++;
-        if (password.Any(char.IsDigit)) score++;
-        if (password.Any(c => "@$!%*?&#".Contains(c))) score++;
+        if (PasswordHasMinLength) score++;
+        if (PasswordHasUpper) score++;
+        if (PasswordHasLower) score++;
+        if (PasswordHasDigit) score++;
+        if (PasswordHasSpecial) score++;
 
         (_strengthPercent, _strengthColor, _strengthLabel, _strengthMudColor) = score switch
         {
