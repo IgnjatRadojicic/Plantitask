@@ -8,6 +8,8 @@
 *.userosscache
 *.sln.docstates
 
+!**/wwwroot/appsettings.Production.json
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
