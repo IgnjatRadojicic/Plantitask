@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'Plantitask/src/TaskManagement.Core/**'
-      - 'Plantitask/src/TaskManagement.Infrastructure/**'
-      - 'Plantitask/src/TaskManagement.Api/**'
+      - 'Plantitask/src/Plantitask.Core/**'
+      - 'Plantitask/src/Plantitask.Infrastructure/**'
+      - 'Plantitask/src/Plantitask.Api/**'
       - '.github/workflows/deploy-api.yml'
   workflow_dispatch:
 
@@ -24,10 +24,10 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore Plantitask/src/TaskManagement.Api/TaskManagement.Api.csproj
+        run: dotnet restore Plantitask/src/Plantitask.Api/Plantitask.Api.csproj
 
       - name: Publish
-        run: dotnet publish Plantitask/src/TaskManagement.Api/TaskManagement.Api.csproj --configuration Release --output ./publish/api
+        run: dotnet publish Plantitask/src/Plantitask.Api/Plantitask.Api.csproj --configuration Release --output ./publish/api
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
