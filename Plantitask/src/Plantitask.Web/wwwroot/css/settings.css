@@ -96,6 +96,33 @@
     color: var(--c-error, #e53935);
 }
 
+.ds-theme-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border: 1.5px solid var(--c-border);
+    border-radius: 8px;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--c-text-mid);
+    cursor: pointer;
+    transition: all var(--t-fast);
+}
+
+.ds-theme-btn:hover {
+    border-color: var(--c-primary);
+    color: var(--c-primary);
+}
+
+.ds-theme-btn-active {
+    border-color: var(--c-primary);
+    background: var(--c-primary-a10);
+    color: var(--c-primary);
+}
+
 
 .ds-settings-main-area {
     flex: 1 1 0;             

@@ -230,7 +230,7 @@
                         @_strengthLabel
                     </MudText>
 
-                    @* ── Password requirement checklist ── *@
+                    @*  Password requirement checklist  *@
                     @if (!string.IsNullOrEmpty(_registerModel.Password))
                     {
                         <div class="password-rules mb-4" style="font-size: 0.8rem; line-height: 1.8;">
@@ -325,7 +325,7 @@
     private string _strengthLabel = string.Empty;
     private Color _strengthMudColor = Color.Default;
 
-    // ── Password requirement flags (computed in OnPasswordChanged) ──
+    //  Password requirement flags (computed in OnPasswordChanged) 
     private bool PasswordHasMinLength;
     private bool PasswordHasUpper;
     private bool PasswordHasLower;

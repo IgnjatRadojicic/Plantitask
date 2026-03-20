@@ -1,0 +1,225 @@
+﻿/* ===== DARK MODE FIXES ===== */
+/* Targeted overrides for elements that break with variable swapping */
+
+/* ---- Landing: hero always needs white text (it's on a photo) ---- */
+[data-theme="dark"] .landing-hero .landing-headline,
+[data-theme="dark"] .landing-hero .landing-subtext,
+[data-theme="dark"] .landing-hero .landing-cta,
+[data-theme="dark"] .landing-hero .landing-brand,
+[data-theme="dark"] .landing-hero .landing-nav-link,
+[data-theme="dark"] .landing-hero .landing-signin-btn,
+[data-theme="dark"] .landing-hero .landing-logout-btn {
+    color: #FFFFFF;
+}
+
+[data-theme="dark"] .dash-vine {
+    mix-blend-mode: normal;
+    opacity: 0.08;
+    filter: invert(1) brightness(0.5) sepia(1) hue-rotate(30deg) saturate(2);
+}
+
+/* Landing: logo background in dark mode */
+[data-theme="dark"] .landing-logo {
+    background: rgba(30,30,30,0.95);
+}
+
+[data-theme="dark"] .landing-nav-center-logo {
+    background: rgba(30,30,30,0.95);
+}
+
+/* Landing: user avatar border */
+[data-theme="dark"] .landing-user-avatar {
+    border-color: rgba(255,255,255,0.2);
+}
+
+[data-theme="dark"] .landing-cta {
+    border-color: #FFFFFF;
+    color: #FFFFFF;
+}
+
+[data-theme="dark"] .landing-subtext {
+    color: rgba(255,255,255,0.85);
+}
+
+/* ---- Landing: nav scrolled bg ---- */
+[data-theme="dark"] .landing-nav-scrolled {
+    background: rgba(18,18,18,0.9);
+}
+
+/* ---- Landing: features section ---- */
+[data-theme="dark"] .landing-features {
+    background: #1A1A1A;
+}
+
+/* ---- Landing: footer text stays light ---- */
+[data-theme="dark"] .landing-footer {
+    background: #0E0E0E;
+}
+
+[data-theme="dark"] .landing-footer-col-title,
+[data-theme="dark"] .landing-footer-name {
+    color: #ECECEC;
+}
+
+/* ---- Dashboard: vine blend mode ---- */
+[data-theme="dark"] .dash-vine {
+    mix-blend-mode: screen;
+    opacity: 0.15;
+}
+
+/* ---- Dashboard: loading screen ---- */
+[data-theme="dark"] .loading-screen {
+    background: #121212;
+}
+
+[data-theme="dark"] .line-container {
+    background: #333;
+}
+
+[data-theme="dark"] .loading-text {
+    color: #666;
+}
+
+/* ---- Kanban: tree overlay needs dark tint not white ---- */
+[data-theme="dark"] .kanban-tree-overlay {
+    background: rgba(30,30,30,0.45);
+}
+
+/* ---- Kanban: search bar on dark topbar ---- */
+[data-theme="dark"] .kanban-search {
+    background: #2A2A2A;
+    color: #D4D4D4;
+    border-color: rgba(255,255,255,0.1);
+}
+
+[data-theme="dark"] .kanban-search:focus {
+    border-color: var(--c-primary);
+    box-shadow: 0 0 0 3px rgba(168,212,6,0.2);
+}
+
+[data-theme="dark"] .kanban-search::placeholder {
+    color: #666;
+}
+
+/* ---- Kanban: topbar stays green ---- */
+[data-theme="dark"] .kanban-topbar {
+    background: #2D3A0F;
+}
+
+[data-theme="dark"] .kanban-group-name,
+[data-theme="dark"] .kanban-icon-btn {
+    color: #ECECEC;
+}
+
+[data-theme="dark"] .kanban-member-count {
+    color: rgba(255,255,255,0.6);
+}
+
+/* ---- Kanban: leaves pattern lower opacity in dark ---- */
+[data-theme="dark"] .kanban-leaves-bg {
+    opacity: 0.06;
+}
+
+/* ---- Kanban: card priority badge text stays white ---- */
+[data-theme="dark"] .kanban-card-priority {
+    color: #FFFFFF;
+}
+
+/* ---- Task detail: status chip text stays white ---- */
+[data-theme="dark"] .task-detail-status-chip {
+    color: #FFFFFF;
+}
+
+/* ---- Auth page: keep card visible ---- */
+[data-theme="dark"] .auth-card {
+    background: #1E1E1E;
+    border: 1px solid #333;
+}
+
+/* ---- Pricing: hero stays dark regardless ---- */
+[data-theme="dark"] .pricing-hero,
+[data-theme="dark"] .news-hero {
+    background: #0A0A0A;
+}
+
+[data-theme="dark"] .pricing-hero-title,
+[data-theme="dark"] .news-hero-title {
+    color: #ECECEC;
+}
+
+/* ---- Pricing: card premium border ---- */
+[data-theme="dark"] .pricing-card-premium {
+    border-color: var(--c-primary);
+    background: #242414;
+}
+
+/* ---- MudBlazor overrides ---- */
+[data-theme="dark"] .mud-input-outlined .mud-input-outlined-border {
+    border-color: #333 !important;
+}
+
+[data-theme="dark"] .mud-input-outlined:hover .mud-input-outlined-border {
+    border-color: #555 !important;
+}
+
+[data-theme="dark"] .mud-input,
+[data-theme="dark"] .mud-input-slot {
+    color: #D4D4D4 !important;
+}
+
+[data-theme="dark"] .mud-input-label {
+    color: #888 !important;
+}
+
+[data-theme="dark"] .mud-select .mud-input-slot {
+    color: #D4D4D4 !important;
+}
+
+[data-theme="dark"] .mud-paper,
+[data-theme="dark"] .mud-card {
+    background-color: #1E1E1E !important;
+    color: #D4D4D4 !important;
+}
+
+[data-theme="dark"] .mud-popover {
+    background-color: #252525 !important;
+    border-color: #333 !important;
+}
+
+[data-theme="dark"] .mud-list-item:hover {
+    background-color: rgba(168,212,6,0.08) !important;
+}
+
+[data-theme="dark"] .mud-list-item-text {
+    color: #D4D4D4 !important;
+}
+
+[data-theme="dark"] .mud-checkbox .mud-typography {
+    color: #B0B0B0 !important;
+}
+
+[data-theme="dark"] .mud-snackbar {
+    background-color: #2A2A2A !important;
+}
+
+/* ---- Scrollbar ---- */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: #1A1A1A;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #444;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ---- Avatar keeps white text regardless ---- */
+[data-theme="dark"] .landing-user-avatar-initials,
+[data-theme="dark"] .dash-activity-avatar,
+[data-theme="dark"] .kanban-card-assignee span,
+[data-theme="dark"] .members-avatar,
+[data-theme="dark"] .stats-wl-avatar {
+    color: #FFFFFF;
+}

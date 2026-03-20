@@ -72,3 +72,69 @@
     --t-spring:           0.4s cubic-bezier(0.4, 0, 0.2, 1);
     --t-spring-fast:      0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+[data-theme="dark"] {
+    /* Brand — keep primary green, slightly brighter for contrast */
+    --c-primary:          #9CC103;
+    --c-primary-dark:     #8FB504;
+    --c-primary-a06:      rgba(168,212,6,0.06);
+    --c-primary-a08:      rgba(168,212,6,0.08);
+    --c-primary-a10:      rgba(168,212,6,0.1);
+    --c-primary-a30:      rgba(168,212,6,0.3);
+    --c-primary-a40:      rgba(168,212,6,0.4);
+    --c-primary-a50:      rgba(168,212,6,0.5);
+
+    /* Error */
+    --c-error:            #EF5350;
+    --c-error-a06:        rgba(239,83,80,0.06);
+
+    /* Neutrals — inverted */
+    --c-white:            #1E1E1E;
+    --c-text-darkest:     #ECECEC;
+    --c-text-dark:        #D4D4D4;
+    --c-text-mid:         #B0B0B0;
+    --c-text-body:        #9E9E9E;
+    --c-text-muted:       #787878;
+    --c-text-faint:       #555555;
+    --c-text-footer:      #888;
+    --c-text-footer-sub:  #777;
+
+    /* Backgrounds */
+    --c-bg-page:          #121212;
+    --c-bg-white:         #1E1E1E;
+    --c-bg-dark:          #0A0A0A;
+    --c-bg-field:         #4A6B2F;
+    --c-bg-loading:       rgba(18,18,18,0.95);
+    --c-bg-avatar:        #5C6B2A;
+
+    /* Borders */
+    --c-border:           #333333;
+    --c-border-light:     #2A2A2A;
+    --c-border-dark:      #444444;
+
+    /* Black overlays — swap to white-based for dark surfaces */
+    --c-black-a06:        rgba(255,255,255,0.06);
+    --c-black-a08:        rgba(255,255,255,0.08);
+    --c-black-a10:        rgba(255,255,255,0.1);
+    --c-black-a12:        rgba(255,255,255,0.12);
+    --c-black-a15:        rgba(255,255,255,0.15);
+    --c-black-a18:        rgba(255,255,255,0.18);
+    --c-black-a30:        rgba(255,255,255,0.3);
+
+    /* Glass surfaces — dark glass */
+    --c-glass-35:         rgba(30,30,30,0.35);
+    --c-glass-40:         rgba(30,30,30,0.4);
+    --c-glass-50:         rgba(30,30,30,0.5);
+    --c-glass-60:         rgba(30,30,30,0.6);
+    --c-glass-65:         rgba(30,30,30,0.65);
+    --c-glass-75:         rgba(30,30,30,0.75);
+    --c-glass-80:         rgba(30,30,30,0.8);
+    --c-glass-92:         rgba(30,30,30,0.92);
+    --c-glass-95:         rgba(30,30,30,0.95);
+
+    /* Component-specific */
+    --c-nav-scrolled:     rgba(30,30,30,0.9);
+    --c-signin-bg:        rgba(40,40,40,0.8);
+    --c-tab-inactive:     rgba(180,180,180,0.8);
+}
+

@@ -1,6 +1,7 @@
 @inject IUserProfileService ProfileService
 @inject ISettingsUIService SettingsUI
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @implements IDisposable
 
 @if (_loading)
@@ -42,7 +43,28 @@ else
             <label class="ds-field-label">EMAIL</label>
             <div class="ds-field-static">@_profile.Email</div>
         </div>
+
+    <!-- Theme -->
+<div class="ds-card">
+    <div class="ds-field">
+        <label class="ds-field-label">THEME</label>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <button class="ds-theme-btn @(_currentTheme == "light" ? "ds-theme-btn-active" : "")"
+                    @onclick='() => SetTheme("light")'>
+                <MudIcon Icon="@Icons.Material.Outlined.LightMode" Size="Size.Small" />
+                Light
+            </button>
+            <button class="ds-theme-btn @(_currentTheme == "dark" ? "ds-theme-btn-active" : "")"
+                    @onclick='() => SetTheme("dark")'>
+                <MudIcon Icon="@Icons.Material.Outlined.DarkMode" Size="Size.Small" />
+                Dark
+            </button>
+        </div>
     </div>
+</div>
+    </div>
+
+
 
     <!-- Password -->
     <PasswordSection />
@@ -67,6 +89,8 @@ else
     private string _originalUserName = "";
     private string _originalFirstName = "";
     private string _originalLastName = "";
+    private string _currentTheme = "light";
+
 
     private bool _uploadingPicture;
 
@@ -85,7 +109,15 @@ else
             Snapshot();
         }
         _loading = false;
+
+        _currentTheme = await JS.InvokeAsync<string>("themeManager.get");
+
     }
+    private async Task SetTheme(string theme)
+    {
+    _currentTheme = theme;
+    await JS.InvokeVoidAsync("themeManager.set", theme);
+    }    
 
     // ----- Event bus handlers -----
 
