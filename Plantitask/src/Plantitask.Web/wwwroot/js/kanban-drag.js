@@ -1,21 +1,48 @@
-﻿window.kanbanTree = {
-    observe: function (dotnetRef) {
-        document.addEventListener('animationend', function (e) {
-            if (e.target.classList.contains('kanban-tree-entering')) {
-                dotnetRef.invokeMethodAsync('OnTreeAnimationEnd');
-            }
-        });
-    }
-};
+﻿//  Kanban Tree Animation Observer 
+window.kanbanTree = (() => {
+    let _handler = null;
 
+    function observe(dotnetRef) {
+        // Remove any previous listener to prevent stacking on re-init
+        cleanup();
+
+        _handler = function (e) {
+            if (e.target.classList.contains('kanban-tree-entering')) {
+                try {
+                    dotnetRef.invokeMethodAsync('OnTreeAnimationEnd');
+                } catch (err) {
+                    // DotNetObjectReference may be disposed if component was torn down
+                    console.warn('[kanbanTree] OnTreeAnimationEnd failed (likely disposed):', err.message);
+                }
+            }
+        };
+
+        document.addEventListener('animationend', _handler);
+    }
+
+    function cleanup() {
+        if (_handler) {
+            document.removeEventListener('animationend', _handler);
+            _handler = null;
+        }
+    }
+
+    return { observe, cleanup };
+})();
+
+
+//  Kanban Drag & Drop ─
 window.kanbanDrag = (() => {
     let _dotnetRef = null;
-    let _dragging = null;       
-    let _columns = [];         
+    let _dragging = null;
+    let _columns = [];
     let _dropIndicator = null;
     let _scrollInterval = null;
 
     function init(dotnetRef) {
+        // Clean up any stale state from a previous component instance
+        destroy();
+
         _dotnetRef = dotnetRef;
         document.addEventListener('mousedown', onMouseDown, { passive: false });
         document.addEventListener('mousemove', onMouseMove, { passive: false });
@@ -33,14 +60,30 @@ window.kanbanDrag = (() => {
         document.removeEventListener('touchstart', onTouchStart);
         document.removeEventListener('touchmove', onTouchMove);
         document.removeEventListener('touchend', onTouchEnd);
+
+        // Clean up any in-progress drag
+        if (_dragging) {
+            _dragging.el.classList.remove('kanban-card-dragging');
+            if (_dragging.ghost && _dragging.ghost.parentNode) {
+                _dragging.ghost.remove();
+            }
+            _dragging = null;
+        }
+
+        // Remove drag-over classes from all columns
+        document.querySelectorAll('.kanban-column-drag-over').forEach(el => {
+            el.classList.remove('kanban-column-drag-over');
+        });
+
         _removeDropIndicator();
         _dotnetRef = null;
         cancelAutoScroll();
     }
 
-    // Drop Indicator
+    //  Drop Indicator 
 
     function _createDropIndicator() {
+        _removeDropIndicator(); // Prevent duplicates
         _dropIndicator = document.createElement('div');
         _dropIndicator.className = 'kanban-drop-indicator';
         _dropIndicator.style.display = 'none';
@@ -54,7 +97,7 @@ window.kanbanDrag = (() => {
         }
     }
 
-    // Mouse Events
+    //  Mouse Events 
 
     function onMouseDown(e) {
         const card = e.target.closest('.kanban-card');
@@ -78,7 +121,7 @@ window.kanbanDrag = (() => {
         endDrag(e.clientX, e.clientY);
     }
 
-    // Touch Events
+    //  Touch Events 
 
     function onTouchStart(e) {
         const card = e.target.closest('.kanban-card');
@@ -102,7 +145,7 @@ window.kanbanDrag = (() => {
         endDrag(touch.clientX, touch.clientY);
     }
 
-    // Core Drag Logic
+    //  Core Drag Logic 
 
     function startDrag(card, x, y) {
         const taskId = card.dataset.taskId;
@@ -161,14 +204,19 @@ window.kanbanDrag = (() => {
         if (!_dragging) return;
 
         cancelAutoScroll();
-        _dropIndicator.style.display = 'none';
+        if (_dropIndicator) _dropIndicator.style.display = 'none';
+
+        // Remove all drag-over highlights
+        _columns.forEach(col => col.el.classList.remove('kanban-column-drag-over'));
 
         const dragging = _dragging;
         _dragging = null;
 
         // Clean up
         dragging.el.classList.remove('kanban-card-dragging');
-        dragging.ghost.remove();
+        if (dragging.ghost && dragging.ghost.parentNode) {
+            dragging.ghost.remove();
+        }
 
         if (!dragging.moved) return; // Was just a click, not a drag
 
@@ -179,9 +227,13 @@ window.kanbanDrag = (() => {
         // Don't fire if dropped in same position
         if (drop.statusId === dragging.sourceStatusId && drop.index === getCardIndex(dragging.el)) return;
 
-        // Callback to Blazor
+        // Callback to Blazor — guard against disposed reference
         if (_dotnetRef) {
-            _dotnetRef.invokeMethodAsync('OnCardDropped', dragging.taskId, drop.statusId, drop.index);
+            try {
+                _dotnetRef.invokeMethodAsync('OnCardDropped', dragging.taskId, drop.statusId, drop.index);
+            } catch (err) {
+                console.warn('[kanbanDrag] OnCardDropped failed (likely disposed):', err.message);
+            }
         }
     }
 
@@ -191,7 +243,7 @@ window.kanbanDrag = (() => {
         _dragging.ghost.style.top = (y - _dragging.offsetY) + 'px';
     }
 
-    // Column & Card Position Tracking
+    //  Column & Card Position Tracking 
 
     function cacheColumnRects() {
         _columns = [];
@@ -238,9 +290,11 @@ window.kanbanDrag = (() => {
         return cards.indexOf(cardEl);
     }
 
-    // Drop Indicator
+    //  Drop Indicator 
 
     function updateDropIndicator(x, y) {
+        if (!_dropIndicator) return;
+
         let shown = false;
         for (const col of _columns) {
             if (x >= col.rect.left && x <= col.rect.right) {
@@ -274,13 +328,14 @@ window.kanbanDrag = (() => {
     }
 
     function showIndicator(left, top, width) {
+        if (!_dropIndicator) return;
         _dropIndicator.style.display = 'block';
         _dropIndicator.style.left = left + 'px';
         _dropIndicator.style.top = top + 'px';
         _dropIndicator.style.width = width + 'px';
     }
 
-    // Auto-scroll
+    //  Auto-scroll 
 
     function handleAutoScroll(x, y) {
         const wrapper = document.querySelector('.kanban-columns-wrapper');

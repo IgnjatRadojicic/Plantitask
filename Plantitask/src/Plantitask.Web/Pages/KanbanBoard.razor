@@ -88,6 +88,7 @@
 
     //  State 
     private bool _loading = true;
+    private bool _disposed;
     private string? _errorMessage;
     private UserInfo _userInfo = new();
     private KanbanBoardDto? _board;
@@ -108,6 +109,9 @@
     private int _createInitialStatusId = 1;
     private Guid? _selectedTaskId;
     private TaskDetailViewMode _detailViewMode = TaskDetailViewMode.FullScreen;
+
+    //  Drag debounce 
+    private bool _moveInProgress;
 
     //  Lifecycle 
 
@@ -130,6 +134,11 @@
 
         await LoadBoard();
         await KanbanSignalR.ConnectAsync(GroupId);
+
+        // Tear down any stale JS state before initializing
+        await TryInvokeVoidAsync("kanbanDrag.destroy");
+        await TryInvokeVoidAsync("kanbanTree.cleanup");
+
         await JS.InvokeVoidAsync("kanbanDrag.init", _selfRef);
         await JS.InvokeVoidAsync("kanbanTree.observe", _selfRef);
 
@@ -191,51 +200,63 @@
     public async Task OnCardDropped(string taskId, int newStatusId, int newDisplayOrder)
     {
         if (_board is null || !Guid.TryParse(taskId, out var guid)) return;
+        if (_disposed) return;
 
-        KanbanTaskDto? movedTask = null;
-        KanbanColumnDto? sourceCol = null;
+        // Prevent overlapping move calls from rapid drag events
+        if (_moveInProgress) return;
+        _moveInProgress = true;
 
-        foreach (var col in _board.Columns)
+        try
         {
-            movedTask = col.Tasks.FirstOrDefault(t => t.Id == guid);
-            if (movedTask is not null) { sourceCol = col; break; }
-        }
+            KanbanTaskDto? movedTask = null;
+            KanbanColumnDto? sourceCol = null;
 
-        if (movedTask is null || sourceCol is null) return;
+            foreach (var col in _board.Columns)
+            {
+                movedTask = col.Tasks.FirstOrDefault(t => t.Id == guid);
+                if (movedTask is not null) { sourceCol = col; break; }
+            }
 
-        var targetCol = _board.Columns.FirstOrDefault(c => c.StatusId == newStatusId);
-        if (targetCol is null) return;
+            if (movedTask is null || sourceCol is null) return;
 
-        if (sourceCol.StatusId == newStatusId)
-        {
-            var currentIdx = sourceCol.Tasks.IndexOf(movedTask);
-            if (currentIdx == newDisplayOrder) return;
-        }
+            var targetCol = _board.Columns.FirstOrDefault(c => c.StatusId == newStatusId);
+            if (targetCol is null) return;
 
-        // Optimistic UI
-        sourceCol.Tasks.Remove(movedTask);
-        movedTask.StatusId = newStatusId;
-        movedTask.DisplayOrder = newDisplayOrder;
-        var insertAt = Math.Clamp(newDisplayOrder, 0, targetCol.Tasks.Count);
-        targetCol.Tasks.Insert(insertAt, movedTask);
-        ReindexColumn(targetCol);
-        if (sourceCol != targetCol) ReindexColumn(sourceCol);
+            if (sourceCol.StatusId == newStatusId)
+            {
+                var currentIdx = sourceCol.Tasks.IndexOf(movedTask);
+                if (currentIdx == newDisplayOrder) return;
+            }
 
-        RecalculateTreeStage();
-        StateHasChanged();
+            // Optimistic UI
+            sourceCol.Tasks.Remove(movedTask);
+            movedTask.StatusId = newStatusId;
+            movedTask.DisplayOrder = newDisplayOrder;
+            var insertAt = Math.Clamp(newDisplayOrder, 0, targetCol.Tasks.Count);
+            targetCol.Tasks.Insert(insertAt, movedTask);
+            ReindexColumn(targetCol);
+            if (sourceCol != targetCol) ReindexColumn(sourceCol);
 
-        // Server call
-        var result = await KanbanService.MoveTaskAsync(guid, new MoveTaskDto
-        {
-            NewStatusId = newStatusId,
-            NewDisplayOrder = newDisplayOrder
-        });
-
-        if (!result.Success)
-        {
-            Snackbar.Add(result.Error ?? "Failed to move task.", MudBlazor.Severity.Error);
-            await LoadBoard();
+            RecalculateTreeStage();
             StateHasChanged();
+
+            // Server call
+            var result = await KanbanService.MoveTaskAsync(guid, new MoveTaskDto
+            {
+                NewStatusId = newStatusId,
+                NewDisplayOrder = newDisplayOrder
+            });
+
+            if (!result.Success)
+            {
+                Snackbar.Add(result.Error ?? "Failed to move task.", MudBlazor.Severity.Error);
+                await LoadBoard();
+                StateHasChanged();
+            }
+        }
+        finally
+        {
+            _moveInProgress = false;
         }
     }
 
@@ -327,32 +348,29 @@
         ApplyTreeStage(stage);
     }
 
- private void ApplyTreeStage(int newStage)
-{
-    Console.WriteLine($"[ApplyTree] newStage={newStage} current={_treeStage} nextImage={_nextTreeImage != null}");
-    
-    if (newStage == _treeStage && _nextTreeImage is null) return;
-
-    if (_nextTreeImage is not null)
+    private void ApplyTreeStage(int newStage)
     {
-        Console.WriteLine($"[ApplyTree] In-flight jump to {newStage}");
-        _currentTreeImage = KanbanTreeMapper.GetImagePath(newStage);
-        _nextTreeImage = null;
-        _treeImageClass = "";
-        _treeStage = newStage;
-        return;
-    }
+        if (newStage == _treeStage && _nextTreeImage is null) return;
 
-    Console.WriteLine($"[ApplyTree] Starting transition {_treeStage} -> {newStage}");
-    _treeStage = newStage;
-    _treeImageClass = "kanban-tree-exiting";
-    _nextTreeImage = KanbanTreeMapper.GetImagePath(newStage);
-}
+        if (_nextTreeImage is not null)
+        {
+            // Animation already in flight — jump directly to new stage
+            _currentTreeImage = KanbanTreeMapper.GetImagePath(newStage);
+            _nextTreeImage = null;
+            _treeImageClass = "";
+            _treeStage = newStage;
+            return;
+        }
+
+        _treeStage = newStage;
+        _treeImageClass = "kanban-tree-exiting";
+        _nextTreeImage = KanbanTreeMapper.GetImagePath(newStage);
+    }
 
     [JSInvokable]
     public void OnTreeAnimationEnd()
     {
-        if (_nextTreeImage is null) return;
+        if (_disposed || _nextTreeImage is null) return;
         _currentTreeImage = _nextTreeImage;
         _nextTreeImage = null;
         _treeImageClass = "";
@@ -363,7 +381,7 @@
 
     private Task HandleRemoteTaskMoved(KanbanTaskMovedEvent moved)
     {
-        if (moved.MovedByUserId == _userInfo.Id) return Task.CompletedTask;
+        if (_disposed || moved.MovedByUserId == _userInfo.Id) return Task.CompletedTask;
         return InvokeAsync(() =>
         {
             if (_board is null) return;
@@ -400,7 +418,7 @@
 
     private Task HandleRemoteTaskCreated(KanbanTaskCreatedEvent created)
     {
-        if (created.CreatedByUserId == _userInfo.Id) return Task.CompletedTask;
+        if (_disposed || created.CreatedByUserId == _userInfo.Id) return Task.CompletedTask;
         return InvokeAsync(async () =>
         {
             var result = await KanbanService.GetBoardAsync(GroupId);
@@ -417,7 +435,7 @@
 
     private Task HandleRemoteTaskDeleted(KanbanTaskDeletedEvent deleted)
     {
-        if (deleted.DeletedByUserId == _userInfo.Id) return Task.CompletedTask;
+        if (_disposed || deleted.DeletedByUserId == _userInfo.Id) return Task.CompletedTask;
         return InvokeAsync(() =>
         {
             if (_board is null) return;
@@ -437,7 +455,7 @@
 
     private Task HandleRemoteTaskUpdated(KanbanTaskUpdatedEvent updated)
     {
-        if (updated.UpdatedByUserId == _userInfo.Id) return Task.CompletedTask;
+        if (_disposed || updated.UpdatedByUserId == _userInfo.Id) return Task.CompletedTask;
         return InvokeAsync(async () =>
         {
             var result = await KanbanService.GetBoardAsync(GroupId);
@@ -450,11 +468,27 @@
         });
     }
 
+    //  JS Interop Helper 
+
+    private async Task TryInvokeVoidAsync(string identifier, params object[] args)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(identifier, args);
+        }
+        catch (JSDisconnectedException) { }
+        catch (TaskCanceledException) { }
+        catch (ObjectDisposedException) { }
+        catch { /* swallow during teardown */ }
+    }
 
     //  Cleanup 
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         KanbanSignalR.OnTaskMoved -= HandleRemoteTaskMoved;
         KanbanSignalR.OnTaskCreated -= HandleRemoteTaskCreated;
         KanbanSignalR.OnTaskDeleted -= HandleRemoteTaskDeleted;
@@ -462,10 +496,12 @@
         LayoutState.OnCreateTaskRequested -= HandleLayoutCreateTask;
         LayoutState.OnSearchChanged -= HandleLayoutSearch;
 
-        try { await JS.InvokeVoidAsync("kanbanDrag.destroy"); }
-        catch { /* swallow — tearing down */ }
+        await TryInvokeVoidAsync("kanbanDrag.destroy");
+        await TryInvokeVoidAsync("kanbanTree.cleanup");
 
         _selfRef?.Dispose();
+        _selfRef = null;
+
         await KanbanSignalR.DisconnectAsync();
     }
 }

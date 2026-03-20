@@ -314,7 +314,7 @@
 .kanban-tree-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(255, 255, 255, 0.45);
+    background: var(--c-white);
     z-index: 3;
     pointer-events: none;
 }

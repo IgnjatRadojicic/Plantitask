@@ -1,9 +1,10 @@
+@* KanbanCard.razor *@
+
 <div class="kanban-card @(Task.IsOverdue ? "kanban-card-overdue" : "")"
      data-task-id="@Task.Id"
      data-status-id="@Task.StatusId"
      @onclick="OnClicked"
      @onclick:stopPropagation="true">
-
     <div class="kanban-card-top">
         <span class="kanban-card-priority" style="background:@Task.PriorityColor">
             @Task.PriorityName
@@ -13,14 +14,11 @@
             <span class="kanban-card-overdue-badge">Overdue</span>
         }
     </div>
-
     <h4 class="kanban-card-title text-sora">@Task.Title</h4>
-
     @if (!string.IsNullOrWhiteSpace(Task.Description))
     {
         <p class="kanban-card-desc">@Truncate(Task.Description, 80)</p>
     }
-
     <div class="kanban-card-footer">
         <div class="kanban-card-footer-left">
             @if (Task.DueDate.HasValue)
@@ -65,7 +63,6 @@
         => text.Length <= maxLength ? text : string.Concat(text.AsSpan(0, maxLength), "…");
 
     private static string GetInitials(string? name)
-	
     {
         if (string.IsNullOrWhiteSpace(name)) return "?";
         var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -73,5 +70,4 @@
             ? $"{parts[0][0]}{parts[1][0]}".ToUpper()
             : name[..Math.Min(2, name.Length)].ToUpper();
     }
-
 }
