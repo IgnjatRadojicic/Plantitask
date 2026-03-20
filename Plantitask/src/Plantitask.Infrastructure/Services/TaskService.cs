@@ -539,6 +539,7 @@ namespace Plantitask.Infrastructure.Services
                     PriorityId = t.PriorityId,
                     PriorityName = t.Priority.Name,
                     PriorityColor = t.Priority.Color,
+                    AssignedToProfilePictureUrl = t.AssignedTo != null ? t.AssignedTo.ProfilePictureUrl : null,
                     AssignedToId = t.AssignedToId,
                     AssignedToUserName = t.AssignedTo != null ? t.AssignedTo.UserName : null,
                     DisplayOrder = t.DisplayOrder,

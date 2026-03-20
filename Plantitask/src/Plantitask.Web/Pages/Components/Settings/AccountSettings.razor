@@ -194,6 +194,7 @@ else
         }
 
         _uploadingPicture = true;
+
         StateHasChanged();
 
         try
@@ -203,6 +204,7 @@ else
             if (result.Success && result.Data is not null)
             {
                 _profile.ProfilePictureUrl = result.Data.Url;
+                CurrentUser.ClearCache();
                 Snackbar.Add("Profile picture updated", Severity.Success);
             }
             else

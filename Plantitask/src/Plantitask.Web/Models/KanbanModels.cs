@@ -42,6 +42,8 @@
         public string PriorityName { get; set; } = string.Empty;
         public string PriorityColor { get; set; } = string.Empty;
         public Guid? AssignedToId { get; set; }
+
+        public string? AssignedToProfilePictureUrl { get; set; }
         public string? AssignedToUserName { get; set; }
         public int DisplayOrder { get; set; }
         public DateTime? DueDate { get; set; }

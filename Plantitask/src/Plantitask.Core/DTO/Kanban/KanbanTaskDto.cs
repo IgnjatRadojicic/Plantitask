@@ -11,6 +11,8 @@ public class KanbanTaskDto
     public string PriorityName { get; set; } = string.Empty;
     public string PriorityColor { get; set; } = string.Empty;
 
+
+    public string? AssignedToProfilePictureUrl { get; set; }
     public Guid? AssignedToId { get; set; }
     public string? AssignedToUserName { get; set; }
 
