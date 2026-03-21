@@ -119,6 +119,8 @@ builder.Services.AddRateLimiter(options =>
 
 // Application Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.Configure<GoogleAuthSettings>(
+    builder.Configuration.GetSection("Google"));
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();

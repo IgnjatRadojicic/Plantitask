@@ -1,5 +1,10 @@
 /* ----- AUTH PAGES ----- */
 
+.google-btn-wrapper {
+       display: flex;
+       justify-content: center;
+   }
+
 .auth-page {
     min-height: 100vh;
     display: flex;

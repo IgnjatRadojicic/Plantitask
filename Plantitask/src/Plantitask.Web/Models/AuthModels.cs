@@ -1,5 +1,10 @@
 ﻿namespace Plantitask.Web.Models;
 
+
+public class GoogleAuthSettings
+{
+    public string ClientId { get; set; } = string.Empty;
+}
 public class CheckEmailRequest
 {
     public string Email { get; set; } = string.Empty;

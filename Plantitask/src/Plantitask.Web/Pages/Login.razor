@@ -3,6 +3,9 @@
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@implements IDisposable
+@inject IJSRuntime JS
+@inject IConfiguration Configuration
 
 <div class="auth-page">
     <img src="images/leaf-top-right.png" alt="" class="auth-leaf-tr" />
@@ -60,14 +63,7 @@
                         <span>Or continue with</span>
                     </div>
 
-                    <MudButton Variant="Variant.Outlined"
-                               FullWidth="true"
-                               Size="Size.Large"
-                               Class="mb-4 auth-google-btn"
-                               StartIcon="@Icons.Custom.Brands.Google"
-                               OnClick="HandleGoogleLogin">
-                        Google
-                    </MudButton>
+                    <div id="google-signin-btn" class="google-btn-wrapper mb-4"></div>
 
                     <div class="auth-links">
                         <MudLink Href="/forgot-password" Typo="Typo.body2">
@@ -324,8 +320,7 @@
     private string _strengthColor = "#E0E0E0";
     private string _strengthLabel = string.Empty;
     private Color _strengthMudColor = Color.Default;
-
-    //  Password requirement flags (computed in OnPasswordChanged) 
+    private DotNetObjectReference<Login>? _dotnetRef;
     private bool PasswordHasMinLength;
     private bool PasswordHasUpper;
     private bool PasswordHasLower;
@@ -394,6 +389,46 @@
         {
             Snackbar.Add(result.Error, Severity.Error);
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+    if (firstRender)
+    {
+        _dotnetRef = DotNetObjectReference.Create(this);
+        var clientId = Configuration["Google:ClientId"];
+
+        await JS.InvokeVoidAsync("googleAuth.initialize", clientId, _dotnetRef);
+        await JS.InvokeVoidAsync("googleAuth.renderButton", "google-signin-btn", new
+        {
+            theme = "outline",
+            size = "large",
+            shape = "pill",
+            text = "continue_with",
+            width = 400
+            });
+        }
+    }
+
+
+    [JSInvokable]
+    public async Task OnGoogleSignIn(string credential) {
+
+        _loading = true;
+        StateHasChanged();
+
+        var result = await AuthService.GoogleLoginAsync(credential);
+        _loading = false;
+
+        if (result.Success) {
+            Navigation.NavigateTo("/field", forceLoad: false);
+
+        }
+        else {
+            Snackbar.Add(result.Error, Severity.Error);
+        }
+
+        StateHasChanged();
     }
 
     private async Task HandleVerifyCode()
@@ -489,5 +524,10 @@
             4 => (80, "#9CC103", "Strong", Color.Success),
             _ => (100, "#4CAF50", "Very strong", Color.Success),
         };
+    }
+
+    public void Dispose()
+    {
+    _dotnetRef?.Dispose();
     }
 }
