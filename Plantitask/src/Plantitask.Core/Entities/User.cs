@@ -19,8 +19,15 @@ namespace Plantitask.Core.Entities
 
         public bool IsEmailConfirmed { get; set; } = false;
         public DateTime? LastLoginAt { get; set; }
-
+        
         public int MaxGroups { get; set; } = 5;
+
+        public bool IsPremium { get; set; } = false; 
+        public DateTime? PremiumExpiresAt { get; set; }
+        public string? PayPalSubscriptionId { get; set; }
+        public string? PayPalOrderId { get; set; }
+        public string? SubscriptionType { get; set; }
+        public DateTime? PremiumStartedAt { get; set; }
 
 
 
@@ -29,6 +36,9 @@ namespace Plantitask.Core.Entities
         public ICollection<TaskItem> CreatedTasks { get; set; } = new List<TaskItem>();
         public ICollection<TaskItem> AssignedTasks { get; set; } = new List<TaskItem>();
         public ICollection<TaskAttachment> UploadedAttachments { get; set; } = new List<TaskAttachment>();
+
+        public bool HasActivePremium =>
+            IsPremium && (!PremiumExpiresAt.HasValue || PremiumExpiresAt.Value > DateTime.UtcNow);
 
     }
 }

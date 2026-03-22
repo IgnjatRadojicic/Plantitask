@@ -9,6 +9,10 @@ public class UserInfo
     public string? LastName { get; set; }
     public string? ProfilePictureUrl { get; set; }
 
+    public bool IsPremium { get; set; }
+    public string? SubscriptionType { get; set; }
+    public DateTime? PremiumExpiresAt { get; set; }
+
     public string DisplayName
     {
         get

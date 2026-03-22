@@ -12,7 +12,7 @@
     justify-content: center;
     background: var(--c-bg-page);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     padding: 24px;
 }
 
