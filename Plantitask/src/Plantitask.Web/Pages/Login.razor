@@ -404,8 +404,7 @@
             theme = "outline",
             size = "large",
             shape = "pill",
-            text = "continue_with",
-            width = 400
+            text = "continue_with"
             });
         }
     }
@@ -486,7 +485,6 @@
     {
         _registerModel.Password = password;
 
-        // Update individual requirement flags
         PasswordHasMinLength = password.Length >= 8;
         PasswordHasUpper = password.Any(char.IsUpper);
         PasswordHasLower = password.Any(char.IsLower);
