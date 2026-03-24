@@ -65,6 +65,7 @@ builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<INotificationPreferenceService, NotificationPreferenceService>();
 builder.Services.AddScoped<INotificationSignalRService, NotificationSignalRService>();
 builder.Services.AddScoped<KanbanLayoutState>();
+builder.Services.AddScoped<IPayPalService, PayPalService>();
 builder.Services.AddScoped<ISettingsUIService, SettingsUIService>();
 
 await builder.Build().RunAsync();

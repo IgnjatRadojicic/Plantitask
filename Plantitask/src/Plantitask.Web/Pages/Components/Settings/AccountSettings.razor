@@ -1,88 +1,226 @@
 @inject IUserProfileService ProfileService
+@inject IPayPalService PayPalService
 @inject ISettingsUIService SettingsUI
 @inject ISnackbar Snackbar
 @inject ICurrentUserService CurrentUser
+@inject NavigationManager Navigation
 @inject IJSRuntime JS
 @implements IDisposable
 
 @if (_loading)
 {
-    <div class="ds-settings-loading">
+    <div class="ds-settings-loading" role="status" aria-label="Loading account settings">
         <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        <span class="visually-hidden">Loading your account settings...</span>
     </div>
 }
 else
 {
-    <h1 class="text-sora ds-section-title">My Account</h1>
+    <h1 class="text-sora ds-section-title" id="account-heading">My Account</h1>
 
     <!-- Profile card -->
-    <ProfileCard Profile="_profile"
-                 UploadingPicture="_uploadingPicture"
-                 OnPictureUpload="HandlePictureUpload"
-                 OnRemovePicture="RemoveProfilePicture" />
+    <section aria-labelledby="profile-heading">
+        <h2 id="profile-heading" class="visually-hidden">Profile Picture</h2>
+        <ProfileCard Profile="_profile"
+                     UploadingPicture="_uploadingPicture"
+                     OnPictureUpload="HandlePictureUpload"
+                     OnRemovePicture="RemoveProfilePicture" />
+    </section>
 
     <!-- Editable fields -->
-    <div class="ds-card">
+    <section class="ds-card" aria-labelledby="personal-info-heading">
+        <h2 id="personal-info-heading" class="visually-hidden">Personal Information</h2>
+
         <div class="ds-field">
-            <label class="ds-field-label">USERNAME</label>
-            <input class="ds-field-input" type="text" value="@_editUserName"
+            <label class="ds-field-label" for="settings-username">Username</label>
+            <input class="ds-field-input"
+                   id="settings-username"
+                   type="text"
+                   autocomplete="username"
+                   value="@_editUserName"
+                   aria-describedby="username-hint"
                    @oninput="e => { _editUserName = e.Value?.ToString() ?? string.Empty; DetectChanges(); }" />
         </div>
+
         <div class="ds-field-row">
             <div class="ds-field">
-                <label class="ds-field-label">FIRST NAME</label>
-                <input class="ds-field-input" type="text" value="@_editFirstName"
+                <label class="ds-field-label" for="settings-firstname">First Name</label>
+                <input class="ds-field-input"
+                       id="settings-firstname"
+                       type="text"
+                       autocomplete="given-name"
+                       value="@_editFirstName"
                        @oninput="e => { _editFirstName = e.Value?.ToString() ?? string.Empty; DetectChanges(); }" />
             </div>
             <div class="ds-field">
-                <label class="ds-field-label">LAST NAME</label>
-                <input class="ds-field-input" type="text" value="@_editLastName"
+                <label class="ds-field-label" for="settings-lastname">Last Name</label>
+                <input class="ds-field-input"
+                       id="settings-lastname"
+                       type="text"
+                       autocomplete="family-name"
+                       value="@_editLastName"
                        @oninput="e => { _editLastName = e.Value?.ToString() ?? string.Empty; DetectChanges(); }" />
             </div>
         </div>
+
         <div class="ds-field">
-            <label class="ds-field-label">EMAIL</label>
-            <div class="ds-field-static">@_profile.Email</div>
+            <label class="ds-field-label" id="email-label">Email</label>
+            <div class="ds-field-static" aria-labelledby="email-label" role="text">@_profile.Email</div>
         </div>
+    </section>
 
     <!-- Theme -->
-<div class="ds-card">
-    <div class="ds-field">
-        <label class="ds-field-label">THEME</label>
-        <div style="display:flex; align-items:center; gap:12px;">
-            <button class="ds-theme-btn @(_currentTheme == "light" ? "ds-theme-btn-active" : "")"
-                    @onclick='() => SetTheme("light")'>
-                <MudIcon Icon="@Icons.Material.Outlined.LightMode" Size="Size.Small" />
-                Light
-            </button>
-            <button class="ds-theme-btn @(_currentTheme == "dark" ? "ds-theme-btn-active" : "")"
-                    @onclick='() => SetTheme("dark")'>
-                <MudIcon Icon="@Icons.Material.Outlined.DarkMode" Size="Size.Small" />
-                Dark
-            </button>
+    <section class="ds-card" aria-labelledby="theme-heading">
+        <h2 id="theme-heading" class="visually-hidden">Theme Preferences</h2>
+
+        <div class="ds-field">
+            <label class="ds-field-label" id="theme-label">Theme</label>
+
+            @if (_profile.IsPremium)
+            {
+                <div class="ds-theme-group" role="radiogroup" aria-labelledby="theme-label">
+                    <button class="ds-theme-btn @(_currentTheme == "light" ? "ds-theme-btn-active" : "")"
+                            role="radio"
+                            aria-checked="@(_currentTheme == "light" ? "true" : "false")"
+                            aria-label="Light theme"
+                            @onclick='() => SetTheme("light")'>
+                        <MudIcon Icon="@Icons.Material.Outlined.LightMode" Size="Size.Small" />
+                        <span>Light</span>
+                    </button>
+                    <button class="ds-theme-btn @(_currentTheme == "dark" ? "ds-theme-btn-active" : "")"
+                            role="radio"
+                            aria-checked="@(_currentTheme == "dark" ? "true" : "false")"
+                            aria-label="Dark theme"
+                            @onclick='() => SetTheme("dark")'>
+                        <MudIcon Icon="@Icons.Material.Outlined.DarkMode" Size="Size.Small" />
+                        <span>Dark</span>
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="ds-theme-locked">
+                    <div class="ds-theme-group" role="radiogroup" aria-labelledby="theme-label">
+                        <button class="ds-theme-btn ds-theme-btn-active"
+                                role="radio"
+                                aria-checked="true"
+                                aria-label="Light theme (active)"
+                                disabled>
+                            <MudIcon Icon="@Icons.Material.Outlined.LightMode" Size="Size.Small" />
+                            <span>Light</span>
+                        </button>
+                        <button class="ds-theme-btn ds-theme-btn-disabled"
+                                role="radio"
+                                aria-checked="false"
+                                aria-label="Dark theme — requires Premium"
+                                aria-disabled="true"
+                                disabled>
+                            <MudIcon Icon="@Icons.Material.Outlined.DarkMode" Size="Size.Small" />
+                            <span>Dark</span>
+                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" class="ds-lock-icon" />
+                        </button>
+                    </div>
+                    <a href="/pricing"
+                       class="ds-premium-upsell-link"
+                       aria-label="Upgrade to Premium to unlock dark mode">
+                        <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Small" class="ds-premium-star" />
+                        <span>Upgrade to Premium to unlock Dark Mode</span>
+                    </a>
+                </div>
+            }
         </div>
-    </div>
-</div>
-    </div>
+    </section>
 
+    <!-- Subscription -->
+    <section class="ds-card" aria-labelledby="subscription-heading">
+        <h2 id="subscription-heading" class="ds-field-label" style="margin-bottom:12px;">Subscription</h2>
 
+        @if (_profile.IsPremium)
+        {
+            <div class="ds-subscription-active">
+                <div class="ds-premium-badge" role="status" aria-label="Premium subscription active">
+                    <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Small" class="ds-premium-star" />
+                    <span class="text-sora ds-premium-badge-text">PREMIUM</span>
+                </div>
+
+                <dl class="ds-subscription-details">
+                    <div class="ds-subscription-detail-row">
+                        <dt>Plan</dt>
+                        <dd>@(_profile.SubscriptionType == "recurring" ? "Monthly Auto-Renew" : "30-Day Pass")</dd>
+                    </div>
+                    @if (_profile.PremiumExpiresAt.HasValue)
+                    {
+                        <div class="ds-subscription-detail-row">
+                            <dt>Expires</dt>
+                            <dd>
+                                <time datetime="@_profile.PremiumExpiresAt.Value.ToString("yyyy-MM-dd")">
+                                    @_profile.PremiumExpiresAt.Value.ToString("MMMM d, yyyy")
+                                </time>
+                            </dd>
+                        </div>
+                    }
+                </dl>
+
+                <button class="ds-btn-cancel"
+                        aria-label="Cancel premium subscription"
+                        @onclick="HandleCancelPremium"
+                        disabled="@_cancelling">
+                    @if (_cancelling)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true"
+                                             Color="Color.Inherit" Style="width:14px;height:14px;" />
+                        <span>Cancelling...</span>
+                    }
+                    else
+                    {
+                        <span>Cancel Subscription</span>
+                    }
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="ds-subscription-inactive">
+                <p class="ds-subscription-pitch">
+                    Unlock dark mode, a premium profile ring, and up to 10 groups.
+                </p>
+                <a href="/pricing"
+                   class="ds-btn-upgrade"
+                   aria-label="View premium plans and pricing">
+                    <MudIcon Icon="@Icons.Material.Outlined.Park" Size="Size.Small" />
+                    <span>View Premium Plans</span>
+                </a>
+            </div>
+        }
+    </section>
 
     <!-- Password -->
     <PasswordSection />
 
     <!-- Meta -->
-    <div class="ds-card ds-card-meta">
-        <span>Member since @_profile.CreatedAt.ToString("MMMM d, yyyy")</span>
+    <footer class="ds-card ds-card-meta" aria-label="Account information">
+        <span>
+            Member since
+            <time datetime="@_profile.CreatedAt.ToString("yyyy-MM-dd")">
+                @_profile.CreatedAt.ToString("MMMM d, yyyy")
+            </time>
+        </span>
         @if (_profile.LastLoginAt.HasValue)
         {
-            <span>Last login: @_profile.LastLoginAt.Value.ToString("MMM d, yyyy h:mm tt")</span>
+            <span>
+                Last login:
+                <time datetime="@_profile.LastLoginAt.Value.ToString("yyyy-MM-ddTHH:mm:ss")">
+                    @_profile.LastLoginAt.Value.ToString("MMM d, yyyy h:mm tt")
+                </time>
+            </span>
         }
-    </div>
+    </footer>
 }
 
 @code {
     private UserProfileDto _profile = new();
     private bool _loading = true;
+    private bool _cancelling;
 
     private string _editUserName = "";
     private string _editFirstName = "";
@@ -91,7 +229,6 @@ else
     private string _originalFirstName = "";
     private string _originalLastName = "";
     private string _currentTheme = "light";
-
 
     private bool _uploadingPicture;
 
@@ -113,12 +250,58 @@ else
 
         _currentTheme = await JS.InvokeAsync<string>("themeManager.get");
 
+        // Sync premium status to JS theme manager
+        await JS.InvokeVoidAsync("themeManager.setPremiumStatus", _profile.IsPremium);
+
+        // Force light if non-premium somehow had dark saved
+        if (!_profile.IsPremium && _currentTheme == "dark")
+        {
+            _currentTheme = "light";
+            await JS.InvokeVoidAsync("themeManager.set_force", "light");
+        }
     }
+
     private async Task SetTheme(string theme)
     {
-    _currentTheme = theme;
-    await JS.InvokeVoidAsync("themeManager.set", theme);
-    }    
+        _currentTheme = theme;
+        await JS.InvokeVoidAsync("themeManager.set", theme);
+    }
+
+    // ----- Premium -----
+
+    private async Task HandleCancelPremium()
+    {
+        _cancelling = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await PayPalService.CancelAsync();
+            if (result.Success)
+            {
+                _profile.IsPremium = false;
+                _profile.SubscriptionType = null;
+                _profile.PremiumExpiresAt = null;
+                _currentTheme = "light";
+                await JS.InvokeVoidAsync("themeManager.setPremiumStatus", false);
+                CurrentUser.ClearCache();
+                Snackbar.Add("Premium subscription cancelled", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add(result.Error ?? "Failed to cancel subscription", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _cancelling = false;
+            StateHasChanged();
+        }
+    }
 
     // ----- Event bus handlers -----
 
@@ -194,7 +377,6 @@ else
         }
 
         _uploadingPicture = true;
-
         StateHasChanged();
 
         try

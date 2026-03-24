@@ -13,6 +13,12 @@ public class UserProfileDto
     public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    public bool IsPremium { get; set; }
+    public string? SubscriptionType { get; set; }
+    public DateTime? PremiumExpiresAt { get; set; }
+    public DateTime? PremiumStartedAt { get; set; }
+    public int MaxGroups { get; set; } = 5;
+
     public string DisplayName
     {
         get
