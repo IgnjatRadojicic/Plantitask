@@ -10,7 +10,7 @@ namespace Plantitask.Core.DTO.Paypal
     public class CreateOrderResponse
     {
         public string OrderId { get; set; } = string.Empty;
-        public string ApprovaUrl { get; set; } = string.Empty;
+        public string ApprovalUrl { get; set; } = string.Empty;
     }
 
     public class CaptureOrderResponse

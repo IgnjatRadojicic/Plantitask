@@ -13,6 +13,7 @@ namespace Plantitask.Core.DTO.Paypal
         public string Id { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string? CustomId { get; set; }
+        public string? BillingAgreementId { get; set; }
         public PayPalBillingInfo? BillingInfo { get; set; }
     }
 
