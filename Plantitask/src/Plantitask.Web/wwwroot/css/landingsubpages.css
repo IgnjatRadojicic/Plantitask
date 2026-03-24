@@ -11,6 +11,76 @@
     margin: 0 auto;
 }
 
+.pricing-payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.pricing-btn-onetime {
+    font-size: 0.85rem !important;
+    padding: 12px 24px !important;
+}
+
+.pricing-btn-current {
+    opacity: 0.7;
+    cursor: default !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pricing-btn-current:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.pricing-btn:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: 2px;
+}
+
+.pricing-callback-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--c-bg-white);
+    padding: 24px;
+}
+
+.pricing-callback-card {
+    text-align: center;
+    max-width: 480px;
+    padding: 48px 40px;
+    background: var(--c-bg-white);
+    border-radius: 16px;
+    border: 1px solid var(--c-border-light);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+.pricing-callback-title {
+    margin-top: 16px;
+    font-size: 1.4rem;
+    color: var(--c-text-darkest);
+}
+
+.pricing-callback-subtitle {
+    color: var(--c-text-body);
+    margin-bottom: 24px;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.pricing-callback-success,
+.pricing-callback-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .pricing-hero-title {
     font-size: 3rem;
     font-weight: 800;
@@ -474,6 +544,14 @@
 @media (max-width: 768px) {
     .pricing-hero {
         padding: 120px 24px 60px;
+    }
+
+    .pricing-callback-card {
+        padding: 32px 24px;
+    }
+
+    .pricing-payment-options {
+        gap: 8px;
     }
 
     .pricing-hero-title {
