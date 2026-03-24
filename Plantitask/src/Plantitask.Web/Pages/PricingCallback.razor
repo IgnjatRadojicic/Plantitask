@@ -1,0 +1,110 @@
+@page "/pricing/callback"
+@layout PublicLayout
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ICurrentUserService CurrentUser
+@inject IPayPalService PayPalService
+
+<PageTitle>Completing Payment - Plantitask</PageTitle>
+
+<main class="pricing-callback-page" aria-labelledby="callback-heading">
+    <div class="pricing-callback-card">
+        @if (_loading)
+        {
+            <div role="status" aria-live="polite">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+                <h1 id="callback-heading" class="text-sora pricing-callback-title">
+                    Completing your payment...
+                </h1>
+                <p class="pricing-callback-subtitle">Please wait while we confirm with PayPal.</p>
+            </div>
+        }
+        else if (_success)
+        {
+            <div class="pricing-callback-success" role="status" aria-live="polite">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large"
+                         Style="color:#9CC103; font-size:64px;" aria-hidden="true" />
+                <h1 id="callback-heading" class="text-sora pricing-callback-title">
+                    Welcome to Premium!
+                </h1>
+                <p class="pricing-callback-subtitle">
+                    Your account has been upgraded. Enjoy dark mode, the golden profile ring, and up to 10 groups.
+                </p>
+                <a href="/field"
+                   class="pricing-btn pricing-btn-filled"
+                   aria-label="Go to My Field to start using premium features">
+                    Go to My Field
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="pricing-callback-error" role="alert">
+                <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Large"
+                         Style="color:#dc3545; font-size:64px;" aria-hidden="true" />
+                <h1 id="callback-heading" class="text-sora pricing-callback-title">
+                    Something went wrong
+                </h1>
+                <p class="pricing-callback-subtitle">
+                    @_errorMessage
+                </p>
+                <a href="/pricing"
+                   class="pricing-btn pricing-btn-outline"
+                   aria-label="Return to pricing page">
+                    Back to Pricing
+                </a>
+            </div>
+        }
+    </div>
+</main>
+
+@code {
+    private bool _loading = true;
+    private bool _success;
+    private string _errorMessage = "Payment could not be completed. You have not been charged.";
+
+    [SupplyParameterFromQuery] public string? Type { get; set; }
+    [SupplyParameterFromQuery(Name = "subscription_id")] public string? SubscriptionId { get; set; }
+    [SupplyParameterFromQuery(Name = "token")] public string? PayPalToken { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (Type == "subscribe" && !string.IsNullOrEmpty(SubscriptionId))
+            {
+                var result = await PayPalService.ActivateSubscriptionAsync(SubscriptionId);
+                _success = result.Success;
+                if (!_success)
+                    _errorMessage = result.Error ?? "Failed to activate subscription.";
+            }
+            else if (Type == "onetime" && !string.IsNullOrEmpty(PayPalToken))
+            {
+                var orderId = PayPalToken;
+                var result = await PayPalService.CaptureOrderAsync(orderId);
+                _success = result.Success && result.Data is not null && result.Data.Success;
+                if (!_success)
+                    _errorMessage = result.Error ?? "Failed to capture payment.";
+            }
+            else
+            {
+                _errorMessage = "Invalid callback parameters.";
+                _success = false;
+            }
+
+            if (_success)
+            {
+                CurrentUser.ClearCache();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error processing payment: {ex.Message}";
+            _success = false;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

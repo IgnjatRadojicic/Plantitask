@@ -1,20 +1,24 @@
 @page "/pricing"
 @layout PublicLayout
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ICurrentUserService CurrentUser
+@inject IPayPalService PayPalService
 
 <PageTitle>Pricing - Plantitask</PageTitle>
 
 <div class="pricing-hero">
-    <nav class="landing-nav landing-nav-scrolled">
+    <nav class="landing-nav landing-nav-scrolled" aria-label="Main navigation">
         <div class="landing-nav-left">
-            <a href="/">
-                <img src="images/logo.png" alt="Plantitask" class="landing-logo" />
+            <a href="/" aria-label="Plantitask home">
+                <img src="images/logo.png" alt="" class="landing-logo" role="presentation" />
             </a>
-            <a href="/" class="landing-brand text-sora" style="text-decoration:none;">PLANTITASK</a>
+            <a href="/" class="landing-brand text-sora" style="text-decoration:none;" aria-hidden="true">PLANTITASK</a>
         </div>
         <div class="landing-nav-center">
             <a href="/" class="landing-nav-link">Home</a>
             <a href="/news" class="landing-nav-link">News</a>
-            <a href="/pricing" class="landing-nav-link" style="color:var(--c-primary);">Pricing</a>
+            <a href="/pricing" class="landing-nav-link" style="color:var(--c-primary);" aria-current="page">Pricing</a>
         </div>
         <div class="landing-nav-right">
             <AuthorizeView>
@@ -34,144 +38,206 @@
     </div>
 </div>
 
-<section class="pricing-cards-section">
+<section class="pricing-cards-section" aria-labelledby="plans-heading">
+    <h2 id="plans-heading" class="visually-hidden">Available Plans</h2>
     <div class="pricing-cards-inner">
 
-        <div class="pricing-card">
+        @* ---- FREE TIER ---- *@
+        <article class="pricing-card" aria-labelledby="free-plan-heading">
             <div class="pricing-card-header">
                 <span class="pricing-plan-badge pricing-plan-free">FREE</span>
-                <h2 class="pricing-price text-sora">$0</h2>
+                <h2 id="free-plan-heading" class="pricing-price text-sora">$0</h2>
                 <span class="pricing-period">forever</span>
             </div>
             <div class="pricing-card-body">
-                <ul class="pricing-features-list">
+                <ul class="pricing-features-list" aria-label="Free plan features">
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Up to <strong>5 groups</strong> (trees)</span>
                     </li>
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Unlimited tasks per group</span>
                     </li>
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Kanban boards</span>
                     </li>
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Real-time collaboration</span>
                     </li>
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Tree growth visualization</span>
                     </li>
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Group statistics</span>
                     </li>
-                    <li class="pricing-feature-item pricing-feature-disabled">
-                        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" Style="color:#BDBDBD;" />
+                    <li class="pricing-feature-item pricing-feature-disabled" aria-label="Dark mode — not included">
+                        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" Style="color:#BDBDBD;" aria-hidden="true" />
                         <span>Dark mode</span>
                     </li>
-                    <li class="pricing-feature-item pricing-feature-disabled">
-                        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" Style="color:#BDBDBD;" />
+                    <li class="pricing-feature-item pricing-feature-disabled" aria-label="Premium profile ring — not included">
+                        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" Style="color:#BDBDBD;" aria-hidden="true" />
                         <span>Premium profile ring</span>
                     </li>
                 </ul>
             </div>
             <div class="pricing-card-footer">
-                <a href="/register" class="pricing-btn pricing-btn-outline">Get Started</a>
+                <AuthorizeView>
+                    <Authorized>
+                        @if (_isPremium)
+                        {
+                            <span class="pricing-btn pricing-btn-outline pricing-btn-current" role="status">
+                                Current Plan (Free features included)
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="pricing-btn pricing-btn-outline pricing-btn-current" role="status">
+                                Your Current Plan
+                            </span>
+                        }
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/login" class="pricing-btn pricing-btn-outline" aria-label="Get started with the free plan">
+                            Get Started
+                        </a>
+                    </NotAuthorized>
+                </AuthorizeView>
             </div>
-        </div>
+        </article>
 
-        <div class="pricing-card pricing-card-premium">
-            <div class="pricing-card-popular">MOST POPULAR</div>
+        <article class="pricing-card pricing-card-premium" aria-labelledby="premium-plan-heading">
+            <div class="pricing-card-popular" aria-label="Most popular plan">MOST POPULAR</div>
             <div class="pricing-card-header">
                 <span class="pricing-plan-badge pricing-plan-premium">PREMIUM</span>
-                <h2 class="pricing-price text-sora">$4.99</h2>
+                <h2 id="premium-plan-heading" class="pricing-price text-sora">$4.99</h2>
                 <span class="pricing-period">/ month</span>
             </div>
             <div class="pricing-card-body">
-                <ul class="pricing-features-list">
+                <ul class="pricing-features-list" aria-label="Premium plan features">
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Up to <strong>10 groups</strong> (trees)</span>
                     </li>
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Unlimited tasks per group</span>
                     </li>
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Kanban boards</span>
                     </li>
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Real-time collaboration</span>
                     </li>
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Tree growth visualization</span>
                     </li>
                     <li class="pricing-feature-item">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span>Group statistics</span>
                     </li>
                     <li class="pricing-feature-item pricing-feature-highlight">
-                        <MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span><strong>Dark mode</strong></span>
                     </li>
                     <li class="pricing-feature-item pricing-feature-highlight">
-                        <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Small" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Small" Style="color:#9CC103;" aria-hidden="true" />
                         <span><strong>Premium profile ring</strong></span>
                     </li>
                 </ul>
             </div>
             <div class="pricing-card-footer">
-                <a href="/register" class="pricing-btn pricing-btn-filled">Coming Soon</a>
+                <AuthorizeView>
+                    <Authorized>
+                        @if (_isPremium)
+                        {
+                            <span class="pricing-btn pricing-btn-filled pricing-btn-current" role="status">
+                                <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Small" Style="color:#FFD700;" aria-hidden="true" />
+                                You're Premium!
+                            </span>
+                        }
+                        else if (_processing)
+                        {
+                            <button class="pricing-btn pricing-btn-filled"
+                                    disabled
+                                    aria-busy="true"
+                                    aria-label="Processing your payment">
+                                <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Default" />
+                                Processing...
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="pricing-payment-options" role="group" aria-label="Payment options">
+                                <button class="pricing-btn pricing-btn-filled"
+                                        aria-label="Subscribe monthly for $4.99 per month, auto-renewing"
+                                        @onclick="HandleSubscribe">
+                                    Subscribe Monthly — $4.99/mo
+                                </button>
+                                <button class="pricing-btn pricing-btn-outline pricing-btn-onetime"
+                                        aria-label="One-time payment of $4.99 for 30 days of premium"
+                                        @onclick="HandleOneTime">
+                                    One-Time 30 Days — $4.99
+                                </button>
+                            </div>
+                        }
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/login" class="pricing-btn pricing-btn-filled" aria-label="Sign up to subscribe to premium">
+                            Sign Up to Subscribe
+                        </a>
+                    </NotAuthorized>
+                </AuthorizeView>
             </div>
-        </div>
+        </article>
 
     </div>
 </section>
 
-<section class="pricing-faq">
+<section class="pricing-faq" aria-labelledby="faq-heading">
     <div class="pricing-faq-inner">
-        <h2 class="pricing-faq-title text-sora">Frequently Asked Questions</h2>
+        <h2 id="faq-heading" class="pricing-faq-title text-sora">Frequently Asked Questions</h2>
         <div class="pricing-faq-grid">
             <div class="pricing-faq-item">
-                <h4 class="pricing-faq-q text-sora">Can I switch plans anytime?</h4>
+                <h3 class="pricing-faq-q text-sora">Can I switch plans anytime?</h3>
                 <p class="pricing-faq-a">Yes. Upgrade or downgrade at any time. Changes take effect immediately.</p>
             </div>
             <div class="pricing-faq-item">
-                <h4 class="pricing-faq-q text-sora">What happens to my groups if I downgrade?</h4>
+                <h3 class="pricing-faq-q text-sora">What happens to my groups if I downgrade?</h3>
                 <p class="pricing-faq-a">Your existing groups remain intact. You just won't be able to create new ones beyond the free limit until you remove some.</p>
             </div>
             <div class="pricing-faq-item">
-                <h4 class="pricing-faq-q text-sora">Is there a team or enterprise plan?</h4>
-                <p class="pricing-faq-a">Not yet, but we're working on it. Stay tuned on our News page for updates.</p>
+                <h3 class="pricing-faq-q text-sora">What's the difference between monthly and one-time?</h3>
+                <p class="pricing-faq-a">Monthly auto-renews via PayPal each month. One-time gives you 30 days of premium — perfect if you want to try it out first.</p>
             </div>
             <div class="pricing-faq-item">
-                <h4 class="pricing-faq-q text-sora">Do you really plant trees?</h4>
+                <h3 class="pricing-faq-q text-sora">Do you really plant trees?</h3>
                 <p class="pricing-faq-a">A portion of all premium revenue goes directly to reforestation partners. Every subscription plants real trees.</p>
             </div>
         </div>
     </div>
 </section>
 
-<footer class="landing-footer">
+<footer class="landing-footer" aria-label="Site footer">
     <div class="landing-footer-inner">
         <div class="landing-footer-brand">
-            <img src="images/logo.png" alt="Plantitask" class="landing-footer-logo" />
+            <img src="images/logo.png" alt="" class="landing-footer-logo" role="presentation" />
             <span class="text-sora landing-footer-name">PLANTITASK</span>
             <p class="landing-footer-tagline">Small Teams who Plant Trees</p>
         </div>
-        <div class="landing-footer-links">
+        <nav class="landing-footer-links" aria-label="Footer navigation">
             <div class="landing-footer-col">
                 <h4 class="landing-footer-col-title">Product</h4>
                 <a href="/login" class="landing-footer-link">Get Started</a>
                 <a href="/#features" class="landing-footer-link">Features</a>
-                <a href="/pricing" class="landing-footer-link">Pricing</a>
+                <a href="/pricing" class="landing-footer-link" aria-current="page">Pricing</a>
             </div>
             <div class="landing-footer-col">
                 <h4 class="landing-footer-col-title">Company</h4>
@@ -183,10 +249,89 @@
                 <a href="/privacy" class="landing-footer-link">Privacy Policy</a>
                 <a href="/terms" class="landing-footer-link">Terms of Service</a>
             </div>
-        </div>
+        </nav>
     </div>
     <div class="landing-footer-bottom">
         <span>&copy; @DateTime.Now.Year Plantitask. All rights reserved.</span>
         <span class="landing-footer-mission">A portion of all revenue plants real trees</span>
     </div>
 </footer>
+
+
+@code {
+
+    private bool _isPremium;
+    private bool _processing;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState {get; set;}
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userInfo = await CurrentUser.GetCurrentUserAsync();
+        if (userInfo is not null) {
+            _isPremium = userInfo.IsPremium;
+        }
+    }
+
+    private async Task HandleSubscribe() {
+        _processing = true;
+        StateHasChanged();
+
+        try {
+            var baseUrl = Navigation.BaseUri.Trim('/');
+            var result = await PayPalService.CreateSubscriptionAsync(
+                $"{baseUrl}/pricing/callback?type=subscribe",
+                $"{baseUrl}/pricing");
+
+            if (result.Success && result.Data is not null) {
+                Navigation.NavigateTo(result.Data.ApprovalUrl, forceLoad: true);
+                return;
+            }
+            Snackbar.Add(result.Error ?? "Failed to create subscription. Please try again.", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _processing = false;
+            StateHasChanged();
+        }
+    }   
+
+    private async Task HandleOneTime()
+    {
+        _processing = true;
+        StateHasChanged();
+
+        try
+        {
+            var baseUrl = Navigation.BaseUri.TrimEnd('/');
+            var result = await PayPalService.CreateOneTimeOrderAsync(
+                $"{baseUrl}/pricing/callback?type=onetime",
+                $"{baseUrl}/pricing");
+
+            if (result.Success && result.Data is not null)
+            {
+                Navigation.NavigateTo(result.Data.ApprovalUrl, forceLoad: true);
+                return;
+            }
+
+            Snackbar.Add(result.Error ?? "Failed to create order. Please try again.", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _processing = false;
+            StateHasChanged();
+        }
+    }
+}
+
+
+
