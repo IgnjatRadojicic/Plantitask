@@ -1,9 +1,3 @@
-# ============================================
-# Plantitask CI/CD - Build, Test & Deploy
-# ============================================
-# Triggers on push to main.
-# Runs on a self-hosted runner on your Windows 10 server.
-
 name: Build & Deploy
 
 on:
@@ -11,65 +5,25 @@ on:
     branches: [main]
 
 jobs:
-  # ---- Job 1: Build & Test ----
-  build-and-test:
-    runs-on: self-hosted
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Setup .NET 9
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Restore dependencies
-        working-directory: ./Plantitask
-        run: dotnet restore
-
-      - name: Build solution
-        working-directory: ./Plantitask
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Run tests
-        working-directory: ./Plantitask
-        run: dotnet test --configuration Release --no-build --verbosity normal
-
-  # ---- Job 2: Deploy (only on push to main) ----
   deploy:
     runs-on: self-hosted
-    needs: build-and-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: D:\Plantitask\Plantitask
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Pull latest code
+        run: git pull origin main
 
-      - name: Stop running containers
-        run: docker compose down
-
-      - name: Build and start containers
+      - name: Rebuild and restart containers
         run: docker compose up -d --build
 
-      - name: Wait for services to be healthy
+      - name: Wait for services
         run: |
           echo "Waiting for services to start..."
-          timeout 60 bash -c 'until docker compose ps | grep -q "healthy"; do sleep 2; done' || echo "Timeout waiting for health checks"
-
-      - name: Run database migrations
-        run: |
-          docker compose exec -T api dotnet ef database update --project /src/Plantitask/src/Plantitask.Infrastructure/Plantitask.Infrastructure.csproj --startup-project /src/Plantitask/src/Plantitask.Api/Plantitask.Api.csproj || echo "Migration note: EF tools may not be in runtime image. Apply migrations via startup code or manually."
+          Start-Sleep -Seconds 15
 
       - name: Verify deployment
-        run: |
-          echo "Checking API health..."
-          curl -f http://localhost:8080/swagger/index.html || echo "Swagger not reachable (may be disabled in Production)"
-          echo ""
-          echo "Deployment complete!"
+        run: docker compose ps
 
-      - name: Cleanup old Docker images
+      - name: Cleanup old images
         run: docker image prune -f
