@@ -276,4 +276,12 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
+// Serve uploaded files
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.Combine(app.Environment.ContentRootPath, "uploads")),
+    RequestPath = "/files"
+});
+
 app.Run();

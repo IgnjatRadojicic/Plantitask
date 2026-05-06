@@ -57,6 +57,8 @@ services:
       ConnectionStrings__RedisConnection: "redis:6391,password=${REDIS_PASSWORD:-redispass},abortConnect=false"
       ConnectionStrings__HangfireConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-PlantitaskDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}"
 
+      Google__ClientId: "252462466539-0v4ssocvbqpml1m9m2nmqvoobgh2s0m2.apps.googleusercontent.com"
+      Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
       # JWT
       JwtSettings__Secret: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JwtSettings__Issuer: PlantitaskApi
