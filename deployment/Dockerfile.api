@@ -1,0 +1,49 @@
+# ============================================
+# Plantitask API - Multi-stage Docker build
+# ============================================
+
+# Stage 1: Build (SDK 9.0 needed since .sln includes .NET 9 Web project)
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+
+# Copy solution and project files first (layer caching)
+COPY Plantitask/Plantitask.sln ./Plantitask/
+COPY Plantitask/src/Plantitask.Core/*.csproj ./Plantitask/src/Plantitask.Core/
+COPY Plantitask/src/Plantitask.Infrastructure/*.csproj ./Plantitask/src/Plantitask.Infrastructure/
+COPY Plantitask/src/Plantitask.Api/*.csproj ./Plantitask/src/Plantitask.Api/
+# Include Web and Tests csproj so dotnet restore doesn't fail on the .sln
+COPY Plantitask/src/Plantitask.Web/*.csproj ./Plantitask/src/Plantitask.Web/
+COPY Plantitask/tests/Plantitask.Tests/*.csproj ./Plantitask/tests/Plantitask.Tests/
+
+# Restore only the API and its dependencies
+WORKDIR /src/Plantitask
+RUN dotnet restore src/Plantitask.Api/Plantitask.Api.csproj
+
+# Copy the rest of the backend source
+WORKDIR /src
+COPY Plantitask/src/Plantitask.Core/ ./Plantitask/src/Plantitask.Core/
+COPY Plantitask/src/Plantitask.Infrastructure/ ./Plantitask/src/Plantitask.Infrastructure/
+COPY Plantitask/src/Plantitask.Api/ ./Plantitask/src/Plantitask.Api/
+
+# Build and publish
+WORKDIR /src/Plantitask
+RUN dotnet publish src/Plantitask.Api/Plantitask.Api.csproj \
+    -c Release \
+    -o /app/publish \
+    --no-restore
+
+# Stage 2: Runtime (.NET 8 — API targets net8.0)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+
+# Create directory for local file uploads
+RUN mkdir -p /app/uploads
+
+COPY --from=build /app/publish .
+
+EXPOSE 8080
+
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
+
+ENTRYPOINT ["dotnet", "Plantitask.Api.dll"]

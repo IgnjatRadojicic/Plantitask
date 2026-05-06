@@ -1,0 +1,42 @@
+# ============================================
+# Plantitask Web - Blazor WASM (build + serve)
+# ============================================
+
+# Stage 1: Build the Blazor WASM app
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+
+# Copy project files for restore
+COPY Plantitask/Plantitask.sln ./Plantitask/
+COPY Plantitask/src/Plantitask.Web/*.csproj ./Plantitask/src/Plantitask.Web/
+# Include all csproj files referenced by the .sln so restore works
+COPY Plantitask/src/Plantitask.Core/*.csproj ./Plantitask/src/Plantitask.Core/
+COPY Plantitask/src/Plantitask.Infrastructure/*.csproj ./Plantitask/src/Plantitask.Infrastructure/
+COPY Plantitask/src/Plantitask.Api/*.csproj ./Plantitask/src/Plantitask.Api/
+COPY Plantitask/tests/Plantitask.Tests/*.csproj ./Plantitask/tests/Plantitask.Tests/
+
+WORKDIR /src/Plantitask
+RUN dotnet restore src/Plantitask.Web/Plantitask.Web.csproj
+
+# Copy full Web source (Web doesn't reference Core/Infrastructure directly
+# but may share models — copy what's needed)
+WORKDIR /src
+COPY Plantitask/src/Plantitask.Web/ ./Plantitask/src/Plantitask.Web/
+
+# Publish as static files
+WORKDIR /src/Plantitask
+RUN dotnet publish src/Plantitask.Web/Plantitask.Web.csproj \
+    -c Release \
+    -o /app/publish \
+    --no-restore
+
+# Stage 2: Serve with nginx
+FROM nginx:alpine AS runtime
+
+# Copy the published Blazor WASM output (it's all static files)
+COPY --from=build /app/publish/wwwroot /usr/share/nginx/html
+
+# Custom nginx config for Blazor WASM (SPA routing)
+COPY deployment/nginx-blazor.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
