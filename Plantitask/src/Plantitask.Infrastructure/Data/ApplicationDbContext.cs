@@ -353,6 +353,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             entity.HasIndex(n => new { n.UserId, n.IsRead }); 
             entity.HasIndex(n => n.CreatedAt);
+            entity.HasIndex(n => n.Type);
         });
 
         modelBuilder.Entity<NotificationPreference>(entity =>
