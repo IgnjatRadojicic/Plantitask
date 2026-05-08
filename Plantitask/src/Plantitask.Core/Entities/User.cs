@@ -37,8 +37,6 @@ namespace Plantitask.Core.Entities
         public ICollection<TaskItem> AssignedTasks { get; set; } = new List<TaskItem>();
         public ICollection<TaskAttachment> UploadedAttachments { get; set; } = new List<TaskAttachment>();
 
-        public bool HasActivePremium =>
-            IsPremium && (!PremiumExpiresAt.HasValue || PremiumExpiresAt.Value > DateTime.UtcNow);
 
     }
 }
