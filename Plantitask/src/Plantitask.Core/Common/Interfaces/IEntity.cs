@@ -1,6 +1,4 @@
-﻿
-
-namespace Plantitask.Core.Common
+﻿namespace Plantitask.Core.Common.Interfaces
 {
     public interface IEntity
     {

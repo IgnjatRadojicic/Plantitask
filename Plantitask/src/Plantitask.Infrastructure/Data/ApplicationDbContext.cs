@@ -1,9 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System.Linq.Expressions;
 using Plantitask.Core.Common;
+using Plantitask.Core.Common.Interfaces;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Entities.Lookups;
 using Plantitask.Core.Interfaces;
+using System.Linq.Expressions;
 
 namespace Plantitask.Infrastructure.Data;
 
@@ -384,27 +385,14 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
         foreach(var entry in entries)
         {
-            if(entry.Entity is BaseEntity baseEntity)
+            if (entry.State == EntityState.Added && entry.Entity is IEntity entity)
             {
-                if (entry.State == EntityState.Added)
-                {
-                    baseEntity.CreatedAt = DateTime.UtcNow;
-                }
-                else if (entry.State == EntityState.Modified)
-                {
-                    baseEntity.UpdatedAt = DateTime.UtcNow;
-                }
+                entity.CreatedAt = DateTime.UtcNow;
             }
-            else if(entry.Entity is SelfManagedEntity selfManaged)
+
+            if (entry.State == EntityState.Modified && entry.Entity is IUpdatable updatable)
             {
-                if(entry.State == EntityState.Added)
-                {
-                    selfManaged.CreatedAt = DateTime.UtcNow;
-                }
-                else if (entry.State == EntityState.Modified)
-                {
-                    selfManaged.UpdatedAt = DateTime.UtcNow;
-                }
+                updatable.UpdatedAt = DateTime.UtcNow;
             }
         }
         return await base.SaveChangesAsync(cancellationToken);
