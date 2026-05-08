@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace Plantitask.Core.Common
 {
-    public abstract class SelfManagedEntity
+    public abstract class SelfManagedEntity : IEntity
     {
-        public Guid Id { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 

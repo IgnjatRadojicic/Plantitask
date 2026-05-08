@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Plantitask.Core.Common
 {
-    public abstract class BaseEntity
+    public abstract class BaseEntity : IEntity
     {
 
         public Guid Id { get; set; } = Guid.NewGuid();
