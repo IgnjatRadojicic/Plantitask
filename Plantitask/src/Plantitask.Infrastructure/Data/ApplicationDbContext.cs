@@ -211,8 +211,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
         modelBuilder.Entity<TaskComment>(entity =>
         {
-            entity.HasQueryFilter(tc => !tc.IsDeleted);
-
             entity.Property(tc => tc.Content)
                 .IsRequired()
                 .HasMaxLength(2000);
@@ -222,13 +220,13 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
                 .HasForeignKey(tc => tc.TaskId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(tc => tc.User)
+            entity.HasOne(tc => tc.Author)
                 .WithMany()
-                .HasForeignKey(tc => tc.UserId)
+                .HasForeignKey(tc => tc.CreatedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(tc => tc.TaskId);
-            entity.HasIndex(tc => tc.UserId);
+            entity.HasIndex(tc => tc.CreatedBy);
         });
 
         modelBuilder.Entity<PasswordResetToken>(entity =>

@@ -10,9 +10,8 @@ namespace Plantitask.Core.Entities
     public class TaskComment : BaseEntity {
         public Guid TaskId { get; set; }
         public string Content { get; set; } = string.Empty;
-        public Guid UserId { get; set; }
 
         public TaskItem Task { get; set; } = null!;
-        public User User { get; set; } = null!;
+        public User Author { get; set; } = null!;
     }
 }
