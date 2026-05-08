@@ -358,7 +358,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
         modelBuilder.Entity<NotificationPreference>(entity =>
         {
-            entity.HasQueryFilter(np => !np.IsDeleted);
 
             entity.HasOne(np => np.User)
                 .WithMany()

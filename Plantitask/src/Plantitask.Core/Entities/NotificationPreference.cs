@@ -8,7 +8,7 @@ using Plantitask.Core.Enums;
 
 namespace Plantitask.Core.Entities
 {
-    public class NotificationPreference : BaseEntity
+    public class NotificationPreference : SelfManagedEntity
     {
         public Guid UserId { get; set; }
         public NotificationType Type { get; set; }
