@@ -22,7 +22,6 @@ namespace Plantitask.Core.Entities
         public string? Reason { get; set; }
         public string IpAddress { get; set; } = string.Empty;
         public string UserAgent { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public User User { get; set; } = null!;
         public Group? Group { get; set; }  
