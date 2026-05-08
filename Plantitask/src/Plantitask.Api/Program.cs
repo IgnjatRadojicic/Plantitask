@@ -125,7 +125,11 @@ builder.Services.Configure<GoogleAuthSettings>(
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
-builder.Services.AddScoped<IFileStorageService, AzureBlobStorageService>();
+var storageProvider = builder.Configuration["FileStorage:Provider"];
+if (storageProvider == "Azure")
+    builder.Services.AddScoped<IFileStorageService, AzureBlobStorageService>();
+else
+    builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddSignalR();
@@ -265,5 +269,19 @@ using (var scope = app.Services.CreateScope())
     var backgroundJobsService = scope.ServiceProvider.GetRequiredService<IBackgroundJobService>();
     backgroundJobsService.SetupRecurringJobs();
 }
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
+
+// Serve uploaded files
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.Combine(app.Environment.ContentRootPath, "uploads")),
+    RequestPath = "/files"
+});
 
 app.Run();
