@@ -334,8 +334,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
         
         modelBuilder.Entity<Notification>(entity =>
-        {
-            entity.HasQueryFilter(n => !n.IsDeleted);
+        { 
 
             entity.Property(n => n.Title)
                 .IsRequired()
