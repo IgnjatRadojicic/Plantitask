@@ -44,11 +44,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
-            if (entityType.ClrType == typeof(AuditLog) ||
-             entityType.ClrType == typeof(PasswordResetToken))
-            {
-                continue;
-            }
 
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
@@ -249,8 +244,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .IsRequired(false);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
 
 
         });
