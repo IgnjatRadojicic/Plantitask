@@ -94,6 +94,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.GroupCode).HasMaxLength(20).IsRequired();
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
 
             entity.HasOne(e => e.Owner)
                 .WithMany(u => u.OwnedGroups)
