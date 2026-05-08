@@ -6,15 +6,8 @@ using System.Threading.Tasks;
 
 namespace Plantitask.Core.Entities.Lookups
 {
-    public class TaskStatusLookup
+    public class TaskStatusLookup : BaseLookupEntity
     {
-        public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string DisplayName { get; set; } = string.Empty;
-        public string? Description { get; set; }
-        public string? Color { get; set; }
-        public int DisplayOrder { get; set; }
-        public bool IsActive { get; set; } = true;
 
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
     }
