@@ -6,6 +6,7 @@ using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Data;
 
+
 namespace Plantitask.Infrastructure.Services
 {
     public class AuditService : IAuditService
@@ -21,55 +22,47 @@ namespace Plantitask.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task LogAsync(
-            string entityType,
-            Guid entityId,
-            string action,
-            Guid userId,
-            Guid? groupId = null,
-            string? ipAddress = null,
-            string? userAgent = null,
-            string? propertyName = null,
-            string? oldValue = null,
-            string? newValue = null,
-            string? reason = null)
+        public async Task LogAsync(CreateAuditLogRequest request)
         {
-            await using var context = await _factory.CreateDbContextAsync();
 
-            var user = await context.Users.FindAsync(userId);
-            if (user == null)
+            try
             {
-                _logger.LogWarning("Cannot create audit log for non-existent user {UserId}", userId);
-                return;
+                await using var context = await _factory.CreateDbContextAsync();
+
+                var auditLog = new AuditLog
+                {
+                    EntityType = request.EntityType,
+                    EntityId = request.EntityId,
+                    Action = request.Action,
+                    UserId = request.UserId,
+                    UserName = request.UserName,
+                    UserEmail = request.UserEmail,
+                    GroupId = request.GroupId,
+                    IpAddress = request.IpAddress ?? "Unknown",
+                    UserAgent = request.UserAgent ?? "Unknown",
+                    PropertyName = request.PropertyName,
+                    OldValue = request.OldValue,
+                    NewValue = request.NewValue,
+                    Reason = request.Reason
+                };
+
+                context.AuditLogs.Add(auditLog);
+                await context.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Audit log created: {EntityType} {EntityId} - {Action} by user {UserId} in group {GroupId}",
+                    request.EntityType, request.EntityId, request.Action, request.UserId, request.GroupId);
+
             }
-
-            var auditLog = new AuditLog
+            catch (Exception ex)
             {
-                EntityType = entityType,
-                EntityId = entityId,
-                Action = action,
-                PropertyName = propertyName,
-                OldValue = oldValue,
-                NewValue = newValue,
-                UserId = userId,
-                UserName = user.UserName,
-                UserEmail = user.Email,
-                GroupId = groupId,
-                Reason = reason,
-                IpAddress = ipAddress ?? "Unknown",
-                UserAgent = userAgent ?? "Unknown",
-                CreatedAt = DateTime.UtcNow
-            };
-
-            context.AuditLogs.Add(auditLog);
-            await context.SaveChangesAsync();
-
-            _logger.LogInformation(
-                "Audit log created: {EntityType} {EntityId} - {Action} by user {UserId} in group {GroupId}",
-                entityType, entityId, action, userId, groupId);
+                _logger.LogError(ex,
+                    "Failed to create audit log for {EntityType} {EntityId} - {Action}",
+                    request.EntityType, request.EntityId, request.Action);
+            }
         }
 
-        public async Task<Result<List<AuditLogDto>>> GetEntityHistoryAsync(string entityType, Guid entityId, Guid requestingUserId)
+        public async Task<Result<List<AuditLogDto>>> GetEntityHistoryAsync(string entityType, Guid entityId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50)
         {
             await using var context = await _factory.CreateDbContextAsync();
 
@@ -87,7 +80,9 @@ namespace Plantitask.Infrastructure.Services
             var logs = await context.AuditLogs
                 .Where(a => a.EntityType == entityType && a.EntityId == entityId)
                 .OrderByDescending(a => a.CreatedAt)
-                .Select(a => MapToDto(a))
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(AuditLogDto.Projection)
                 .ToListAsync();
 
             return logs;
@@ -108,7 +103,7 @@ namespace Plantitask.Infrastructure.Services
                 .OrderByDescending(a => a.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(a => MapToDto(a))
+                .Select(AuditLogDto.Projection)
                 .ToListAsync();
 
             return logs;
@@ -129,16 +124,12 @@ namespace Plantitask.Infrastructure.Services
                 .OrderByDescending(a => a.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(a => MapToDto(a))
+                .Select(AuditLogDto.Projection)
                 .ToListAsync();
 
             return logs;
         }
 
-        public async Task<Result<List<AuditLogDto>>> GetTaskHistoryAsync(Guid taskId, Guid requestingUserId)
-        {
-            return await GetEntityHistoryAsync("TaskItem", taskId, requestingUserId);
-        }
 
         private static async Task<Guid?> GetEntityGroupIdAsync(ApplicationDbContext context, string entityType, Guid entityId)
         {
@@ -160,24 +151,5 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
-        private static AuditLogDto MapToDto(AuditLog a)
-        {
-            return new AuditLogDto
-            {
-                Id = a.Id,
-                EntityType = a.EntityType,
-                EntityId = a.EntityId,
-                Action = a.Action,
-                PropertyName = a.PropertyName,
-                OldValue = a.OldValue,
-                NewValue = a.NewValue,
-                UserId = a.UserId,
-                UserName = a.UserName,
-                UserEmail = a.UserEmail,
-                Timestamp = a.CreatedAt,
-                Reason = a.Reason,
-                IpAddress = a.IpAddress
-            };
-        }
     }
 }

@@ -1,6 +1,8 @@
-﻿using System;
+﻿using Plantitask.Core.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -23,5 +25,22 @@ namespace Plantitask.Core.DTO.Audit
         public DateTime Timestamp { get; set; }
         public string? Reason { get; set; }
         public string IpAddress { get; set; } = string.Empty;
+
+        public static Expression<Func<AuditLog, AuditLogDto>> Projection => a => new AuditLogDto
+        {
+            Id = a.Id,
+            EntityType = a.EntityType,
+            EntityId = a.EntityId,
+            Action = a.Action,
+            PropertyName = a.PropertyName,
+            OldValue = a.OldValue,
+            NewValue = a.NewValue,
+            UserId = a.UserId,
+            UserName = a.UserName,
+            UserEmail = a.UserEmail,
+            Timestamp = a.CreatedAt,
+            Reason = a.Reason,
+            IpAddress = a.IpAddress
+        };
     }
 }
