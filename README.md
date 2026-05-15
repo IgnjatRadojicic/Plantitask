@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-[![CodeFactor](https://www.codefactor.io/repository/github/ignjatradojicic/plantitask/badge)](https://www.codefactor.io/repository/github/ignjatradojicic/plantitask)  
+  <a href="https://www.codefactor.io/repository/github/ignjatradojicic/plantitask"><img src="https://www.codefactor.io/repository/github/ignjatradojicic/plantitask/badge" alt="CodeFactor" /></a>
   <img src="https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet" alt=".NET 8" />
   <img src="https://img.shields.io/badge/Blazor-WASM-512BD4?logo=blazor" alt="Blazor WASM" />
   <img src="https://img.shields.io/badge/EF%20Core-8.0-512BD4" alt="EF Core" />
