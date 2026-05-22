@@ -124,16 +124,26 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result<AttachmentDto>> GetAttachmentByIdAsync(Guid attachmentId, Guid userId)
         {
             var attachment = await _context.TaskAttachments
-                .Include(a => a.Task)
-                .ThenInclude(t => t.Group)
-                .Include(a => a.Uploader)
-                .FirstOrDefaultAsync(a => a.Id == attachmentId);
+                .Where(a => a.Id == attachmentId)
+                .Select(a => new
+                {
+                    a.Id,
+                    a.TaskId,
+                    a.FileName,
+                    a.FileSize,
+                    a.ContentType,
+                    a.FilePath,
+                    a.CreatedAt,
+                    GroupId = a.Task.GroupId,
+                    UploaderName = a.Uploader.UserName
+                })
+                .FirstOrDefaultAsync();
 
             if (attachment == null)
                 return Error.NotFound("Attachment not found");
 
             var isMember = await _context.GroupMembers
-                .AnyAsync(gm => gm.GroupId == attachment.Task.GroupId && gm.UserId == userId);
+                .AnyAsync(gm => gm.GroupId == attachment.GroupId && gm.UserId == userId);
 
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to view this attachment");
@@ -147,22 +157,29 @@ namespace Plantitask.Infrastructure.Services
                 ContentType = attachment.ContentType,
                 DownloadUrl = _fileStorage.GetFileUrl(attachment.FilePath),
                 UploadedAt = attachment.CreatedAt,
-                UploadedByUserName = attachment.Uploader.UserName
+                UploadedByUserName = attachment.UploaderName
             };
         }
 
         public async Task<Result<(Stream FileStream, string FileName, string ContentType)>> DownloadAttachmentAsync(Guid attachmentId, Guid userId)
         {
             var attachment = await _context.TaskAttachments
-                .Include(a => a.Task)
-                .ThenInclude(t => t.Group)
-                .FirstOrDefaultAsync(a => a.Id == attachmentId);
+                .Where(a => a.Id == attachmentId)
+                .Select(a => new
+                {
+                    GroupId = a.Task.GroupId,
+                    a.FilePath,
+                    a.FileName,
+                    a.ContentType
+
+                })
+                .FirstOrDefaultAsync();
 
             if (attachment == null)
                 return Error.NotFound("Attachment not found");
 
             var isMember = await _context.GroupMembers
-                .AnyAsync(gm => gm.GroupId == attachment.Task.GroupId && gm.UserId == userId);
+                .AnyAsync(gm => gm.GroupId == attachment.GroupId && gm.UserId == userId);
 
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to download this attachment");
@@ -175,16 +192,19 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result> DeleteAttachmentAsync(Guid attachmentId, Guid userId)
         {
             var attachment = await _context.TaskAttachments
-                .Include(a => a.Task)
-                .ThenInclude(t => t.Group)
                 .FirstOrDefaultAsync(a => a.Id == attachmentId);
 
             if (attachment == null)
                 return Error.NotFound("Attachment not found");
 
+            var groupId = await _context.Tasks
+                .Where(t => t.Id == attachment.TaskId)
+                .Select(t => t.GroupId)
+                .FirstOrDefaultAsync();
+
             var membership = await _context.GroupMembers
                 .Include(gm => gm.Role)
-                .FirstOrDefaultAsync(gm => gm.GroupId == attachment.Task.GroupId && gm.UserId == userId);
+                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
 
             if (membership == null)
                 return Error.Forbidden("You must be a member of the group");
