@@ -34,15 +34,16 @@ namespace Plantitask.Infrastructure.Services
         {
             _logger.LogInformation("User {UserId} uploading attachment to task {TaskId}", userId, taskId);
 
-            var task = await _context.Tasks
-                .Include(t => t.Group)
-                .FirstOrDefaultAsync(t => t.Id == taskId);
+            var groupId = await _context.Tasks
+                .Where(t => t.Id == taskId)
+                .Select(t => (Guid?)t.GroupId)
+                .FirstOrDefaultAsync();
 
-            if (task == null)
+            if (groupId == null)
                 return Error.NotFound("Task not found");
 
             var isMember = await _context.GroupMembers
-                .AnyAsync(gm => gm.GroupId == task.GroupId && gm.UserId == userId);
+                .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
 
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to upload attachments");
