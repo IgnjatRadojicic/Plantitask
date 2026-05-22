@@ -27,6 +27,20 @@ namespace Plantitask.Infrastructure.Services
             _logger = logger;
         }
 
+        public async Task<bool> IsUserMemberAsync(Guid groupId, Guid userId)
+        {
+            return await _context.GroupMembers
+                .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+        }
+
+        public async Task<int?> GetUserPermissionLevelAsync(Guid groupId, Guid userId)
+        {
+            return await _context.GroupMembers
+                .Where(gm => gm.GroupId == groupId && gm.UserId == userId)
+                .Select(gm => (int?)gm.Role.PermissionLevel)
+                .FirstOrDefaultAsync();
+        }
+
         public async Task<Result<GroupDto>> CreateGroupAsync(CreateGroupDto createGroupDto, Guid userId)
         {
 
