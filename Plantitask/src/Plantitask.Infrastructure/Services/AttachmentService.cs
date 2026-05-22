@@ -65,7 +65,6 @@ namespace Plantitask.Infrastructure.Services
                 FileSize = file.Length,
                 ContentType = file.ContentType,
                 CreatedBy = userId,
-                CreatedAt = DateTime.UtcNow
             };
 
             _context.TaskAttachments.Add(attachment);
@@ -91,22 +90,33 @@ namespace Plantitask.Infrastructure.Services
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to view attachments");
 
-            var attachments = await _context.TaskAttachments
+            var results = await _context.TaskAttachments
                 .Where(a => a.TaskId == taskId)
-                .Include(a => a.Uploader)
                 .OrderByDescending(a => a.CreatedAt)
-                .Select(a => new AttachmentDto
+                .Select(a => new
                 {
-                    Id = a.Id,
-                    TaskId = a.TaskId,
-                    FileName = a.FileName,
-                    FileSize = a.FileSize,
-                    ContentType = a.ContentType,
-                    DownloadUrl = _fileStorage.GetFileUrl(a.FilePath),
-                    UploadedAt = a.CreatedAt,
-                    UploadedByUserName = a.Uploader.UserName
+                    a.Id,
+                    a.TaskId,
+                    a.FileName,
+                    a.FileSize,
+                    a.ContentType,
+                    a.FilePath,
+                    a.CreatedAt,
+                    UploaderName = a.Uploader.UserName
                 })
                 .ToListAsync();
+
+            var attachments = results.Select(a => new AttachmentDto
+            {
+                Id = a.Id,
+                TaskId = a.TaskId,
+                FileName = a.FileName,
+                FileSize = a.FileSize,
+                ContentType = a.ContentType,
+                DownloadUrl = _fileStorage.GetFileUrl(a.FilePath),
+                UploadedAt = a.CreatedAt,
+                UploadedByUserName = a.UploaderName
+            }).ToList();
 
             return attachments;
         }

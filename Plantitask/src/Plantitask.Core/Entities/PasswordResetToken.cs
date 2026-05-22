@@ -7,7 +7,7 @@ using Plantitask.Core.Common;
 
 namespace Plantitask.Core.Entities
 {
-    public class PasswordResetToken : ImmutableEntity
+    public class PasswordResetToken : SelfManagedEntity
     {
         public Guid UserId { get; set; }
         public string TokenHash { get; set; } = string.Empty; 

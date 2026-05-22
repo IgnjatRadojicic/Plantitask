@@ -8,6 +8,8 @@ namespace Plantitask.Core.Common
         public static Error NotFound(string message) =>
             new("NotFound", message, HttpStatusCode.NotFound);
 
+        public static Error Unauthorized(string message) =>
+            new("Unauthorized", message, HttpStatusCode.Unauthorized);
         public static Error BadRequest(string message) =>
             new("BadRequest", message, HttpStatusCode.BadRequest);
 

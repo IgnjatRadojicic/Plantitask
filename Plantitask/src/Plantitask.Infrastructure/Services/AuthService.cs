@@ -1,14 +1,15 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Google.Apis.Auth;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Security.Cryptography;
 using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Auth;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Models;
-using Microsoft.Extensions.Configuration;
-using Google.Apis.Auth;
+using System.Net;
+using System.Security.Cryptography;
 
 namespace Plantitask.Infrastructure.Services
 {
@@ -69,7 +70,7 @@ namespace Plantitask.Infrastructure.Services
                 FirstName = registerDto.FirstName,
                 LastName = registerDto.LastName,
                 IsEmailConfirmed = true,
-                CreatedAt = DateTime.UtcNow
+
             };
 
             _context.Users.Add(user);
@@ -86,19 +87,7 @@ namespace Plantitask.Infrastructure.Services
                 _logger.LogError(ex, "Failed to send welcome email");
             }
 
-            var accessToken = _tokenGenerator.GenerateAccessToken(user);
-            var refreshToken = _tokenGenerator.GenerateRefreshToken();
-
-            await StoreRefreshTokenAsync(user.Id, refreshToken, "Unknown");
-
-            return new AuthResponseDto
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                UserId = user.Id,
-                UserName = user.UserName,
-                Email = user.Email
-            };
+            return await GenerateAuthResponseAsync(user, "Unknown");
         }
 
         public async Task<Result<AuthResponseDto>> LoginAsync(LoginDto loginDto)
@@ -109,30 +98,18 @@ namespace Plantitask.Infrastructure.Services
                 .FirstOrDefaultAsync(u => u.Email == loginDto.Email);
 
             if (user == null || !_passwordHasher.VerifyPassword(loginDto.Password, user.PasswordHash))
-                return Error.Forbidden("Invalid email or password");
+                return Error.Unauthorized("Invalid email or password");
 
             if (!user.IsEmailConfirmed)
                 return Error.BadRequest("Please verify your email before logging in. Check your inbox for the verification code.");
 
             user.LastLoginAt = DateTime.UtcNow;
-            user.UpdatedAt = DateTime.UtcNow;
+            
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("User logged in successfully: {Email}", user.Email);
 
-            var accessToken = _tokenGenerator.GenerateAccessToken(user);
-            var refreshToken = _tokenGenerator.GenerateRefreshToken();
-
-            await StoreRefreshTokenAsync(user.Id, refreshToken, "Unknown");
-
-            return new AuthResponseDto
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                UserId = user.Id,
-                UserName = user.UserName,
-                Email = user.Email
-            };
+            return await GenerateAuthResponseAsync(user, "Unknown");
         }
 
         public async Task<Result<AuthResponseDto>> RefreshTokenAsync(string refreshToken)
@@ -243,7 +220,7 @@ namespace Plantitask.Infrastructure.Services
                 ExpiresAt = DateTime.UtcNow.AddHours(1),
                 IsUsed = false,
                 IpAddress = "Unknown",
-                CreatedAt = DateTime.UtcNow
+
             };
 
             _context.PasswordResetTokens.Add(passwordResetToken);
@@ -278,6 +255,7 @@ namespace Plantitask.Infrastructure.Services
             var userTokens = await _context.PasswordResetTokens
                 .Where(rt => rt.UserId == user.Id && !rt.IsUsed && rt.ExpiresAt > DateTime.UtcNow)
                 .OrderByDescending(rt => rt.CreatedAt)
+                .Take(10)
                 .ToListAsync();
 
             PasswordResetToken? resetToken = null;
@@ -294,7 +272,7 @@ namespace Plantitask.Infrastructure.Services
                 return Error.BadRequest("Invalid or expired reset token");
 
             user.PasswordHash = _passwordHasher.HashPassword(resetPasswordDto.NewPassword);
-            user.UpdatedAt = DateTime.UtcNow;
+            
 
             resetToken.IsUsed = true;
             resetToken.UsedAt = DateTime.UtcNow;
@@ -341,7 +319,7 @@ namespace Plantitask.Infrastructure.Services
                     LastName = payload.FamilyName,
                     ProfilePictureUrl = payload.Picture,
                     IsEmailConfirmed = true,
-                    CreatedAt = DateTime.UtcNow
+    
                 };
 
                 _context.Users.Add(user);
@@ -364,16 +342,20 @@ namespace Plantitask.Infrastructure.Services
                     user.IsEmailConfirmed = true;
 
                 user.LastLoginAt = DateTime.UtcNow;
-                user.UpdatedAt = DateTime.UtcNow;
+                
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Existing user logged in via Google: {Email}", user.Email);
             }
 
+            return await GenerateAuthResponseAsync(user, "Unknown");
+        }
+
+        private async Task<AuthResponseDto> GenerateAuthResponseAsync(User user, string ipAddress)
+        {
             var accessToken = _tokenGenerator.GenerateAccessToken(user);
             var refreshToken = _tokenGenerator.GenerateRefreshToken();
-
-            await StoreRefreshTokenAsync(user.Id, refreshToken, "Unknown");
+            await StoreRefreshTokenAsync(user.Id, refreshToken, ipAddress);
 
             return new AuthResponseDto
             {
@@ -391,7 +373,6 @@ namespace Plantitask.Infrastructure.Services
             {
                 UserId = userId,
                 TokenHash = _passwordHasher.HashPassword(refreshToken),
-                CreatedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddDays(
                     int.Parse(_configuration["Jwt:RefreshTokenExpirationDays"] ?? "7")),
                 CreatedByIp = ipAddress,
