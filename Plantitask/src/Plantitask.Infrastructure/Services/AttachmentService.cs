@@ -214,8 +214,6 @@ namespace Plantitask.Infrastructure.Services
             if (!canDelete)
                 return Error.Forbidden("Only Managers, Owners, or the uploader can delete attachments");
 
-            await _fileStorage.DeleteFileAsync(attachment.FilePath);
-
             attachment.IsDeleted = true;
             attachment.DeletedAt = DateTime.UtcNow;
             attachment.DeletedBy = userId;
@@ -223,6 +221,15 @@ namespace Plantitask.Infrastructure.Services
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Attachment {AttachmentId} deleted by user {UserId}", attachmentId, userId);
+
+            try
+            {
+                await _fileStorage.DeleteFileAsync(attachment.FilePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete physical file for attachment {AttachmentId}", attachmentId);
+            }
 
             return Result.Success();
         }
