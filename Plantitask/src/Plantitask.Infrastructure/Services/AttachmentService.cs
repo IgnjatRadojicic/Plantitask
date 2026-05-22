@@ -8,6 +8,7 @@ using Plantitask.Core.Constants;
 using Plantitask.Core.DTO.Attachments;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
+using System.Text.RegularExpressions;
 
 namespace Plantitask.Infrastructure.Services
 {
@@ -17,15 +18,17 @@ namespace Plantitask.Infrastructure.Services
         private readonly IFileStorageService _fileStorage;
         private readonly FileStorageSettings _settings;
         private readonly ILogger<AttachmentService> _logger;
-
+        private readonly IGroupService _groupService;
         public AttachmentService(
             IApplicationDbContext context,
             IFileStorageService fileStorage,
             IOptions<FileStorageSettings> settings,
+            IGroupService groupService,
             ILogger<AttachmentService> logger)
         {
             _context = context;
             _fileStorage = fileStorage;
+            _groupService = groupService;
             _settings = settings.Value;
             _logger = logger;
         }
@@ -42,8 +45,7 @@ namespace Plantitask.Infrastructure.Services
             if (groupId == null)
                 return Error.NotFound("Task not found");
 
-            var isMember = await _context.GroupMembers
-                .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+            var isMember = await _groupService.IsUserMemberAsync(groupId.Value, userId);
 
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to upload attachments");
@@ -100,8 +102,7 @@ namespace Plantitask.Infrastructure.Services
             if (task == null)
                 return Error.NotFound("Task not found");
 
-            var isMember = await _context.GroupMembers
-                .AnyAsync(gm => gm.GroupId == task.GroupId && gm.UserId == userId);
+            var isMember = await _groupService.IsUserMemberAsync(task.GroupId, userId);
 
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to view attachments");
@@ -158,8 +159,7 @@ namespace Plantitask.Infrastructure.Services
             if (attachment == null)
                 return Error.NotFound("Attachment not found");
 
-            var isMember = await _context.GroupMembers
-                .AnyAsync(gm => gm.GroupId == attachment.GroupId && gm.UserId == userId);
+            var isMember = await _groupService.IsUserMemberAsync(attachment.GroupId, userId);
 
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to view this attachment");
@@ -194,8 +194,7 @@ namespace Plantitask.Infrastructure.Services
             if (attachment == null)
                 return Error.NotFound("Attachment not found");
 
-            var isMember = await _context.GroupMembers
-                .AnyAsync(gm => gm.GroupId == attachment.GroupId && gm.UserId == userId);
+            var isMember = await _groupService.IsUserMemberAsync(attachment.GroupId, userId);
 
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to download this attachment");
@@ -218,14 +217,9 @@ namespace Plantitask.Infrastructure.Services
                 .Select(t => t.GroupId)
                 .FirstOrDefaultAsync();
 
-            var membership = await _context.GroupMembers
-                .Include(gm => gm.Role)
-                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+            var permissionLevel = await _groupService.GetUserPermissionLevelAsync(groupId, userId);
 
-            if (membership == null)
-                return Error.Forbidden("You must be a member of the group");
-
-            var canDelete = membership.Role.PermissionLevel >= PermissionLevels.Manager || attachment.CreatedBy == userId;
+            var canDelete = permissionLevel >= PermissionLevels.Manager || attachment.CreatedBy == userId;
 
             if (!canDelete)
                 return Error.Forbidden("Only Managers, Owners, or the uploader can delete attachments");

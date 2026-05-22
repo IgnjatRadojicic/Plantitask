@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using Plantitask.Core.Common;
@@ -10,6 +11,8 @@ namespace Plantitask.Core.Interfaces
 {
     public interface IGroupService
     {
+        Task<bool> IsUserMemberAsync(Guid groupId, Guid userId);
+        Task<int?> GetUserPermissionLevelAsync(Guid groupId, Guid userId);
         Task<Result<GroupDto>> CreateGroupAsync(CreateGroupDto createGroupDto, Guid userId);
         Task<Result<GroupDto>> JoinGroupAsync(JoinGroupDto joinGroupDto, Guid userId);
         Task<Result<List<GroupDto>>> GetUserGroupsAsync(Guid userId);

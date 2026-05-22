@@ -13,11 +13,14 @@ namespace Plantitask.Infrastructure.Services
     {
         private readonly IDbContextFactory<ApplicationDbContext> _factory;
         private readonly ILogger<AuditService> _logger;
+        private readonly IGroupService _groupService;
 
         public AuditService(
             IDbContextFactory<ApplicationDbContext> factory,
-            ILogger<AuditService> logger)
+            ILogger<AuditService> logger,
+            IGroupService groupService)
         {
+            _groupService = groupService;
             _factory = factory;
             _logger = logger;
         }
@@ -70,8 +73,7 @@ namespace Plantitask.Infrastructure.Services
 
             if (groupId.HasValue)
             {
-                var isMember = await context.GroupMembers
-                    .AnyAsync(gm => gm.GroupId == groupId.Value && gm.UserId == requestingUserId);
+                var isMember = await _groupService.IsUserMemberAsync(groupId.Value, requestingUserId);
 
                 if (!isMember)
                     return Error.Forbidden("You must be a member of this group to view its audit history");
@@ -92,8 +94,7 @@ namespace Plantitask.Infrastructure.Services
         {
             await using var context = await _factory.CreateDbContextAsync();
 
-            var isMember = await context.GroupMembers
-                .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == requestingUserId);
+            var isMember = await _groupService.IsUserMemberAsync(groupId, requestingUserId);
 
             if (!isMember)
                 return Error.Forbidden("You must be a member of this group to view its audit history");
