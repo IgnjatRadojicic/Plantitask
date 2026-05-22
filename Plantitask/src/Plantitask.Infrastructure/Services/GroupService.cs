@@ -76,7 +76,6 @@ namespace Plantitask.Infrastructure.Services
                 GroupId = group.Id,
                 UserId = userId,
                 RoleId = (int)GroupRole.Owner,
-                JoinedAt = DateTime.UtcNow,
                 CreatedBy = userId,
                 CreatedAt = DateTime.UtcNow
             };
@@ -119,7 +118,6 @@ namespace Plantitask.Infrastructure.Services
                     existingMember.IsDeleted = false;
                     existingMember.DeletedAt = null;
                     existingMember.DeletedBy = null;
-                    existingMember.JoinedAt = DateTime.UtcNow;
                     existingMember.UpdatedBy = userId;
                     existingMember.UpdatedAt = DateTime.UtcNow;
                     existingMember.RoleId = (int)GroupRole.Member;
@@ -150,7 +148,6 @@ namespace Plantitask.Infrastructure.Services
                 GroupId = group.Id,
                 UserId = userId,
                 RoleId = (int)GroupRole.Member,
-                JoinedAt = DateTime.UtcNow,
                 CreatedBy = userId,
                 CreatedAt = DateTime.UtcNow
             };
@@ -177,7 +174,6 @@ namespace Plantitask.Infrastructure.Services
                     IsPasswordProtected = !string.IsNullOrEmpty(gm.Group.PasswordHash),
                     MemberCount = _context.GroupMembers.Count(m => m.GroupId == gm.GroupId),
                     UserRole = (GroupRole)gm.RoleId,
-                    JoinedAt = gm.JoinedAt,
                     CreatedAt = gm.Group.CreatedAt
                 }).ToListAsync();
 
@@ -211,7 +207,6 @@ namespace Plantitask.Infrastructure.Services
                     Email = gm.User.Email,
                     ProfilePictureUrl = gm.User.ProfilePictureUrl,
                     Role = (GroupRole)gm.RoleId,
-                    JoinedAt = gm.JoinedAt
                 }).ToListAsync();
 
             return new GroupDetailsDto
@@ -304,8 +299,7 @@ namespace Plantitask.Infrastructure.Services
                 UserName = targetMembership.User.UserName,
                 Email = targetMembership.User.Email,
                 ProfilePictureUrl = targetMembership.User.ProfilePictureUrl,
-                Role = changeRoleDto.NewRole,
-                JoinedAt = targetMembership.JoinedAt
+                Role = changeRoleDto.NewRole
             };
         }
 
@@ -384,7 +378,6 @@ namespace Plantitask.Infrastructure.Services
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
                 MemberCount = memberCount,
                 UserRole = userMembership != null ? (GroupRole)userMembership.RoleId : GroupRole.Member,
-                JoinedAt = userMembership?.JoinedAt ?? DateTime.UtcNow,
                 CreatedAt = group.CreatedAt
             };
         }
