@@ -72,7 +72,22 @@ namespace Plantitask.Infrastructure.Services
 
             _logger.LogInformation("Attachment {AttachmentId} uploaded to task {TaskId}", attachment.Id, taskId);
 
-            return await GetAttachmentByIdAsync(attachment.Id, userId);
+            var user = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.UserName)
+                .FirstOrDefaultAsync();
+
+            return new AttachmentDto
+            {
+                Id = attachment.Id,
+                TaskId = attachment.TaskId,
+                FileName = attachment.FileName,
+                FileSize = attachment.FileSize,
+                ContentType = attachment.ContentType,
+                DownloadUrl = _fileStorage.GetFileUrl(attachment.FilePath),
+                UploadedAt = attachment.CreatedAt,
+                UploadedByUserName = user!
+            };
         }
 
         public async Task<Result<List<AttachmentDto>>> GetTaskAttachmentsAsync(Guid taskId, Guid userId)
