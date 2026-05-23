@@ -92,10 +92,9 @@ namespace Plantitask.Infrastructure.Services
             return result;
         }
 
-        public async Task<Result<List<TaskDto>>> GetGroupTasksAsync(Guid groupId, TaskFilterDto? filter, Guid userId)
+        public async Task<Result<List<TaskDto>>> GetGroupTasksAsync(Guid groupId, TaskFilterDto? filter, Guid userId, int pageNumber = 1, int pageSize = 50)
         {
-            var isMember = await _context.GroupMembers
-                .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+            var isMember = await _groupService.IsUserMemberAsync(groupId, userId);
 
             if (!isMember)
                 return Error.Forbidden("You must be a member of this group to view its tasks");
@@ -132,13 +131,9 @@ namespace Plantitask.Infrastructure.Services
             }
 
             var tasks = await query
-                .Include(t => t.Status)
-                .Include(t => t.Priority)
-                .Include(t => t.Group)
-                .Include(t => t.AssignedTo)
-                .Include(t => t.Creator)
-                .Include(t => t.Attachments)
                 .OrderByDescending(t => t.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .Select(t => new TaskDto
                 {
                     Id = t.Id,
