@@ -16,13 +16,16 @@ namespace Plantitask.Infrastructure.Services
         private readonly IApplicationDbContext _context;
         private readonly ILogger<TaskService> _logger;
         private readonly IBackgroundJobService _backgroundJobService;
+        private readonly IGroupService _groupService;
 
         public TaskService(
             IApplicationDbContext context,
             ILogger<TaskService> logger,
+            IGroupService groupService,
             IBackgroundJobService backgroundJobService)
         {
             _context = context;
+            _groupService = groupService;
             _logger = logger;
             _backgroundJobService = backgroundJobService;
         }
@@ -31,14 +34,12 @@ namespace Plantitask.Infrastructure.Services
         {
             _logger.LogInformation("User {UserId} creating task in group {GroupId}", userId, groupId);
 
-            var membership = await _context.GroupMembers
-                .Include(gm => gm.Role)
-                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+            var permissionLevel = await _groupService.GetUserPermissionLevelAsync(groupId, userId);
 
-            if (membership == null)
+            if (permissionLevel == null)
                 return Error.Forbidden("You must be a member of this group to create tasks");
 
-            if (membership.Role.PermissionLevel < PermissionLevels.TeamLead)
+            if (permissionLevel < PermissionLevels.TeamLead)
                 return Error.Forbidden("Only Team Leads, Managers, and Owners can create tasks");
 
             var priorityExists = await _context.TaskPriorities
@@ -75,7 +76,14 @@ namespace Plantitask.Infrastructure.Services
 
             if (task.DueDate.HasValue && task.AssignedToId.HasValue)
             {
-                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
+                try
+                {
+                    _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to schedule due date notification for task {TaskId}", task.Id);
+                }
             }
 
             _logger.LogInformation("Task {TaskId} created in group {GroupId} by user {UserId}",
