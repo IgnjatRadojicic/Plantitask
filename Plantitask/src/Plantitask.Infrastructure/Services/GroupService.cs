@@ -242,12 +242,6 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<GroupDetailsDto>> GetGroupDetailsAsync(Guid groupId, Guid userId)
         {
-            var membership = await _context.GroupMembers
-                .Include(gm => gm.Role)
-                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
-
-            if (membership == null)
-                return Error.Forbidden("You are not a member of this group");
 
             var group = await _context.Groups
                 .Where(g => g.Id == groupId)
@@ -265,6 +259,14 @@ namespace Plantitask.Infrastructure.Services
 
             if (group == null)
                 return Error.NotFound("Group not found");
+
+            var membership = await _context.GroupMembers
+                .Include(gm => gm.Role)
+                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+
+            if (membership == null)
+                return Error.Forbidden("You are not a member of this group");
+
 
             var members = await _context.GroupMembers
                 .Where(gm => gm.GroupId == groupId)
