@@ -433,7 +433,7 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
-        public async Task<string> GenerateUniqueGroupCode(string groupName)
+        private async Task<string> GenerateUniqueGroupCode(string groupName)
         {
             string code;
             bool codeExists;
