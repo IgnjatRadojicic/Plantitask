@@ -101,7 +101,6 @@ namespace Plantitask.Infrastructure.Services
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
                 MemberCount = 1,
                 UserRole = GroupRole.Owner,
-                CreatedAt = group.CreatedAt
             };
         }
 
@@ -116,7 +115,6 @@ namespace Plantitask.Infrastructure.Services
                     g.GroupCode,
                     g.PasswordHash,
                     g.IsActive,
-                    g.CreatedAt
                 })
                 .FirstOrDefaultAsync();
 
@@ -152,7 +150,6 @@ namespace Plantitask.Infrastructure.Services
                     existingMember.DeletedAt = null;
                     existingMember.DeletedBy = null;
                     existingMember.UpdatedBy = userId;
-                    existingMember.UpdatedAt = DateTime.UtcNow;
                     existingMember.RoleId = (int)GroupRole.Member;
 
                     await _context.SaveChangesAsync();
@@ -170,7 +167,6 @@ namespace Plantitask.Infrastructure.Services
                         IsPasswordProtected = !string.IsNullOrEmpty(groupData.PasswordHash),
                         MemberCount = memberCount,
                         UserRole = GroupRole.Member,
-                        CreatedAt = groupData.CreatedAt
                     };
                 }
                 else
@@ -195,7 +191,6 @@ namespace Plantitask.Infrastructure.Services
                 UserId = userId,
                 RoleId = (int)GroupRole.Member,
                 CreatedBy = userId,
-                CreatedAt = DateTime.UtcNow
             };
 
             _context.GroupMembers.Add(newMember);
@@ -214,7 +209,6 @@ namespace Plantitask.Infrastructure.Services
                 IsPasswordProtected = !string.IsNullOrEmpty(groupData.PasswordHash),
                 MemberCount = totalMembers,
                 UserRole = GroupRole.Member,
-                CreatedAt = groupData.CreatedAt
             };
 
 
@@ -234,7 +228,6 @@ namespace Plantitask.Infrastructure.Services
                     IsPasswordProtected = !string.IsNullOrEmpty(gm.Group.PasswordHash),
                     MemberCount = _context.GroupMembers.Count(m => m.GroupId == gm.GroupId), // With many groups could  be N Subqueries should look into it once we get real user data
                     UserRole = (GroupRole)gm.RoleId,
-                    CreatedAt = gm.Group.CreatedAt
                 }).ToListAsync();
 
             return groups;
@@ -253,7 +246,6 @@ namespace Plantitask.Infrastructure.Services
                     g.PasswordHash,
                     g.OwnerId,
                     OwnerName = g.Owner.UserName,
-                    g.CreatedAt
                 })
                 .FirstOrDefaultAsync();
 
@@ -287,7 +279,6 @@ namespace Plantitask.Infrastructure.Services
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
                 OwnerId = group.OwnerId,
                 OwnerName = group.OwnerName,
-                CreatedAt = group.CreatedAt,
                 Members = members
             };
         }
@@ -333,7 +324,6 @@ namespace Plantitask.Infrastructure.Services
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
                 MemberCount = memberCount,
                 UserRole = permissionLevel >= PermissionLevels.Owner ? GroupRole.Owner : GroupRole.Manager,
-                CreatedAt = group.CreatedAt
             };
         }
 
@@ -343,14 +333,12 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("User {UserId} changing role for member {MemberId} in group {GroupId}",
                 userId, memberId, groupId);
 
-            var requestingMembership = await _context.GroupMembers
-                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+            var permissionLevel =  await GetUserPermissionLevelAsync(groupId, userId);
 
-            if (requestingMembership == null)
+            if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            var requestingRole = (GroupRole)requestingMembership.RoleId;
-            if (requestingRole != GroupRole.Owner && requestingRole != GroupRole.Manager)
+            if (permissionLevel < PermissionLevels.Manager)
                 return Error.Forbidden("Only Owner or Manager can change roles");
 
             var targetMembership = await _context.GroupMembers
@@ -365,8 +353,7 @@ namespace Plantitask.Infrastructure.Services
 
             targetMembership.RoleId = (int)changeRoleDto.NewRole;
             targetMembership.UpdatedBy = userId;
-            targetMembership.UpdatedAt = DateTime.UtcNow;
-
+     
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Role changed for member {MemberId} to {NewRole}", memberId, changeRoleDto.NewRole);
@@ -386,14 +373,12 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("User {UserId} removing member {MemberId} from group {GroupId}",
                 userId, memberId, groupId);
 
-            var requestingMembership = await _context.GroupMembers
-                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+            var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
 
-            if (requestingMembership == null)
+            if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            var requestingRole = (GroupRole)requestingMembership.RoleId;
-            if (requestingRole != GroupRole.Owner && requestingRole != GroupRole.Manager)
+            if (permissionLevel < PermissionLevels.Manager) 
                 return Error.Forbidden("Only Owner or Manager can remove members");
 
             var targetMembership = await _context.GroupMembers
