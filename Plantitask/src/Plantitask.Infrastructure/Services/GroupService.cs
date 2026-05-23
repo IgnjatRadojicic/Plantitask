@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
+using Plantitask.Core.Constants;
 using Plantitask.Core.DTO.Groups;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
@@ -44,12 +45,19 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result<GroupDto>> CreateGroupAsync(CreateGroupDto createGroupDto, Guid userId)
         {
 
-            var user = await _context.Users.FindAsync(userId);
+            var userData = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.MaxGroups })
+                .FirstOrDefaultAsync();
+
+            if (userData == null)
+                return Error.NotFound("User not found");
+
             var currentGroupCount = await _context.GroupMembers
                 .CountAsync(gm => gm.UserId == userId);
 
-            if (currentGroupCount >= user?.MaxGroups)
-                return Error.Forbidden($"You've reached your limit of {user.MaxGroups} groups. Upgrade to Premium for more.");
+            if (currentGroupCount >= userData.MaxGroups)
+                return Error.Forbidden($"You've reached your limit of {userData.MaxGroups} groups. Upgrade to Premium for more.");
 
 
             var groupCode = await GenerateUniqueGroupCode(createGroupDto.Name);
@@ -66,7 +74,6 @@ namespace Plantitask.Infrastructure.Services
                 IsActive = true,
                 OwnerId = userId,
                 CreatedBy = userId,
-                CreatedAt = DateTime.UtcNow
             };
 
             _context.Groups.Add(group);
@@ -77,7 +84,6 @@ namespace Plantitask.Infrastructure.Services
                 UserId = userId,
                 RoleId = (int)GroupRole.Owner,
                 CreatedBy = userId,
-                CreatedAt = DateTime.UtcNow
             };
 
             _context.GroupMembers.Add(ownerMember);
@@ -86,30 +92,57 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("Group created: {GroupName} with code {GroupCode} by user {UserId}",
                 group.Name, group.GroupCode, userId);
 
-            return await MapToGroupDtoAsync(group, userId);
+
+            return new GroupDto
+            {
+                Id = group.Id,
+                Name = group.Name,
+                GroupCode = group.GroupCode,
+                IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
+                MemberCount = 1,
+                UserRole = GroupRole.Owner,
+                CreatedAt = group.CreatedAt
+            };
         }
 
         public async Task<Result<GroupDto>> JoinGroupAsync(JoinGroupDto joinGroupDto, Guid userId)
         {
-            var group = await _context.Groups
-                .FirstOrDefaultAsync(g => g.GroupCode == joinGroupDto.GroupCode);
+            var groupData = await _context.Groups
+                .Where(g => g.GroupCode == joinGroupDto.GroupCode)
+                .Select(g => new
+                {
+                    g.Id,
+                    g.Name,
+                    g.GroupCode,
+                    g.PasswordHash,
+                    g.IsActive,
+                    g.CreatedAt
+                })
+                .FirstOrDefaultAsync();
 
-            if (group == null)
+            if (groupData == null)
                 return Error.NotFound("Invalid group code");
 
-            if (!group.IsActive)
+            if (!groupData.IsActive)
                 return Error.BadRequest("This group is no longer active");
 
-            var user = await _context.Users.FindAsync(userId);
+            var userData = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.MaxGroups })
+                .FirstOrDefaultAsync();
+
+            if (userData == null)
+                return Error.NotFound("User not found");
+
             var currentGroupCount = await _context.GroupMembers
                 .CountAsync(gm => gm.UserId == userId);
 
-            if (currentGroupCount >= user?.MaxGroups)
-                return Error.Forbidden($"You've reached your limit of {user.MaxGroups} groups. Upgrade to Premium for more.");
+            if (currentGroupCount >= userData?.MaxGroups)
+                return Error.Forbidden($"You've reached your limit of {userData.MaxGroups} groups. Upgrade to Premium for more.");
 
             var existingMember = await _context.GroupMembers
                 .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(gm => gm.GroupId == group.Id && gm.UserId == userId);
+                .FirstOrDefaultAsync(gm => gm.GroupId == groupData.Id && gm.UserId == userId);
 
             if (existingMember != null)
             {
@@ -124,9 +157,21 @@ namespace Plantitask.Infrastructure.Services
 
                     await _context.SaveChangesAsync();
 
-                    _logger.LogInformation("User {UserId} rejoined group {GroupId}", userId, group.Id);
+                    _logger.LogInformation("User {UserId} rejoined group {GroupId}", userId, groupData.Id);
 
-                    return await MapToGroupDtoAsync(group, userId);
+                    var memberCount = await _context.GroupMembers
+                        .CountAsync(gm => gm.GroupId == groupData.Id);
+
+                    return new GroupDto
+                    {
+                        Id = groupData.Id,
+                        Name = groupData.Name,
+                        GroupCode = groupData.GroupCode,
+                        IsPasswordProtected = !string.IsNullOrEmpty(groupData.PasswordHash),
+                        MemberCount = memberCount,
+                        UserRole = GroupRole.Member,
+                        CreatedAt = groupData.CreatedAt
+                    };
                 }
                 else
                 {
@@ -134,18 +179,19 @@ namespace Plantitask.Infrastructure.Services
                 }
             }
 
-            if (!string.IsNullOrEmpty(group.PasswordHash))
+            if (!string.IsNullOrEmpty(groupData.PasswordHash))
             {
                 if (string.IsNullOrEmpty(joinGroupDto.Password))
                     return Error.Forbidden("This group requires a password");
 
-                if (!_passwordHasher.VerifyPassword(joinGroupDto.Password, group.PasswordHash))
+                if (!_passwordHasher.VerifyPassword(joinGroupDto.Password, groupData.PasswordHash))
                     return Error.Forbidden("Incorrect group password");
             }
 
+
             var newMember = new GroupMember
             {
-                GroupId = group.Id,
+                GroupId = groupData.Id,
                 UserId = userId,
                 RoleId = (int)GroupRole.Member,
                 CreatedBy = userId,
@@ -155,9 +201,25 @@ namespace Plantitask.Infrastructure.Services
             _context.GroupMembers.Add(newMember);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("User {UserId} joined group {GroupId}", userId, group.Id);
+            var totalMembers = await _context.GroupMembers
+                .CountAsync(gm => gm.GroupId == groupData.Id);
 
-            return await MapToGroupDtoAsync(group, userId);
+            _logger.LogInformation("User {UserId} joined group {GroupId}", userId, groupData.Id);
+
+            return new GroupDto
+            {
+                Id = groupData.Id,
+                Name = groupData.Name,
+                GroupCode = groupData.GroupCode,
+                IsPasswordProtected = !string.IsNullOrEmpty(groupData.PasswordHash),
+                MemberCount = totalMembers,
+                UserRole = GroupRole.Member,
+                CreatedAt = groupData.CreatedAt
+            };
+
+
+
+
         }
 
         public async Task<Result<List<GroupDto>>> GetUserGroupsAsync(Guid userId)
@@ -229,15 +291,12 @@ namespace Plantitask.Infrastructure.Services
             if (group == null)
                 return Error.NotFound("Group not found");
 
-            var membership = await _context.GroupMembers
-                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+            var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
 
-            if (membership == null)
+            if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            var userRole = (GroupRole)membership.RoleId;
-
-            if (userRole != GroupRole.Owner && userRole != GroupRole.Manager)
+            if (permissionLevel < PermissionLevels.Manager)
                 return Error.Forbidden("Only Owner or Manager can update group details");
 
             if (!string.IsNullOrEmpty(updateGroupDto.Name))
@@ -251,12 +310,23 @@ namespace Plantitask.Infrastructure.Services
             }
 
             group.UpdatedBy = userId;
-            group.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+
+            var memberCount = await _context.GroupMembers
+                .CountAsync(gm => gm.GroupId == groupId);
 
             _logger.LogInformation("Group {GroupId} updated by user {UserId}", groupId, userId);
 
-            return await MapToGroupDtoAsync(group, userId);
+            return new GroupDto
+            {
+                Id = group.Id,
+                Name = group.Name,
+                GroupCode = group.GroupCode,
+                IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
+                MemberCount = memberCount,
+                UserRole = permissionLevel >= PermissionLevels.Owner ? GroupRole.Owner : GroupRole.Manager,
+                CreatedAt = group.CreatedAt
+            };
         }
 
         public async Task<Result<GroupMemberDto>> ChangeUserRoleAsync(
@@ -362,25 +432,6 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
-        private async Task<GroupDto> MapToGroupDtoAsync(Group group, Guid userId)
-        {
-            var memberCount = await _context.GroupMembers
-                .CountAsync(gm => gm.GroupId == group.Id);
-
-            var userMembership = await _context.GroupMembers
-                .FirstOrDefaultAsync(gm => gm.GroupId == group.Id && gm.UserId == userId);
-
-            return new GroupDto
-            {
-                Id = group.Id,
-                Name = group.Name,
-                GroupCode = group.GroupCode,
-                IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
-                MemberCount = memberCount,
-                UserRole = userMembership != null ? (GroupRole)userMembership.RoleId : GroupRole.Member,
-                CreatedAt = group.CreatedAt
-            };
-        }
 
         public async Task<string> GenerateUniqueGroupCode(string groupName)
         {
