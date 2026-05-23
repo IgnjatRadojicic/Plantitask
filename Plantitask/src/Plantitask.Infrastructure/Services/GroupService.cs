@@ -252,11 +252,9 @@ namespace Plantitask.Infrastructure.Services
             if (group == null)
                 return Error.NotFound("Group not found");
 
-            var membership = await _context.GroupMembers
-                .Include(gm => gm.Role)
-                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+            var isMember = await IsUserMemberAsync(groupId, userId);
 
-            if (membership == null)
+            if (!isMember)
                 return Error.Forbidden("You are not a member of this group");
 
 
