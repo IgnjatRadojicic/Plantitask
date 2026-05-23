@@ -21,6 +21,5 @@ namespace Plantitask.Core.Interfaces
         Task<Result<GroupMemberDto>> ChangeUserRoleAsync(Guid groupId, Guid memberId, ChangeRoleDto changeRoleDto, Guid userId);
         Task<Result> RemoveUserFromGroupAsync(Guid groupId, Guid memberId, Guid userId);
         Task<Result> LeaveGroupAsync(Guid groupId, Guid userId);
-        Task<string> GenerateUniqueGroupCode(string groupName);
     }
 }

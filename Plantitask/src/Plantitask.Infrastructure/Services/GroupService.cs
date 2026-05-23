@@ -226,15 +226,13 @@ namespace Plantitask.Infrastructure.Services
         {
             var groups = await _context.GroupMembers
                 .Where(gm => gm.UserId == userId)
-                .Include(gm => gm.Group)
-                .Include(gm => gm.Role)
                 .Select(gm => new GroupDto
                 {
                     Id = gm.Group.Id,
                     Name = gm.Group.Name,
                     GroupCode = gm.Group.GroupCode,
                     IsPasswordProtected = !string.IsNullOrEmpty(gm.Group.PasswordHash),
-                    MemberCount = _context.GroupMembers.Count(m => m.GroupId == gm.GroupId),
+                    MemberCount = _context.GroupMembers.Count(m => m.GroupId == gm.GroupId), // With many groups could  be N Subqueries should look into it once we get real user data
                     UserRole = (GroupRole)gm.RoleId,
                     CreatedAt = gm.Group.CreatedAt
                 }).ToListAsync();
@@ -252,16 +250,24 @@ namespace Plantitask.Infrastructure.Services
                 return Error.Forbidden("You are not a member of this group");
 
             var group = await _context.Groups
-                .Include(g => g.Owner)
-                .FirstOrDefaultAsync(g => g.Id == groupId);
+                .Where(g => g.Id == groupId)
+                .Select(g => new
+                {
+                    g.Id,
+                    g.Name,
+                    g.GroupCode,
+                    g.PasswordHash,
+                    g.OwnerId,
+                    OwnerName = g.Owner.UserName,
+                    g.CreatedAt
+                })
+                .FirstOrDefaultAsync();
 
             if (group == null)
                 return Error.NotFound("Group not found");
 
             var members = await _context.GroupMembers
                 .Where(gm => gm.GroupId == groupId)
-                .Include(gm => gm.User)
-                .Include(gm => gm.Role)
                 .Select(gm => new GroupMemberDto
                 {
                     UserId = gm.UserId,
@@ -278,7 +284,7 @@ namespace Plantitask.Infrastructure.Services
                 GroupCode = group.GroupCode,
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
                 OwnerId = group.OwnerId,
-                OwnerName = group.Owner.UserName,
+                OwnerName = group.OwnerName,
                 CreatedAt = group.CreatedAt,
                 Members = members
             };
@@ -431,6 +437,7 @@ namespace Plantitask.Infrastructure.Services
 
             return Result.Success();
         }
+
 
 
         private async Task<string> GenerateUniqueGroupCode(string groupName)
