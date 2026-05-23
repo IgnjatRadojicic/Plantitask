@@ -66,7 +66,6 @@ namespace Plantitask.Infrastructure.Services
                 DueDate = createTaskDto.DueDate,
                 AssignedToId = createTaskDto.AssignedToUserId,
                 CreatedBy = userId,
-                CreatedAt = DateTime.UtcNow
             };
 
             _context.Tasks.Add(task);
@@ -150,7 +149,6 @@ namespace Plantitask.Infrastructure.Services
                     AssignedToUserName = t.AssignedTo != null ? t.AssignedTo.UserName : null,
                     DueDate = t.DueDate,
                     CompletedAt = t.CompletedAt,
-                    CreatedAt = t.CreatedAt,
                     CreatedBy = t.CreatedBy,
                     CreatedByUserName = t.Creator.UserName,
                     AttachmentCount = t.Attachments.Count
@@ -198,7 +196,6 @@ namespace Plantitask.Infrastructure.Services
                 AssignedToUserName = task.AssignedTo?.UserName,
                 DueDate = task.DueDate,
                 CompletedAt = task.CompletedAt,
-                CreatedAt = task.CreatedAt,
                 CreatedBy = task.CreatedBy,
                 CreatedByUserName = task.Creator.UserName,
                 AttachmentCount = task.Attachments.Count
@@ -245,7 +242,7 @@ namespace Plantitask.Infrastructure.Services
                 task.DueDate = updateTaskDto.DueDate.Value;
 
             task.UpdatedBy = userId;
-            task.UpdatedAt = DateTime.UtcNow;
+            
 
             await _context.SaveChangesAsync();
 
@@ -298,7 +295,7 @@ namespace Plantitask.Infrastructure.Services
                 ? DateTime.UtcNow
                 : null;
             task.UpdatedBy = userId;
-            task.UpdatedAt = DateTime.UtcNow;
+            
 
             await _context.SaveChangesAsync();
 
@@ -348,7 +345,7 @@ namespace Plantitask.Infrastructure.Services
 
             task.PriorityId = newPriorityId;
             task.UpdatedBy = userId;
-            task.UpdatedAt = DateTime.UtcNow;
+            
 
             await _context.SaveChangesAsync();
 
@@ -394,7 +391,7 @@ namespace Plantitask.Infrastructure.Services
 
             task.AssignedToId = assignDto.UserId;
             task.UpdatedBy = userId;
-            task.UpdatedAt = DateTime.UtcNow;
+            
 
             await _context.SaveChangesAsync();
 
@@ -434,7 +431,7 @@ namespace Plantitask.Infrastructure.Services
 
             task.AssignedToId = null;
             task.UpdatedBy = userId;
-            task.UpdatedAt = DateTime.UtcNow;
+            
 
             await _context.SaveChangesAsync();
 
@@ -616,7 +613,7 @@ namespace Plantitask.Infrastructure.Services
                     }
 
                     task.UpdatedBy = userId;
-                    task.UpdatedAt = DateTime.UtcNow;
+                    
 
                     await _context.SaveChangesAsync();
 
