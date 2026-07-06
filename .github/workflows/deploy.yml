@@ -6,7 +6,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: plantitask
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
