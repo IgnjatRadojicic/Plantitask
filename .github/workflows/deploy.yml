@@ -1,29 +1,18 @@
-name: Build & Deploy
+name: Deploy Plantitask
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   deploy:
-    runs-on: self-hosted
-    defaults:
-      run:
-        working-directory: D:\Plantitask\Plantitask
+    runs-on: plantitask
     steps:
-      - name: Pull latest code
-        run: git pull origin main
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Rebuild and restart containers
-        run: docker compose up -d --build
-
-      - name: Wait for services
+      - name: Deploy
         run: |
-          echo "Waiting for services to start..."
-          Start-Sleep -Seconds 15
-
-      - name: Verify deployment
-        run: docker compose ps
-
-      - name: Cleanup old images
-        run: docker image prune -f
+          cd /home/dragonshield/Plantitask/Plantitask
+          docker compose down
+          docker compose up -d --build
