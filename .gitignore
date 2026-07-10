@@ -1,3 +1,5 @@
 .env
+.claude
+docs
 deployment/origin-cert.pem
 deployment/origin-key.pem
