@@ -12,7 +12,7 @@ namespace Plantitask.Core.Interfaces
     public interface ITaskService
     {
         Task<Result<TaskDto>> CreateTaskAsync(Guid groupId, CreateTaskDto createTaskDto, Guid userId);
-        Task<Result<List<TaskDto>>> GetGroupTasksAsync(Guid groupId, TaskFilterDto? filter, Guid userId);
+        Task<Result<List<TaskDto>>> GetGroupTasksAsync(Guid groupId, TaskFilterDto? filter, Guid userId, int pageNumber = 1, int pageSize = 50);
         Task<Result<TaskDto>> GetTaskByIdAsync(Guid taskId, Guid userId);
         Task<Result<TaskDto>> UpdateTaskAsync(Guid taskId, UpdateTaskDto updateTaskDto, Guid userId);
         Task<Result<TaskStatusChangeResult>> ChangeTaskStatusAsync(Guid taskId, ChangeTaskStatusDto statusDto, Guid userId);
