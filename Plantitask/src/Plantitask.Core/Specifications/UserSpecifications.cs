@@ -10,3 +10,5 @@ namespace Plantitask.Core.Specifications
             u => u.IsPremium && (!u.PremiumExpiresAt.HasValue || u.PremiumExpiresAt > DateTime.UtcNow);
     }
 }
+
+

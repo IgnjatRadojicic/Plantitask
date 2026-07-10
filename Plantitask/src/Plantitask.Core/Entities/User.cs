@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Plantitask.Core.Common;
+using Plantitask.Core.Specifications;
 
 namespace Plantitask.Core.Entities
 {
@@ -24,12 +25,16 @@ namespace Plantitask.Core.Entities
 
         public bool IsPremium { get; set; } = false; 
         public DateTime? PremiumExpiresAt { get; set; }
+
         public string? PayPalSubscriptionId { get; set; }
         public string? PayPalOrderId { get; set; }
         public string? SubscriptionType { get; set; }
         public DateTime? PremiumStartedAt { get; set; }
 
-
+        // Compile isn't free must be a static property so it compiles once for the lifetime  of the app
+        private static readonly Func<User, bool> ActivePremiumCheck =
+                UserSpecifications.HasActivePremium.Compile();
+        public bool HasActivePremium => ActivePremiumCheck(this);
 
         public ICollection<GroupMember> GroupMemberships { get; set; } = new List<GroupMember>();
         public ICollection<Group> OwnedGroups { get; set; } = new List<Group>();
