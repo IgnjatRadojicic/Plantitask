@@ -1,10 +1,6 @@
-    # ============================================
+# ============================================
 # Plantitask - Full Stack Docker Compose
 # ============================================
-# Usage:
-#   1. Copy .env.example to .env and fill in secrets
-#   2. docker compose up -d
-#   3. Run certbot for SSL (see README)
 
 services:
   # ---- PostgreSQL 16 ----
@@ -18,7 +14,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "127.0.0.1:5432:5432"   # Only expose to localhost, not internet
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -52,46 +48,35 @@ services:
       redis:
         condition: service_healthy
     environment:
-      # Database
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-PlantitaskDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}"
       ConnectionStrings__RedisConnection: "redis:6391,password=${REDIS_PASSWORD:-redispass},abortConnect=false"
       ConnectionStrings__HangfireConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-PlantitaskDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}"
-
       Google__ClientId: "252462466539-0v4ssocvbqpml1m9m2nmqvoobgh2s0m2.apps.googleusercontent.com"
       Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
-      # JWT
       JwtSettings__Secret: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JwtSettings__Issuer: PlantitaskApi
       JwtSettings__Audience: PlantitaskClient
       JwtSettings__AccessTokenExpiryInMinutes: 60
       JwtSettings__RefreshTokenExpiryDays: 7
-
-      # App
       App__FrontendUrl: "https://plantitask.com"
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:8080"
-
-      # Email (SendGrid)
       EmailSettings__SendGridApiKey: ${SENDGRID_API_KEY:-}
       EmailSettings__FromEmail: "noreply@plantitask.com"
       EmailSettings__FromName: "Plantitask"
-
-      # PayPal
       PayPal__ClientId: ${PAYPAL_CLIENT_ID:-}
       PayPal__ClientSecret: ${PAYPAL_CLIENT_SECRET:-}
       PayPal__BaseUrl: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
       PayPal__OneTimePrice: 4.99
       PayPal__Currency: USD
-
-      # File Storage
       FileStorage__Provider: "Local"
       FileStorage__LocalStorage__BasePath: "/app/uploads"
       FileStorage__LocalStorage__BaseUrl: "https://plantitask.com/files"
       FileStorage__MaxFileSizeInMB: 10
     volumes:
       - uploads-data:/app/uploads
-    expose:
-      - "8080"
+    ports:
+      - "8080:8080"
 
   # ---- Blazor WASM Frontend ----
   web:
@@ -99,41 +84,10 @@ services:
       context: .
       dockerfile: deployment/Dockerfile.web
     restart: unless-stopped
-    expose:
-      - "80"
-
-  # ---- Nginx Reverse Proxy (SSL termination) ----
-  proxy:
-    image: nginx:alpine
-    restart: unless-stopped
-    depends_on:
-      - api
-      - web
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deployment/nginx-proxy.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./deployment/origin-cert.pem:/etc/nginx/ssl/origin-cert.pem:ro
-      - ./deployment/origin-key.pem:/etc/nginx/ssl/origin-key.pem:r      
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ---- Certbot (SSL certificate manager) ----
-  certbot:
-    image: certbot/certbot
-    volumes:
-      - letsencrypt-data:/etc/letsencrypt
-      - certbot-webroot:/var/www/certbot
-    # Run once, then use cron/scheduled task for renewal
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew; done'"
+      - "3001:80"
 
 volumes:
   postgres-data:
   redis-data:
   uploads-data:
-  letsencrypt-data:
-  certbot-webroot:
