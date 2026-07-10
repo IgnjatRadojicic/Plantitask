@@ -2,6 +2,9 @@
 using System.Security.Claims;
 using Plantitask.Api.Extensions;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.DTO.Audit;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.EntityFrameworkCore.Internal;
 
 namespace Plantitask.Api.Controllers
 {
@@ -39,18 +42,24 @@ namespace Plantitask.Api.Controllers
             string? newValue = null,
             string? reason = null)
         {
-            await auditService.LogAsync(
-                entityType: entityType,
-                entityId: entityId,
-                action: action,
-                userId: GetUserId(),
-                groupId: groupId,
-                ipAddress: GetClientIpAddress(),
-                userAgent: GetUserAgent(),
-                propertyName: propertyName,
-                oldValue: oldValue,
-                newValue: newValue,
-                reason: reason);
+            await auditService.LogAsync(new CreateAuditLogRequest
+            {
+                EntityType = entityType,
+                EntityId = entityId,
+                Action = action,
+                UserId = GetUserId(),
+                UserName = User.FindFirstValue(JwtRegisteredClaimNames.UniqueName)
+                                            ?? User.FindFirstValue(ClaimTypes.Name) ?? "unknown"
+                UserEmail = User.FindFirstValue(JwtRegisteredClaimNames.Email)
+                                             ?? User.FindFirstValue(ClaimTypes.Email) ?? "unknown",
+                GroupId = groupId,
+                IpAddress = GetClientIpAddress(),
+                UserAgent = GetUserAgent(),
+                PropertyName = propertyName,
+                OldValue = oldValue,
+                NewValue = newValue,
+                Reason = reason
+            });
         }
     }
 }
