@@ -40,7 +40,7 @@ namespace Plantitask.Api.Controllers
         public async Task<IActionResult> GetTaskHistory(Guid taskId)
         {
             var userId = GetUserId();
-            var result = await _auditService.GetTaskHistoryAsync(taskId, userId);
+            var result = await _auditService.GetEntityHistoryAsync("TaskItem", taskId, userId);
             return result.ToActionResult();
         }
 
