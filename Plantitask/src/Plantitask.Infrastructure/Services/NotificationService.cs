@@ -47,7 +47,7 @@ public class NotificationService : INotificationService
             Message = $"You have been assigned to task: {task.Title}",
             RelatedEntityId = task.Id,
             RelatedEntityType = "Task",
-            CreatedBy = task.AssignedToId.Value
+            
         };
 
         return await CreateNotificationAsync(notification);
@@ -69,7 +69,7 @@ public class NotificationService : INotificationService
             Message = $"You have been assigned to task: {task.Title}",
             RelatedEntityId = task.Id,
             RelatedEntityType = "Task",
-            CreatedBy = userId
+            
         };
 
         return await CreateNotificationAsync(notification);
@@ -107,7 +107,7 @@ public class NotificationService : INotificationService
                 Message = $"Task '{task.Title}' status changed from {oldStatus} to {newStatus}",
                 RelatedEntityId = task.Id,
                 RelatedEntityType = "Task",
-                CreatedBy = memberId
+                
             };
 
             var dto = await CreateNotificationAsync(notification);
@@ -149,7 +149,7 @@ public class NotificationService : INotificationService
                 Message = $"{comment.UserName} commented on task '{task.Title}'",
                 RelatedEntityId = task.Id,
                 RelatedEntityType = "Task",
-                CreatedBy = userId
+                
             };
 
             var dto = await CreateNotificationAsync(notification);
@@ -178,7 +178,7 @@ public class NotificationService : INotificationService
             Message = $"Task '{task.Title}' priority changed from {oldPriority} to {newPriority}",
             RelatedEntityId = task.Id,
             RelatedEntityType = "Task",
-            CreatedBy = task.AssignedToId.Value
+            
         };
 
         return await CreateNotificationAsync(notification);
@@ -203,7 +203,7 @@ public class NotificationService : INotificationService
             Message = $"Task '{task.Title}' has been updated",
             RelatedEntityId = task.Id,
             RelatedEntityType = "Task",
-            CreatedBy = task.AssignedToId.Value
+            
         };
 
         return await CreateNotificationAsync(notification);
@@ -224,7 +224,7 @@ public class NotificationService : INotificationService
             Title = "Group Joined",
             Message = $"You have joined the group: {groupName}",
             RelatedEntityType = "Group",
-            CreatedBy = userId
+            
         };
 
         return await CreateNotificationAsync(notification);
@@ -374,7 +374,6 @@ public class NotificationService : INotificationService
                 preference.IsEnabled = item.IsEnabled;
                 preference.IsEmailEnabled = item.IsEmailEnabled;
                 preference.ReminderHoursBefore = item.ReminderHoursBefore;
-                preference.UpdatedBy = userId;
                 preference.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -386,7 +385,7 @@ public class NotificationService : INotificationService
                     IsEnabled = item.IsEnabled,
                     IsEmailEnabled = item.IsEmailEnabled,
                     ReminderHoursBefore = item.ReminderHoursBefore,
-                    CreatedBy = userId
+                    
                 });
             }
         }
