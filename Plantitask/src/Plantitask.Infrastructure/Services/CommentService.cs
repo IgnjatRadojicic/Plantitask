@@ -43,8 +43,7 @@ public class CommentService : ICommentService
         {
             TaskId = taskId,
             Content = createCommentDto.Content,
-            UserId = userId,
-            CreatedAt = DateTime.UtcNow
+            CreatedBy = userId, 
         };
 
         _context.TaskComments.Add(comment);
@@ -79,7 +78,6 @@ public class CommentService : ICommentService
 
 
         var comments = await query
-            .Include(tc => tc.User)
             .Skip((pageNumber - 1 ) * pageSize)
             .Take(pageSize)
             .Select(tc => new CommentDto
@@ -87,9 +85,9 @@ public class CommentService : ICommentService
                 Id = tc.Id,
                 TaskId = tc.TaskId,
                 Content = tc.Content,
-                UserId = tc.UserId,
-                ProfilePictureUrl = tc.User.ProfilePictureUrl,
-                UserName = tc.User.UserName,
+                UserId = tc.CreatedBy,
+                ProfilePictureUrl = tc.Author.ProfilePictureUrl,
+                UserName = tc.Author.UserName,
                 CreatedAt = tc.CreatedAt,
                 UpdatedAt = tc.UpdatedAt
             })
