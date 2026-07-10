@@ -76,7 +76,6 @@ namespace Plantitask.Infrastructure.Services
                 Message = $"Task '{task.Title}' is due in 24 hours",
                 RelatedEntityId = task.Id,
                 RelatedEntityType = "Task",
-                CreatedBy = task.AssignedToId.Value
             };
 
             _context.Notifications.Add(notification);
@@ -156,7 +155,6 @@ namespace Plantitask.Infrastructure.Services
                         : $"Task '{task.Title}' is overdue by {daysSinceOverdue} day(s)",
                     RelatedEntityId = task.Id,
                     RelatedEntityType = "Task",
-                    CreatedBy = task.AssignedToId.Value
                 };
 
                 _context.Notifications.Add(notification);
