@@ -112,11 +112,10 @@ public class CommentService : ICommentService
         if (comment == null)
             return Error.NotFound("Comment not found");
 
-        if (comment.UserId != userId)
+        if (comment.CreatedBy != userId)
             return Error.Forbidden("You can only edit your own comments");
 
         comment.Content = updateCommentDto.Content;
-        comment.UpdatedAt = DateTime.UtcNow;
         comment.UpdatedBy = userId;
 
         await _context.SaveChangesAsync();
