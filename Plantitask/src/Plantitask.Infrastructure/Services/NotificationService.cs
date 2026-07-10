@@ -374,7 +374,7 @@ public class NotificationService : INotificationService
                 preference.IsEnabled = item.IsEnabled;
                 preference.IsEmailEnabled = item.IsEmailEnabled;
                 preference.ReminderHoursBefore = item.ReminderHoursBefore;
-                preference.UpdatedAt = DateTime.UtcNow;
+                
             }
             else
             {
