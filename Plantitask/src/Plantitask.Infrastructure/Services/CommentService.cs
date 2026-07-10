@@ -142,7 +142,7 @@ public class CommentService : ICommentService
         if (membership == null)
             return Error.Forbidden("You must be a member of the group");
 
-        var canDelete = comment.UserId == userId || membership.Role.PermissionLevel >= PermissionLevels.Manager;
+        var canDelete = comment.CreatedBy == userId || membership.Role.PermissionLevel >= PermissionLevels.Manager;
 
         if (!canDelete)
             return Error.Forbidden("You can only delete your own comments or you must be a Manager or Owner");
@@ -161,7 +161,7 @@ public class CommentService : ICommentService
     private async Task<Result<CommentDto>> GetCommentByIdInternalAsync(Guid commentId)
     {
         var comment = await _context.TaskComments
-            .Include(tc => tc.User)
+            .Include(tc => tc.Author)
             .FirstOrDefaultAsync(tc => tc.Id == commentId);
 
         if (comment == null)
@@ -172,9 +172,9 @@ public class CommentService : ICommentService
             Id = comment.Id,
             TaskId = comment.TaskId,
             Content = comment.Content,
-            ProfilePictureUrl = comment.User.ProfilePictureUrl,
-            UserId = comment.UserId,
-            UserName = comment.User.UserName,
+            ProfilePictureUrl = comment.Author.ProfilePictureUrl,
+            UserId = comment.CreatedBy,
+            UserName = comment.Author.UserName,
             CreatedAt = comment.CreatedAt,
             UpdatedAt = comment.UpdatedAt
         };
