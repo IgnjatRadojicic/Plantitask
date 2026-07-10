@@ -49,7 +49,7 @@ namespace Plantitask.Api.Controllers
                 Action = action,
                 UserId = GetUserId(),
                 UserName = User.FindFirstValue(JwtRegisteredClaimNames.UniqueName)
-                                            ?? User.FindFirstValue(ClaimTypes.Name) ?? "unknown"
+                                            ?? User.FindFirstValue(ClaimTypes.Name) ?? "unknown",
                 UserEmail = User.FindFirstValue(JwtRegisteredClaimNames.Email)
                                              ?? User.FindFirstValue(ClaimTypes.Email) ?? "unknown",
                 GroupId = groupId,
