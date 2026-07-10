@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Plantitask.Api.Extensions;
+using Plantitask.Core.DTO.Audit;
 using Plantitask.Core.DTO.Auth;
 using Plantitask.Core.Interfaces;
-using Microsoft.AspNetCore.RateLimiting;
 
 namespace Plantitask.Api.Controllers
 {
@@ -38,14 +39,17 @@ namespace Plantitask.Api.Controllers
 
             var response = result.Value!;
 
-            await _auditService.LogAsync(
-                entityType: "User",
-                entityId: response.UserId,
-                action: "Registered",
-                userId: response.UserId,
-                groupId: null,
-                ipAddress: GetClientIpAddress(),
-                userAgent: GetUserAgent());
+            await _auditService.LogAsync(new CreateAuditLogRequest
+            {
+                EntityType = "User",
+                EntityId = response.UserId,
+                Action = "Registered",                 
+                UserId = response.UserId,
+                UserName = response.UserName,            
+                UserEmail = response.Email,
+                IpAddress = GetClientIpAddress(),
+                UserAgent = GetUserAgent(),
+            });
 
             return Ok(response);
         }
@@ -62,14 +66,17 @@ namespace Plantitask.Api.Controllers
 
             var response = result.Value!;
 
-            await _auditService.LogAsync(
-                entityType: "User",
-                entityId: response.UserId,
-                action: "Login",
-                userId: response.UserId,
-                groupId: null,
-                ipAddress: GetClientIpAddress(),
-                userAgent: GetUserAgent());
+            await _auditService.LogAsync(new CreateAuditLogRequest
+            {
+                EntityType = "User",
+                EntityId = response.UserId,
+                Action = "Registered",                   
+                UserId = response.UserId,
+                UserName = response.UserName,             
+                UserEmail = response.Email,
+                IpAddress = GetClientIpAddress(),
+                UserAgent = GetUserAgent(),
+            });
 
             return Ok(response);
         }
@@ -126,14 +133,17 @@ namespace Plantitask.Api.Controllers
 
             var userId = result.Value!;
 
-            await _auditService.LogAsync(
-                entityType: "User",
-                entityId: userId,
-                action: "PasswordReset",
-                userId: userId,
-                groupId: null,
-                ipAddress: GetClientIpAddress(),
-                userAgent: GetUserAgent());
+            await _auditService.LogAsync(new CreateAuditLogRequest
+            {
+                EntityType = "User",
+                EntityId = userId,
+                Action = "Registered",                    // "Login" in the login endpoint
+                UserId = userId,
+                UserName = "ünknown",             // AuthResponseDto has both — no DB read
+                UserEmail = resetPasswordDto.Email,
+                IpAddress = GetClientIpAddress(),
+                UserAgent = GetUserAgent(),
+            });
 
             return Ok(new { message = "Password reset successfully" });
         }
