@@ -17,6 +17,7 @@ public class TaskServiceTests
 {
     private readonly Mock<IApplicationDbContext> _mockContext;
     private readonly Mock<ILogger<TaskService>> _mockLogger;
+    private readonly Mock<IGroupService> _mockGroupService;
     private readonly Mock<IBackgroundJobService> _mockBackgroundJob;
     private readonly TaskService _sut;
 
@@ -24,11 +25,13 @@ public class TaskServiceTests
     {
         _mockContext = new Mock<IApplicationDbContext>();
         _mockLogger = new Mock<ILogger<TaskService>>();
+        _mockGroupService = new Mock<IGroupService>();
         _mockBackgroundJob = new Mock<IBackgroundJobService>();
 
         _sut = new TaskService(
             _mockContext.Object,
             _mockLogger.Object,
+            _mockGroupService.Object,
             _mockBackgroundJob.Object);
     }
 

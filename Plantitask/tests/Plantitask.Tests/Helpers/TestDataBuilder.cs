@@ -78,7 +78,6 @@ public static class TestDataBuilder
             GroupId = groupId,
             RoleId = roleId,
             Role = role ?? CreateRoles().First(r => r.Id == roleId),
-            JoinedAt = DateTime.UtcNow
         };
 
     public static TaskItem CreateTask(
@@ -135,7 +134,6 @@ public static class TestDataBuilder
             RelatedEntityType = "Task",
             IsRead = isRead,
             ReadAt = isRead ? DateTime.UtcNow : null,
-            CreatedBy = userId,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -151,7 +149,6 @@ public static class TestDataBuilder
             IsEnabled = isEnabled,
             IsEmailEnabled = isEmailEnabled,
             ReminderHoursBefore = reminderHours,
-            CreatedBy = userId
         };
 
     public static AuditLog CreateAuditLog(
