@@ -14,6 +14,7 @@ namespace Plantitask.Core.Entities
     {
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; } = string.Empty;
+        public string? DueSoonJobId { get; set; }
 
         public int StatusId { get; set; }
         public int PriorityId { get; set; }

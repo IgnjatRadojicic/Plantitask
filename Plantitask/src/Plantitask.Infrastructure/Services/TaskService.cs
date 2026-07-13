@@ -247,10 +247,14 @@ namespace Plantitask.Infrastructure.Services
 
             var result = await GetTaskByIdAsync(task.Id, userId);
 
-            if (task.DueDate.HasValue && task.AssignedToId.HasValue)
+            if (task.DueSoonJobId != null)
             {
-                var jobId = _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
+                _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
             }
+
+            task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
+                ? await _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value)
+                : null;
 
             _logger.LogInformation("Task {TaskId} updated by user {UserId}", taskId, userId);
 
@@ -387,10 +391,14 @@ namespace Plantitask.Infrastructure.Services
 
             await _context.SaveChangesAsync();
 
-            if (task.DueDate.HasValue)
+            if (task.DueSoonJobId != null)
             {
-                var jobId = _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, assignDto.UserId, task.DueDate.Value);
+                _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
             }
+
+            task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
+             ? await _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value)
+             : null;
 
             _logger.LogInformation("Task {TaskId} assigned to user {AssignedUserId} by {UserId}",
                 taskId, assignDto.UserId, userId);
