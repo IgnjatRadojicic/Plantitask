@@ -78,7 +78,7 @@ namespace Plantitask.Infrastructure.Services
             {
                 try
                 {
-                    _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
+                    var jobId = await _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
                 }
                 catch (Exception ex)
                 {
@@ -249,7 +249,7 @@ namespace Plantitask.Infrastructure.Services
 
             if (task.DueDate.HasValue && task.AssignedToId.HasValue)
             {
-                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
+                var jobId = _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
             }
 
             _logger.LogInformation("Task {TaskId} updated by user {UserId}", taskId, userId);
@@ -389,7 +389,7 @@ namespace Plantitask.Infrastructure.Services
 
             if (task.DueDate.HasValue)
             {
-                _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, assignDto.UserId, task.DueDate.Value);
+                var jobId = _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, assignDto.UserId, task.DueDate.Value);
             }
 
             _logger.LogInformation("Task {TaskId} assigned to user {AssignedUserId} by {UserId}",
