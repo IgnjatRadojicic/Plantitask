@@ -207,7 +207,6 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result<TaskDto>> UpdateTaskAsync(Guid taskId, UpdateTaskDto updateTaskDto, Guid userId)
         {
             var task = await _context.Tasks
-                .Include(t => t.Group)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
             if (task == null)
@@ -262,7 +261,6 @@ namespace Plantitask.Infrastructure.Services
         {
             var task = await _context.Tasks
                 .Include(t => t.Status)
-                .Include(t => t.Group)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
             if (task == null)
@@ -317,7 +315,6 @@ namespace Plantitask.Infrastructure.Services
         {
             var task = await _context.Tasks
                 .Include(t => t.Priority)
-                .Include(t => t.Group)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
             if (task == null)
@@ -364,7 +361,6 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result> AssignTaskAsync(Guid taskId, AssignTaskDto assignDto, Guid userId)
         {
             var task = await _context.Tasks
-                .Include(t => t.Group)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
             if (task == null)
@@ -405,8 +401,6 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result> UnassignTaskAsync(Guid taskId, Guid userId)
         {
             var task = await _context.Tasks
-                .Include(t => t.Group)
-                .Include(t => t.Attachments)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
             if (task == null)
@@ -439,7 +433,6 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result> DeleteTaskAsync(Guid taskId, Guid userId)
         {
             var task = await _context.Tasks
-                .Include(t => t.Group)
                 .Include(t => t.Attachments)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
@@ -476,7 +469,6 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result<List<Guid>>> GetTaskGroupMembersAsync(Guid taskId, Guid userId)
         {
             var task = await _context.Tasks
-                .Include(t => t.Group)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
             if (task == null)
@@ -567,7 +559,6 @@ namespace Plantitask.Infrastructure.Services
                 try
                 {
                     var task = await _context.Tasks
-                        .Include(t => t.Group)
                         .FirstOrDefaultAsync(t => t.Id == taskId);
 
                     if (task == null)
