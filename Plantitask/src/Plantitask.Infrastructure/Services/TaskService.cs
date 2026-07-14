@@ -57,6 +57,10 @@ namespace Plantitask.Infrastructure.Services
                     return Error.BadRequest("Cannot assign task to user who is not a group member");
             }
 
+            var nextOrder = await _context.Tasks
+                .Where(t => t.GroupId == groupId && t.StatusId == (int)TaskStatusItem.NotStarted)
+                .MaxAsync(t => (int?)t.DisplayOrder) ?? -1;
+
             var task = new TaskItem
             {
                 Title = createTaskDto.Title,
@@ -65,6 +69,7 @@ namespace Plantitask.Infrastructure.Services
                 StatusId = (int)TaskStatusItem.NotStarted,
                 PriorityId = createTaskDto.PriorityId,
                 DueDate = createTaskDto.DueDate,
+                DisplayOrder = nextOrder + 1,
                 AssignedToId = createTaskDto.AssignedToUserId,
                 CreatedBy = userId,
             };
