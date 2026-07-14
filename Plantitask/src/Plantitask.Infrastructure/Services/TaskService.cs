@@ -228,8 +228,12 @@ namespace Plantitask.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(updateTaskDto.Title))
                 task.Title = updateTaskDto.Title;
 
-            if (!string.IsNullOrWhiteSpace(updateTaskDto.Description))
-                task.Description = updateTaskDto.Description;
+            if (updateTaskDto.Description != null)
+            {
+                task.Description = string.IsNullOrWhiteSpace(updateTaskDto.Description)
+                    ? null
+                    : updateTaskDto.Description;
+            }
 
             if (updateTaskDto.PriorityId.HasValue)
             {
