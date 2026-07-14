@@ -33,6 +33,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+    }
+
     public void ClearChangeTracker() => ChangeTracker.Clear();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
