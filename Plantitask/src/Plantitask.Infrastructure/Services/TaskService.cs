@@ -246,8 +246,10 @@ namespace Plantitask.Infrastructure.Services
                 task.PriorityId = updateTaskDto.PriorityId.Value;
             }
 
-            if (updateTaskDto.DueDate.HasValue)
-                task.DueDate = updateTaskDto.DueDate.Value;
+            if (updateTaskDto.ClearDueDate)
+                task.DueDate = null;
+            else if (updateTaskDto.DueDate.HasValue)
+                task.DueDate = updateTaskDto.DueDate.Value; 
 
             task.UpdatedBy = userId;
             

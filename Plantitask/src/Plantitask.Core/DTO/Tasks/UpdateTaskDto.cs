@@ -19,5 +19,7 @@ namespace Plantitask.Core.DTO.Tasks
         public int? PriorityId { get; set; }
 
         public DateTime? DueDate { get; set; }
+
+        public bool ClearDueDate { get; set; }
     }
 }

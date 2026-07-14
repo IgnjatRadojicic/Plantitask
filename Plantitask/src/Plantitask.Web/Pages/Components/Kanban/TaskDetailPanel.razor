@@ -298,7 +298,8 @@
 
         var result = await TaskService.UpdateTaskAsync(TaskId, new UpdateTaskDto 
         { 
-            DueDate = newDate.HasValue ? DateTime.SpecifyKind(newDate.Value, DateTimeKind.Utc) : null 
+            DueDate = newDate.HasValue ? DateTime.SpecifyKind(newDate.Value, DateTimeKind.Utc) : null,  
+            ClearDueDate = !newDate.HasValue
         });
         if (result.Success && result.Data is not null)
         {

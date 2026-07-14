@@ -75,6 +75,8 @@ namespace Plantitask.Web.Models
         public int? PriorityId { get; set; }
 
         public DateTime? DueDate { get; set; }
+
+        public bool ClearDueDate { get; set; }
     }
     public class CreateTaskDto
     {
