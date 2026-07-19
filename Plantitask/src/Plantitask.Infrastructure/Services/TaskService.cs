@@ -7,6 +7,7 @@ using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Constants;
+using Pipelines.Sockets.Unofficial.Arenas;
 
 
 namespace Plantitask.Infrastructure.Services
@@ -136,28 +137,7 @@ namespace Plantitask.Infrastructure.Services
                 .OrderByDescending(t => t.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(t => new TaskDto
-                {
-                    Id = t.Id,
-                    Title = t.Title,
-                    Description = t.Description,
-                    GroupId = t.GroupId,
-                    GroupName = t.Group.Name,
-                    StatusId = t.StatusId,
-                    StatusName = t.Status.Name,
-                    StatusDisplayName = t.Status.DisplayName,
-                    StatusColor = t.Status.Color,
-                    PriorityId = t.PriorityId,
-                    PriorityName = t.Priority.Name,
-                    PriorityColor = t.Priority.Color,
-                    AssignedToId = t.AssignedToId,
-                    AssignedToUserName = t.AssignedTo != null ? t.AssignedTo.UserName : null,
-                    DueDate = t.DueDate,
-                    CompletedAt = t.CompletedAt,
-                    CreatedBy = t.CreatedBy,
-                    CreatedByUserName = t.Creator.UserName,
-                    AttachmentCount = t.Attachments.Count
-                })
+                .Select(TaskDto.Projection)
                 .ToListAsync();
 
             return tasks;
@@ -280,7 +260,7 @@ namespace Plantitask.Infrastructure.Services
             else if (oldStatusId == (int)TaskStatusItem.Completed)
                 task.CompletedAt = null;
             task.UpdatedBy = userId;
-            
+
             task.DisplayOrder = await NextDisplayOrderAsync(task.GroupId, statusDto.NewStatusId);
 
             await _context.SaveChangesAsync();
