@@ -166,13 +166,9 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result<TaskDto>> GetTaskByIdAsync(Guid taskId, Guid userId)
         {
             var task = await _context.Tasks
-                .Include(t => t.Status)
-                .Include(t => t.Priority)
-                .Include(t => t.Group)
-                .Include(t => t.AssignedTo)
-                .Include(t => t.Creator)
-                .Include(t => t.Attachments)
-                .FirstOrDefaultAsync(t => t.Id == taskId);
+                .Where(t => t.Id == taskId)
+                .Select(TaskDto.Projection)
+                .FirstOrDefaultAsync();
 
             if (task == null)
                 return Error.NotFound("Task not found");
@@ -182,28 +178,7 @@ namespace Plantitask.Infrastructure.Services
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to view this task");
 
-            return new TaskDto
-            {
-                Id = task.Id,
-                Title = task.Title,
-                Description = task.Description,
-                GroupId = task.GroupId,
-                GroupName = task.Group.Name,
-                StatusId = task.StatusId,
-                StatusName = task.Status.Name,
-                StatusDisplayName = task.Status.DisplayName,
-                StatusColor = task.Status.Color,
-                PriorityId = task.PriorityId,
-                PriorityName = task.Priority.Name,
-                PriorityColor = task.Priority.Color,
-                AssignedToId = task.AssignedToId,
-                AssignedToUserName = task.AssignedTo?.UserName,
-                DueDate = task.DueDate,
-                CompletedAt = task.CompletedAt,
-                CreatedBy = task.CreatedBy,
-                CreatedByUserName = task.Creator.UserName,
-                AttachmentCount = task.Attachments.Count
-            };
+            return task;
         }
 
         public async Task<Result<TaskDto>> UpdateTaskAsync(Guid taskId, UpdateTaskDto updateTaskDto, Guid userId)
