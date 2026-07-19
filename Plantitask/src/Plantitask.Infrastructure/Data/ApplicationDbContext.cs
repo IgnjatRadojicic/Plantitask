@@ -44,6 +44,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     {
 
         base.OnModelCreating(modelBuilder);
+        modelBuilder.HasPostgresExtension("pg_trgm");
 
         //.Where(e => !e.IsDeleted) Building Logical Expression Tree
 
@@ -154,6 +155,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.HasIndex(e => e.DueDate);
 
             entity.HasIndex(e => new { e.GroupId, e.StatusId, e.DisplayOrder });
+            entity.HasIndex(e => e.Title)
+                  .HasMethod("gin")
+                  .HasOperators("gin_trgm_ops");
 
             entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
