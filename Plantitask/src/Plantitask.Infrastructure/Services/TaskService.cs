@@ -126,10 +126,10 @@ namespace Plantitask.Infrastructure.Services
 
                 if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
                 {
-                    var searchLower = filter.SearchTerm.ToLower();
+                    var pattern = $"%{filter.SearchTerm}%";
                     query = query.Where(t =>
-                        t.Title.ToLower().Contains(searchLower) ||
-                        t.Description.ToLower().Contains(searchLower));
+                    EF.Functions.ILike(t.Title, pattern) ||
+                    (t.Description != null && EF.Functions.ILike(t.Description, pattern)));
                 }
             }
 
