@@ -95,7 +95,7 @@ namespace Plantitask.Infrastructure.Services
             return result;
         }
 
-        public async Task<Result<List<TaskDto>>> GetGroupTasksAsync(Guid groupId, TaskFilterDto? filter, Guid userId, int pageNumber = 1, int pageSize = 50)
+        public async Task<Result<PaginatedList<TaskDto>>> GetGroupTasksAsync(Guid groupId, TaskFilterDto? filter, Guid userId, int pageNumber = 1, int pageSize = 50)
         {
             var isMember = await _groupService.IsUserMemberAsync(groupId, userId);
 
@@ -133,6 +133,8 @@ namespace Plantitask.Infrastructure.Services
                 }
             }
 
+            var totalCount = await query.CountAsync();
+
             var tasks = await query
                 .OrderByDescending(t => t.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
@@ -140,7 +142,13 @@ namespace Plantitask.Infrastructure.Services
                 .Select(TaskDto.Projection)
                 .ToListAsync();
 
-            return tasks;
+            return new PaginatedList<TaskDto>
+            {
+                Items = tasks,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
         }
 
         public async Task<Result<TaskDto>> GetTaskByIdAsync(Guid taskId, Guid userId)
