@@ -57,10 +57,7 @@ namespace Plantitask.Infrastructure.Services
                     return Error.BadRequest("Cannot assign task to user who is not a group member");
             }
 
-            var nextOrder = await _context.Tasks
-                .Where(t => t.GroupId == groupId && t.StatusId == (int)TaskStatusItem.NotStarted)
-                .MaxAsync(t => (int?)t.DisplayOrder) ?? -1;
-
+            var displayOrder = await NextDisplayOrderAsync(groupId, (int)TaskStatusItem.NotStarted);
             var task = new TaskItem
             {
                 Title = createTaskDto.Title,
@@ -69,7 +66,7 @@ namespace Plantitask.Infrastructure.Services
                 StatusId = (int)TaskStatusItem.NotStarted,
                 PriorityId = createTaskDto.PriorityId,
                 DueDate = createTaskDto.DueDate,
-                DisplayOrder = nextOrder + 1,
+                DisplayOrder = displayOrder,
                 AssignedToId = createTaskDto.AssignedToUserId,
                 CreatedBy = userId,
             };
@@ -319,6 +316,8 @@ namespace Plantitask.Infrastructure.Services
 
             if (taskDtoResult.IsFailure)
                 return taskDtoResult.Error!;
+
+            task.DisplayOrder = await NextDisplayOrderAsync(task.GroupId, statusDto.NewStatusId);
 
             return new TaskStatusChangeResult
             {
@@ -687,6 +686,15 @@ namespace Plantitask.Infrastructure.Services
 
             foreach (var t in newColumnTasks.Where(t => t.DisplayOrder >= newPosition))
                 t.DisplayOrder++;
+        }
+
+        private async Task<int> NextDisplayOrderAsync(Guid groupId, int statusId)
+        {
+            var maxOrder = await _context.Tasks
+            .Where(t => t.GroupId == groupId && t.StatusId == (int)TaskStatusItem.NotStarted)
+            .MaxAsync(t => (int?)t.DisplayOrder) ?? -1;
+
+            return maxOrder + 1;
         }
     }
 }
