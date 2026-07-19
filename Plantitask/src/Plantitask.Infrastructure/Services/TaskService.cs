@@ -281,6 +281,7 @@ namespace Plantitask.Infrastructure.Services
                 task.CompletedAt = null;
             task.UpdatedBy = userId;
             
+            task.DisplayOrder = await NextDisplayOrderAsync(task.GroupId, statusDto.NewStatusId);
 
             await _context.SaveChangesAsync();
 
@@ -292,7 +293,7 @@ namespace Plantitask.Infrastructure.Services
             if (taskDtoResult.IsFailure)
                 return taskDtoResult.Error!;
 
-            task.DisplayOrder = await NextDisplayOrderAsync(task.GroupId, statusDto.NewStatusId);
+            
 
             return new TaskStatusChangeResult
             {
@@ -666,7 +667,7 @@ namespace Plantitask.Infrastructure.Services
         private async Task<int> NextDisplayOrderAsync(Guid groupId, int statusId)
         {
             var maxOrder = await _context.Tasks
-            .Where(t => t.GroupId == groupId && t.StatusId == (int)TaskStatusItem.NotStarted)
+            .Where(t => t.GroupId == groupId && t.StatusId == statusId)
             .MaxAsync(t => (int?)t.DisplayOrder) ?? -1;
 
             return maxOrder + 1;
