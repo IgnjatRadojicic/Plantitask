@@ -301,10 +301,12 @@ namespace Plantitask.Infrastructure.Services
             if (newStatus == null)
                 return Error.BadRequest("Invalid status selected");
 
-            task.StatusId = statusDto.NewStatusId;
-            task.CompletedAt = statusDto.NewStatusId == (int)TaskStatusItem.Completed
-                ? DateTime.UtcNow
-                : null;
+            var oldStatusId = task.StatusId;
+
+            if (statusDto.NewStatusId == (int)TaskStatusItem.Completed)
+                task.CompletedAt ??= DateTime.UtcNow;
+            else if (oldStatusId == (int)TaskStatusItem.Completed)
+                task.CompletedAt = null;
             task.UpdatedBy = userId;
             
 
