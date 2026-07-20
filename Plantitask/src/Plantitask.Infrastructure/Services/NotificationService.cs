@@ -238,12 +238,9 @@ public class NotificationService : INotificationService
         if (unreadOnly)
             query = query.Where(n => !n.IsRead);
 
-        var totalCount = await query.CountAsync();
 
-        var notifications = await query
-            .OrderByDescending(n => n.CreatedAt)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
+        return await PaginatedList<NotificationDto>.CreateAsync(
+            query.OrderByDescending(n => n.CreatedAt)
             .Select(n => new NotificationDto
             {
                 Id = n.Id,
@@ -257,18 +254,8 @@ public class NotificationService : INotificationService
                 IsRead = n.IsRead,
                 ReadAt = n.ReadAt,
                 CreatedAt = n.CreatedAt
-            })
-            .Take(50)
-            .ToListAsync();
+            }), pageNumber, pageSize);
 
-
-        return new PaginatedList<NotificationDto>
-        {
-            Items = notifications,
-            PageNumber = pageNumber,
-            PageSize = pageSize,
-            TotalCount = totalCount
-        };
     }
 
     public async Task<Result<UnreadCountDto>> GetUnreadCountAsync(Guid userId)

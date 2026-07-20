@@ -133,22 +133,9 @@ namespace Plantitask.Infrastructure.Services
                 }
             }
 
-            var totalCount = await query.CountAsync();
-
-            var tasks = await query
-                .OrderByDescending(t => t.CreatedAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(TaskDto.Projection)
-                .ToListAsync();
-
-            return new PaginatedList<TaskDto>
-            {
-                Items = tasks,
-                PageNumber = pageNumber,
-                PageSize = pageSize,
-                TotalCount = totalCount
-            };
+            return await PaginatedList<TaskDto>.CreateAsync(
+                query.OrderByDescending(t => t.CreatedAt).Select(TaskDto.Projection),
+                pageNumber, pageSize);
         }
 
         public async Task<Result<TaskDto>> GetTaskByIdAsync(Guid taskId, Guid userId)

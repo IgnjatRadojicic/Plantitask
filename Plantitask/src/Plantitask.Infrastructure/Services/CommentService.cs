@@ -74,32 +74,19 @@ public class CommentService : ICommentService
             .Where(tc => tc.TaskId == taskId)
             .OrderBy(tc => tc.CreatedAt);
 
-        var totalCount = await query.CountAsync();
+        return await PaginatedList<CommentDto>.CreateAsync(
+            query.Select(tc => new CommentDto
+             {
+                 Id = tc.Id,
+                 TaskId = tc.TaskId,
+                 Content = tc.Content,
+                 UserId = tc.CreatedBy,
+                 ProfilePictureUrl = tc.Author.ProfilePictureUrl,
+                 UserName = tc.Author.UserName,
+                 CreatedAt = tc.CreatedAt,
+                 UpdatedAt = tc.UpdatedAt
+             }), pageNumber, pageSize);
 
-
-        var comments = await query
-            .Skip((pageNumber - 1 ) * pageSize)
-            .Take(pageSize)
-            .Select(tc => new CommentDto
-            {
-                Id = tc.Id,
-                TaskId = tc.TaskId,
-                Content = tc.Content,
-                UserId = tc.CreatedBy,
-                ProfilePictureUrl = tc.Author.ProfilePictureUrl,
-                UserName = tc.Author.UserName,
-                CreatedAt = tc.CreatedAt,
-                UpdatedAt = tc.UpdatedAt
-            })
-            .ToListAsync();
-
-        return new PaginatedList<CommentDto>
-        {
-            Items = comments,
-            PageNumber = pageNumber,
-            PageSize = pageSize,
-            TotalCount = totalCount
-        };
     }
 
     public async Task<Result<CommentDto>> UpdateCommentAsync(Guid commentId, UpdateCommentDto updateCommentDto, Guid userId)
