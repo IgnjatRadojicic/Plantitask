@@ -540,10 +540,7 @@ namespace Plantitask.Infrastructure.Services
                     if (task == null)
                         return Error.NotFound("Task not found");
 
-                    var permissionLevel = await _groupService.GetUserPermissionLevelAsync(task.GroupId, userId);
-
-
-                    if (permissionLevel == null || permissionLevel < PermissionLevels.Member)
+                    if (!await _groupService.IsUserMemberAsync(task.GroupId, userId))
                         return Error.Forbidden("You don't have permission to move tasks");
 
                     var oldStatusId = task.StatusId;
