@@ -408,7 +408,6 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result> DeleteTaskAsync(Guid taskId, Guid userId)
         {
             var task = await _context.Tasks
-                .Include(t => t.Attachments)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
             if (task == null)
@@ -426,13 +425,6 @@ namespace Plantitask.Infrastructure.Services
             task.IsDeleted = true;
             task.DeletedAt = DateTime.UtcNow;
             task.DeletedBy = userId;
-
-            foreach (var attachment in task.Attachments)
-            {
-                attachment.IsDeleted = true;
-                attachment.DeletedAt = DateTime.UtcNow;
-                attachment.DeletedBy = userId;
-            }
 
             await _context.SaveChangesAsync();
 

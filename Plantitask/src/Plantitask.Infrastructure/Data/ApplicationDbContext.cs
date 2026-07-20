@@ -201,6 +201,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             entity.HasIndex(e => e.TaskId);
 
+            entity.HasQueryFilter(ta => !ta.IsDeleted && ta.Task.IsDeleted);
+
             entity.Property(e => e.FileName).HasMaxLength(255).IsRequired();
             entity.Property(e => e.FilePath).HasMaxLength(500).IsRequired();
             entity.Property(e => e.ContentType).HasMaxLength(100).IsRequired();
@@ -229,6 +231,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
                 .WithMany(t => t.Comments)
                 .HasForeignKey(tc => tc.TaskId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(tc => !tc.IsDeleted && !tc.Task.IsDeleted);
 
             entity.HasOne(tc => tc.Author)
                 .WithMany()
