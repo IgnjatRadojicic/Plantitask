@@ -8,6 +8,7 @@ using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Constants;
 using Pipelines.Sockets.Unofficial.Arenas;
+using Microsoft.Extensions.Caching.Memory;
 
 
 namespace Plantitask.Infrastructure.Services
@@ -18,13 +19,16 @@ namespace Plantitask.Infrastructure.Services
         private readonly ILogger<TaskService> _logger;
         private readonly IBackgroundJobService _backgroundJobService;
         private readonly IGroupService _groupService;
+        private readonly IMemoryCache _cache;
 
         public TaskService(
             IApplicationDbContext context,
             ILogger<TaskService> logger,
             IGroupService groupService,
+            IMemoryCache cache,
             IBackgroundJobService backgroundJobService)
         {
+            _cache = cache;
             _context = context;
             _groupService = groupService;
             _logger = logger;
@@ -473,11 +477,12 @@ namespace Plantitask.Infrastructure.Services
             if (group == null)
                 return Error.NotFound("Group not found");
 
-            var statuses = await _context.TaskStatuses
+            var statuses = await _cache.GetOrCreateAsync("task-statuses", async _ =>
+                await _context.TaskStatuses
                 .AsNoTracking()
                 .Where(s => s.IsActive)
                 .OrderBy(s => s.DisplayOrder)
-                .ToListAsync();
+                .ToListAsync());
 
             var tasks = await _context.Tasks
                 .AsNoTracking()

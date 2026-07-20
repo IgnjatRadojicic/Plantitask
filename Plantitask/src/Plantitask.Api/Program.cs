@@ -153,6 +153,10 @@ builder.Services.Configure<PayPalSettings>(
     builder.Configuration.GetSection("PayPal"));
 builder.Services.AddHttpClient<IPayPalService, PayPalService>();
 
+
+// Cache 
+builder.Services.AddMemoryCache();
+
 // HttpContext for accessing request information
 builder.Services.AddHttpContextAccessor();
 
