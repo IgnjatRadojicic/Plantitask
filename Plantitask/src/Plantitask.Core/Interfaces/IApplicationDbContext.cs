@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Entities.Lookups;
-
+using Microsoft.EntityFrameworkCore.Storage;
 
 
 namespace Plantitask.Core.Interfaces
@@ -34,5 +34,7 @@ namespace Plantitask.Core.Interfaces
         void ClearChangeTracker();
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+        Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cacnellationToken = default);
     }
 }

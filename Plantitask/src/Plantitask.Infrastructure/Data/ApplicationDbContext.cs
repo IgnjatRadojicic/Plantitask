@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Plantitask.Core.Common;
 using Plantitask.Core.Common.Interfaces;
 using Plantitask.Core.Entities;
@@ -39,6 +40,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     }
 
     public void ClearChangeTracker() => ChangeTracker.Clear();
+
+    public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        => Database.BeginTransactionAsync(cancellationToken);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
