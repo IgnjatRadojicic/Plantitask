@@ -366,6 +366,29 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        public async Task<Result> TransferOwnershipAsync(Guid groupId, Guid newOwnerId, Guid userId)
+        {
+            var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
+            if (permissionLevel < PermissionLevels.Owner)
+                return Error.Forbidden("Only the owner can transfer ownership.");
+
+            var newOwnerMembership = _context.GroupMembers
+                .FirstOrDefault(gm => gm.GroupId == groupId && gm.UserId == newOwnerId);
+            if (newOwnerMembership == null)
+                return Error.NotFound("New oner must be a group member");
+
+            var currentOwnerMembership = _context.GroupMembers
+                .FirstOrDefault(gm => gm.GroupId == groupId && gm.UserId == userId);
+            var group = await _context.Groups.FindAsync(groupId);
+
+            group!.OwnerId = newOwnerId;
+            newOwnerMembership.RoleId = (int)GroupRole.Owner;
+            currentOwnerMembership!.RoleId = (int)GroupRole.Manager;
+
+            await _context.SaveChangesAsync();
+            return Result.Success();
+        }
+
         public async Task<Result> RemoveUserFromGroupAsync(Guid groupId, Guid memberId, Guid userId)
         {
             _logger.LogInformation("User {UserId} removing member {MemberId} from group {GroupId}",
