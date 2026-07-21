@@ -341,7 +341,7 @@ namespace Plantitask.Infrastructure.Services
                 return Error.NotFound("Member not found in this group");
 
             var targetLevel = RoleLevel((GroupRole)targetMembership.RoleId);
-            if (targetLevel >= permissionLevel)
+            if (targetLevel == null || targetLevel >= permissionLevel)
                 return Error.Forbidden("You can only change roles of members below your own role");
 
             if (newRoleLevel >= permissionLevel)
