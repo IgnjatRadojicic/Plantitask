@@ -121,10 +121,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         {
             entity.HasKey(e => e.Id);
 
-            
-           
-
-            entity.HasQueryFilter(gm => !gm.IsDeleted && !gm.Group.IsDeleted);
 
             entity.HasOne(e => e.Group)
                 .WithMany(g => g.Members)
