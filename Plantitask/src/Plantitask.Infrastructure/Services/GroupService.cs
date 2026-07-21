@@ -404,7 +404,7 @@ namespace Plantitask.Infrastructure.Services
                 return Error.Forbidden("You are not a member of this group");
 
             if (permissionLevel < PermissionLevels.Owner)
-                return Error.BadRequest("Only the owner can delete the group");
+                return Error.Forbidden("Only the owner can delete the group");
 
             var memberCount = await _context.GroupMembers
                 .CountAsync(gm => gm.GroupId == groupId);
