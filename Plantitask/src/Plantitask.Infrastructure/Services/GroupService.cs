@@ -124,6 +124,26 @@ namespace Plantitask.Infrastructure.Services
             if (!groupData.IsActive)
                 return Error.BadRequest("This group is no longer active");
 
+
+            var existingMember = await _context.GroupMembers
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(gm => gm.GroupId == groupData.Id && gm.UserId == userId);
+
+            if (existingMember != null && !existingMember.IsDeleted)
+            {
+                return Error.Conflict("You already a member of this group");
+            }
+
+            if (!string.IsNullOrEmpty(groupData.PasswordHash))
+            {
+                if (string.IsNullOrEmpty(joinGroupDto.Password))
+                    return Error.Forbidden("This group requires a password");
+                if (!_passwordHasher.VerifyPassword(joinGroupDto.Password, groupData.PasswordHash))
+                {
+                    return Error.Forbidden("Incorrect group password");
+                }
+            }
+
             var userData = await _context.Users
                 .Where(u => u.Id == userId)
                 .Select(u => new { u.MaxGroups })
@@ -136,70 +156,37 @@ namespace Plantitask.Infrastructure.Services
                 .CountAsync(gm => gm.UserId == userId);
 
             if (currentGroupCount >= userData?.MaxGroups)
-                return Error.Forbidden($"You've reached your limit of {userData.MaxGroups} groups. Upgrade to Premium for more.");
+                return Error.Forbidden($"You've reached your limit of {userData.MaxGroups} Trees. Upgrade to Premium for more.");
 
-            var existingMember = await _context.GroupMembers
-                .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(gm => gm.GroupId == groupData.Id && gm.UserId == userId);
+            var Rejoin = existingMember != null;
 
             if (existingMember != null)
+
             {
-                if (existingMember.IsDeleted)
+                existingMember.IsDeleted = false;
+                existingMember.DeletedAt = null;
+                existingMember.DeletedBy = null;
+                existingMember.UpdatedBy = userId;
+                existingMember.RoleId = (int)GroupRole.Member;
+
+            } else
+            {
+                _context.GroupMembers.Add(new GroupMember
                 {
-                    existingMember.IsDeleted = false;
-                    existingMember.DeletedAt = null;
-                    existingMember.DeletedBy = null;
-                    existingMember.UpdatedBy = userId;
-                    existingMember.RoleId = (int)GroupRole.Member;
-
-                    await _context.SaveChangesAsync();
-
-                    _logger.LogInformation("User {UserId} rejoined group {GroupId}", userId, groupData.Id);
-
-                    var memberCount = await _context.GroupMembers
-                        .CountAsync(gm => gm.GroupId == groupData.Id);
-
-                    return new GroupDto
-                    {
-                        Id = groupData.Id,
-                        Name = groupData.Name,
-                        GroupCode = groupData.GroupCode,
-                        IsPasswordProtected = !string.IsNullOrEmpty(groupData.PasswordHash),
-                        MemberCount = memberCount,
-                        UserRole = GroupRole.Member,
-                    };
-                }
-                else
-                {
-                    return Error.Conflict("You are already a member of this group");
-                }
+                    GroupId = groupData.Id,
+                    UserId = userId,
+                    RoleId = (int)GroupRole.Member,
+                    CreatedBy = userId
+                });
             }
 
-            if (!string.IsNullOrEmpty(groupData.PasswordHash))
-            {
-                if (string.IsNullOrEmpty(joinGroupDto.Password))
-                    return Error.Forbidden("This group requires a password");
-
-                if (!_passwordHasher.VerifyPassword(joinGroupDto.Password, groupData.PasswordHash))
-                    return Error.Forbidden("Incorrect group password");
-            }
-
-
-            var newMember = new GroupMember
-            {
-                GroupId = groupData.Id,
-                UserId = userId,
-                RoleId = (int)GroupRole.Member,
-                CreatedBy = userId,
-            };
-
-            _context.GroupMembers.Add(newMember);
             await _context.SaveChangesAsync();
 
-            var totalMembers = await _context.GroupMembers
+            var memberCount = await _context.GroupMembers
                 .CountAsync(gm => gm.GroupId == groupData.Id);
 
-            _logger.LogInformation("User {UserId} joined group {GroupId}", userId, groupData.Id);
+            _logger.LogInformation("User {UserId} {Action} group {GroupId}",
+                userId, Rejoin ? "rejoined" : "joined", groupData.Id);
 
             return new GroupDto
             {
@@ -207,12 +194,9 @@ namespace Plantitask.Infrastructure.Services
                 Name = groupData.Name,
                 GroupCode = groupData.GroupCode,
                 IsPasswordProtected = !string.IsNullOrEmpty(groupData.PasswordHash),
-                MemberCount = totalMembers,
+                MemberCount = memberCount,
                 UserRole = GroupRole.Member,
             };
-
-
-
 
         }
 
