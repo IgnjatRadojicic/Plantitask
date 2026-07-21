@@ -421,13 +421,17 @@ namespace Plantitask.Infrastructure.Services
             var ownerMembership = await _context.GroupMembers
                 .FirstAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
 
+            await using var transaction = await _context.BeginTransactionAsync();
+
             await _context.TaskComments
                 .IgnoreQueryFilters()
                 .Where(tc => tc.Task.GroupId == groupId && !tc.IsDeleted)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(c => c.IsDeleted, true)
                     .SetProperty(c => c.DeletedAt, now)
-                    .SetProperty(c => c.DeletedBy, userId));
+                    .SetProperty(c => c.DeletedBy, userId)
+                    .SetProperty(c => c.UpdatedAt, now));
+
 
             await _context.TaskAttachments
                 .IgnoreQueryFilters()
@@ -435,7 +439,8 @@ namespace Plantitask.Infrastructure.Services
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(a => a.IsDeleted, true)
                     .SetProperty(a => a.DeletedAt, now)
-                    .SetProperty(a => a.DeletedBy, userId));
+                    .SetProperty(a => a.DeletedBy, userId)
+                    .SetProperty(c => c.UpdatedAt, now));
 
             await _context.Tasks
                 .IgnoreQueryFilters()
@@ -443,7 +448,8 @@ namespace Plantitask.Infrastructure.Services
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(t => t.IsDeleted, true)
                     .SetProperty(t => t.DeletedAt, now)
-                    .SetProperty(t => t.DeletedBy, userId));
+                    .SetProperty(t => t.DeletedBy, userId)
+                    .SetProperty(c => c.UpdatedAt, now));
 
             group.IsDeleted = true;
             group.DeletedAt = now;
@@ -454,6 +460,7 @@ namespace Plantitask.Infrastructure.Services
             ownerMembership.DeletedBy = userId;
 
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             _logger.LogInformation("Group {GroupId} deleted by user {UserId}", groupId, userId);
 

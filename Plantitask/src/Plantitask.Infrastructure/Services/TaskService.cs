@@ -424,13 +424,16 @@ namespace Plantitask.Infrastructure.Services
 
             var now = DateTime.UtcNow;
 
+            await using var transaction = await _context.BeginTransactionAsync();
+
             await _context.TaskComments
                 .IgnoreQueryFilters()
                 .Where(tc => tc.TaskId == taskId && !tc.IsDeleted)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(c => c.IsDeleted, true)
                     .SetProperty(c => c.DeletedAt, now)
-                    .SetProperty(c => c.DeletedBy, userId));
+                    .SetProperty(c => c.DeletedBy, userId)
+                    .SetProperty(c => c.UpdatedAt, now));
 
             await _context.TaskAttachments
                 .IgnoreQueryFilters()
@@ -438,13 +441,15 @@ namespace Plantitask.Infrastructure.Services
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(a => a.IsDeleted, true)
                     .SetProperty(a => a.DeletedAt, now)
-                    .SetProperty(a => a.DeletedBy, userId));
+                    .SetProperty(a => a.DeletedBy, userId)
+                    .SetProperty(c => c.UpdatedAt, now));
 
             task.IsDeleted = true;
             task.DeletedAt = now;
             task.DeletedBy = userId;
 
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             _logger.LogInformation("Task {TaskId} deleted by user {UserId}", taskId, userId);
 
