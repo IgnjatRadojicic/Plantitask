@@ -422,7 +422,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel < PermissionLevels.Manager)
                 return Error.Forbidden("Only Managers and Owners can delete tasks");
 
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
 
             await _context.TaskComments
                 .IgnoreQueryFilters()
