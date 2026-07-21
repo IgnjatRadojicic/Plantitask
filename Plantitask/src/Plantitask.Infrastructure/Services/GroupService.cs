@@ -323,6 +323,16 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel < PermissionLevels.Manager)
                 return Error.Forbidden("Only Owner or Manager can change roles");
 
+            if (memberId == userId)
+                return Error.BadRequest("You cannot change your own role");
+
+            if (changeRoleDto.NewRole == GroupRole.Owner)
+                return Error.BadRequest("Ownership cannot be assigned through a role change");
+
+            var newRoleLevel = RoleLevel(changeRoleDto.NewRole);
+            if (newRoleLevel == null)
+                return Error.BadRequest("Invalid role");
+
             var targetMembership = await _context.GroupMembers
                 .Include(gm => gm.User)
                 .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == memberId);
@@ -330,8 +340,13 @@ namespace Plantitask.Infrastructure.Services
             if (targetMembership == null)
                 return Error.NotFound("Member not found in this group");
 
-            if ((GroupRole)targetMembership.RoleId == GroupRole.Owner)
-                return Error.BadRequest("Cannot change the role of the group owner");
+            var targetLevel = RoleLevel((GroupRole)targetMembership.RoleId);
+            if (targetLevel >= permissionLevel)
+                return Error.Forbidden("You can only change roles of members below your own role");
+
+            if (newRoleLevel >= permissionLevel)
+                return Error.Forbidden("You cannot assign a role at or above your own");
+
 
             targetMembership.RoleId = (int)changeRoleDto.NewRole;
             targetMembership.UpdatedBy = userId;
@@ -371,6 +386,9 @@ namespace Plantitask.Infrastructure.Services
 
             if ((GroupRole)targetMembership.RoleId == GroupRole.Owner)
                 return Error.BadRequest("Cannot remove the group owner");
+
+            if (targetLevel == null || targetLevel >= permissionLevel)
+                return Error.Forbidden("You can only remove members below your own role");
 
             targetMembership.IsDeleted = true;
             targetMembership.DeletedAt = DateTime.UtcNow;
@@ -423,5 +441,17 @@ namespace Plantitask.Infrastructure.Services
 
             return code;
         }
+
+        private static int? RoleLevel(GroupRole role) => role switch
+        {
+            GroupRole.Owner => PermissionLevels.Owner,
+            GroupRole.Manager => PermissionLevels.Manager,
+            GroupRole.TeamLead => PermissionLevels.TeamLead,
+            GroupRole.Member => PermissionLevels.Member,
+            _ => null,
+        };
+
+        private static int? RoleLevel(int roleId) => RoleLevel((GroupRole)roleId);
+
     }
 }
