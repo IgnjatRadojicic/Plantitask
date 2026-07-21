@@ -422,8 +422,26 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel < PermissionLevels.Manager)
                 return Error.Forbidden("Only Managers and Owners can delete tasks");
 
+            var now = DateTime.Now;
+
+            await _context.TaskComments
+                .IgnoreQueryFilters()
+                .Where(tc => tc.TaskId == taskId && !tc.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(c => c.IsDeleted, true)
+                    .SetProperty(c => c.DeletedAt, now)
+                    .SetProperty(c => c.DeletedBy, userId));
+
+            await _context.TaskAttachments
+                .IgnoreQueryFilters()
+                .Where(ta => ta.TaskId == taskId && !ta.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(a => a.IsDeleted, true)
+                    .SetProperty(a => a.DeletedAt, now)
+                    .SetProperty(a => a.DeletedBy, userId));
+
             task.IsDeleted = true;
-            task.DeletedAt = DateTime.UtcNow;
+            task.DeletedAt = now;
             task.DeletedBy = userId;
 
             await _context.SaveChangesAsync();
