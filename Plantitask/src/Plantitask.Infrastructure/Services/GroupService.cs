@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
 using Plantitask.Core.Constants;
@@ -370,6 +371,9 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("User {UserId} removing member {MemberId} from group {GroupId}",
                 userId, memberId, groupId);
 
+            if (userId == memberId)
+                return Error.BadRequest("Leave the group instead");
+
             var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
 
             if (permissionLevel == null)
@@ -387,6 +391,8 @@ namespace Plantitask.Infrastructure.Services
             if ((GroupRole)targetMembership.RoleId == GroupRole.Owner)
                 return Error.BadRequest("Cannot remove the group owner");
 
+
+            var targetLevel = RoleLevel(targetMembership.RoleId);
             if (targetLevel == null || targetLevel >= permissionLevel)
                 return Error.Forbidden("You can only remove members below your own role");
 
