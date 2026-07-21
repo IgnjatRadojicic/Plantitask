@@ -211,8 +211,7 @@ namespace Plantitask.Infrastructure.Services
                     Name = gm.Group.Name,
                     GroupCode = gm.Group.GroupCode,
                     IsPasswordProtected = !string.IsNullOrEmpty(gm.Group.PasswordHash),
-                    MemberCount = _context.GroupMembers.Count(m => m.GroupId == gm.GroupId), // With many groups could  be N Subqueries should look into it once we get real user data
-                    UserRole = (GroupRole)gm.RoleId,
+                    MemberCount = gm.Group.Members.Count
                 }).ToListAsync();
 
             return groups;
