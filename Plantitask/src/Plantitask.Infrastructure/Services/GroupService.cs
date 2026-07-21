@@ -368,18 +368,24 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result> TransferOwnershipAsync(Guid groupId, Guid newOwnerId, Guid userId)
         {
+            if (newOwnerId == userId)
+                return Error.BadRequest("Can't transfer ownership to yourself");
 
             var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
-            if (permissionLevel < PermissionLevels.Owner)
-                return Error.Forbidden("Only the owner can transfer ownership.");
 
-            var newOwnerMembership = _context.GroupMembers
-                .FirstOrDefault(gm => gm.GroupId == groupId && gm.UserId == newOwnerId);
+            if (permissionLevel == null)
+                return Error.Forbidden("You are not a member of this group");
+
+            if (permissionLevel < PermissionLevels.Owner)
+                return Error.Forbidden("Only the owner can transfer ownership");
+
+            var newOwnerMembership = await _context.GroupMembers
+                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == newOwnerId);
             if (newOwnerMembership == null)
                 return Error.NotFound("New oner must be a group member");
 
-            var currentOwnerMembership = _context.GroupMembers
-                .FirstOrDefault(gm => gm.GroupId == groupId && gm.UserId == userId);
+            var currentOwnerMembership = await _context.GroupMembers
+                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
             var group = await _context.Groups.FindAsync(groupId);
 
             group!.OwnerId = newOwnerId;
