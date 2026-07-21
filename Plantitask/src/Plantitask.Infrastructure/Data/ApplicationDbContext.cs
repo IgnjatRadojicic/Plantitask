@@ -120,6 +120,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             
             entity.HasIndex(e => new { e.GroupId, e.UserId }).IsUnique();
 
+            entity.HasQueryFilter(gm => !gm.IsDeleted && !gm.Group.IsDeleted);
+
             entity.HasOne(e => e.Group)
                 .WithMany(g => g.Members)
                 .HasForeignKey(e => e.GroupId)
@@ -158,6 +160,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.HasIndex(e => e.Title)
                   .HasMethod("gin")
                   .HasOperators("gin_trgm_ops");
+
+            entity.HasQueryFilter(t => !t.IsDeleted && !t.Group.IsDeleted);
 
             entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
@@ -201,7 +205,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             entity.HasIndex(e => e.TaskId);
 
-            entity.HasQueryFilter(ta => !ta.IsDeleted && ta.Task.IsDeleted);
+            entity.HasQueryFilter(ta => !ta.IsDeleted && !ta.Task.IsDeleted);
 
             entity.Property(e => e.FileName).HasMaxLength(255).IsRequired();
             entity.Property(e => e.FilePath).HasMaxLength(500).IsRequired();

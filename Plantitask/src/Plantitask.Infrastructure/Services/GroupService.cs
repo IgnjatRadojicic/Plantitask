@@ -368,6 +368,7 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result> TransferOwnershipAsync(Guid groupId, Guid newOwnerId, Guid userId)
         {
+
             var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
             if (permissionLevel < PermissionLevels.Owner)
                 return Error.Forbidden("Only the owner can transfer ownership.");
@@ -386,6 +387,70 @@ namespace Plantitask.Infrastructure.Services
             currentOwnerMembership!.RoleId = (int)GroupRole.Manager;
 
             await _context.SaveChangesAsync();
+            return Result.Success();
+        }
+
+        public async Task<Result> DeleteGroupAsync(Guid groupId, Guid userId)
+        {
+            var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
+
+            if (permissionLevel == null)
+                return Error.Forbidden("You are not a member of this group");
+
+            if (permissionLevel < PermissionLevels.Owner)
+                return Error.BadRequest("Only the owner can delete the group");
+
+            var memberCount = await _context.GroupMembers
+                .CountAsync(gm => gm.GroupId == groupId);
+
+            if (memberCount > 1)
+                return Error.BadRequest("Remove all other members before deleting the group");
+
+            var group = await _context.Groups.FindAsync(groupId);
+            if (group == null)
+                return Error.NotFound("Group not found");
+
+            var now = DateTime.UtcNow;
+
+            var ownerMembership = await _context.GroupMembers
+                .FirstAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
+
+            await _context.TaskComments
+                .IgnoreQueryFilters()
+                .Where(tc => tc.Task.GroupId == groupId && !tc.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(c => c.IsDeleted, true)
+                    .SetProperty(c => c.DeletedAt, now)
+                    .SetProperty(c => c.DeletedBy, userId));
+
+            await _context.TaskAttachments
+                .IgnoreQueryFilters()
+                .Where(ta => ta.Task.GroupId == groupId && !ta.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(a => a.IsDeleted, true)
+                    .SetProperty(a => a.DeletedAt, now)
+                    .SetProperty(a => a.DeletedBy, userId));
+
+            await _context.Tasks
+                .IgnoreQueryFilters()
+                .Where(t => t.GroupId == groupId && !t.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(t => t.IsDeleted, true)
+                    .SetProperty(t => t.DeletedAt, now)
+                    .SetProperty(t => t.DeletedBy, userId));
+
+            group.IsDeleted = true;
+            group.DeletedAt = now;
+            group.DeletedBy = userId;
+
+            ownerMembership.IsDeleted = true;
+            ownerMembership.DeletedAt = now;
+            ownerMembership.DeletedBy = userId;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Group {GroupId} deleted by user {UserId}", groupId, userId);
+
             return Result.Success();
         }
 
