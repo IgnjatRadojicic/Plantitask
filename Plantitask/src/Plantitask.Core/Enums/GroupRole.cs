@@ -8,9 +8,11 @@ namespace Plantitask.Core.Enums
 {
     public enum GroupRole
     {
-        Member = 4,
-        TeamLead = 3,
-        Manager = 2,
-        Owner = 1,
+        // Value IS the permission rank and IS the GroupRoleLookup.Id primary key.
+        // Gaps (10, 40, 60, ...) are intentionally free for future roles like Viewer.
+        Member = 25,
+        TeamLead = 50,
+        Manager = 75,
+        Owner = 100,
     }
 }

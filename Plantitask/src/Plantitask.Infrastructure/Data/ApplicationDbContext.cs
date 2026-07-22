@@ -304,10 +304,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.Description).HasMaxLength(200);
 
             entity.HasData(
-                new GroupRoleLookup { Id = 1, Name = "Owner", DisplayName = "Owner", Description = "Full control over the group", PermissionLevel = 100, Color = "#dc3545", DisplayOrder = 1, IsActive = true },
-                new GroupRoleLookup { Id = 2, Name = "Manager", DisplayName = "Manager", Description = "Can manage members and tasks", PermissionLevel = 75, Color = "#ffc107", DisplayOrder = 2, IsActive = true },
-                new GroupRoleLookup { Id = 3, Name = "TeamLead", DisplayName = "Team Lead", Description = "Can manage tasks", PermissionLevel = 50, Color = "#0dcaf0", DisplayOrder = 3, IsActive = true },
-                new GroupRoleLookup { Id = 4, Name = "Member", DisplayName = "Member", Description = "Can view and work on tasks", PermissionLevel = 25, Color = "#6c757d", DisplayOrder = 4, IsActive = true }
+                new GroupRoleLookup { Id = 100, Name = "Owner", DisplayName = "Owner", Description = "Full control over the group", PermissionLevel = 100, Color = "#dc3545", DisplayOrder = 1, IsActive = true },
+                new GroupRoleLookup { Id = 75, Name = "Manager", DisplayName = "Manager", Description = "Can manage members and tasks", PermissionLevel = 75, Color = "#ffc107", DisplayOrder = 2, IsActive = true },
+                new GroupRoleLookup { Id = 50, Name = "TeamLead", DisplayName = "Team Lead", Description = "Can manage tasks", PermissionLevel = 50, Color = "#0dcaf0", DisplayOrder = 3, IsActive = true },
+                new GroupRoleLookup { Id = 25, Name = "Member", DisplayName = "Member", Description = "Can view and work on tasks", PermissionLevel = 25, Color = "#6c757d", DisplayOrder = 4, IsActive = true }
             );
         });
 
