@@ -34,7 +34,7 @@ namespace Plantitask.Infrastructure.Services
                 .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
         }
 
-        public async Task<GroupRole?> GetUserPermissionLevelAsync(Guid groupId, Guid userId)
+        public async Task<GroupRole?> GetUserRoleAsync(Guid groupId, Guid userId)
         {
             return await _context.GroupMembers
                 .Where(gm => gm.GroupId == groupId && gm.UserId == userId)
@@ -274,12 +274,12 @@ namespace Plantitask.Infrastructure.Services
             if (group == null)
                 return Error.NotFound("Group not found");
 
-            var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
+            var callerRole = await GetUserRoleAsync(groupId, userId);
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < GroupRole.Manager)
+            if (callerRole < GroupRole.Manager)
                 return Error.Forbidden("Only Owner or Manager can update group details");
 
             if (!string.IsNullOrEmpty(updateGroupDto.Name))
@@ -307,7 +307,7 @@ namespace Plantitask.Infrastructure.Services
                 GroupCode = group.GroupCode,
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
                 MemberCount = memberCount,
-                UserRole = permissionLevel.Value,
+                UserRole = callerRole.Value,
             };
         }
 
@@ -317,12 +317,12 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("User {UserId} changing role for member {MemberId} in group {GroupId}",
                 userId, memberId, groupId);
 
-            var permissionLevel =  await GetUserPermissionLevelAsync(groupId, userId);
+            var callerRole =  await GetUserRoleAsync(groupId, userId);
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < GroupRole.Manager)
+            if (callerRole < GroupRole.Manager)
                 return Error.Forbidden("Only Owner or Manager can change roles");
 
             if (memberId == userId)
@@ -341,10 +341,11 @@ namespace Plantitask.Infrastructure.Services
             if (targetMembership == null)
                 return Error.NotFound("Member not found in this group");
 
-            if ((GroupRole)targetMembership.RoleId >= permissionLevel)
+            var targetRole = (GroupRole)targetMembership.RoleId;
+            if (targetRole >= callerRole)
                 return Error.Forbidden("You can only change roles of members below your own role");
 
-            if (changeRoleDto.NewRole >= permissionLevel)
+            if (changeRoleDto.NewRole >= callerRole)
                 return Error.Forbidden("You cannot assign a role at or above your own");
 
 
@@ -370,12 +371,12 @@ namespace Plantitask.Infrastructure.Services
             if (newOwnerId == userId)
                 return Error.BadRequest("Can't transfer ownership to yourself");
 
-            var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
+            var callerRole = await GetUserRoleAsync(groupId, userId);
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < GroupRole.Owner)
+            if (callerRole < GroupRole.Owner)
                 return Error.Forbidden("Only the owner can transfer ownership");
 
             var newOwnerMembership = await _context.GroupMembers
@@ -399,12 +400,12 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result> DeleteGroupAsync(Guid groupId, Guid userId)
         {
-            var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
+            var callerRole = await GetUserRoleAsync(groupId, userId);
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < GroupRole.Owner)
+            if (callerRole < GroupRole.Owner)
                 return Error.Forbidden("Only the owner can delete the group");
 
             var memberCount = await _context.GroupMembers
@@ -476,12 +477,12 @@ namespace Plantitask.Infrastructure.Services
             if (userId == memberId)
                 return Error.BadRequest("Leave the group instead");
 
-            var permissionLevel = await GetUserPermissionLevelAsync(groupId, userId);
+            var callerRole = await GetUserRoleAsync(groupId, userId);
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < GroupRole.Manager) 
+            if (callerRole < GroupRole.Manager) 
                 return Error.Forbidden("Only Owner or Manager can remove members");
 
             var targetMembership = await _context.GroupMembers
@@ -490,11 +491,12 @@ namespace Plantitask.Infrastructure.Services
             if (targetMembership == null)
                 return Error.NotFound("Member not found in this group");
 
-            if ((GroupRole)targetMembership.RoleId == GroupRole.Owner)
+            var targetRole = (GroupRole)targetMembership.RoleId;
+
+            if (targetRole == GroupRole.Owner)
                 return Error.BadRequest("Cannot remove the group owner");
 
-
-            if ((GroupRole)targetMembership.RoleId >= permissionLevel)
+            if (targetRole >= callerRole)
                 return Error.Forbidden("You can only remove members below your own role");
 
             targetMembership.IsDeleted = true;

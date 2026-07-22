@@ -13,7 +13,7 @@ namespace Plantitask.Core.Interfaces
     public interface IGroupService
     {
         Task<bool> IsUserMemberAsync(Guid groupId, Guid userId);
-        Task<GroupRole?> GetUserPermissionLevelAsync(Guid groupId, Guid userId);
+        Task<GroupRole?> GetUserRoleAsync(Guid groupId, Guid userId);
         Task<Result<GroupDto>> CreateGroupAsync(CreateGroupDto createGroupDto, Guid userId);
         Task<Result<GroupDto>> JoinGroupAsync(JoinGroupDto joinGroupDto, Guid userId);
         Task<Result<List<GroupDto>>> GetUserGroupsAsync(Guid userId);

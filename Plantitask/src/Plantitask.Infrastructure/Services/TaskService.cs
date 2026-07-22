@@ -38,12 +38,12 @@ namespace Plantitask.Infrastructure.Services
         {
             _logger.LogInformation("User {UserId} creating task in group {GroupId}", userId, groupId);
 
-            var permissionLevel = await _groupService.GetUserPermissionLevelAsync(groupId, userId);
+            var callerRole = await _groupService.GetUserRoleAsync(groupId, userId);
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You must be a member of this group to create tasks");
 
-            if (permissionLevel < GroupRole.TeamLead)
+            if (callerRole < GroupRole.TeamLead)
                 return Error.Forbidden("Only Team Leads, Managers, and Owners can create tasks");
 
             var priorityExists = await _context.TaskPriorities
@@ -167,12 +167,12 @@ namespace Plantitask.Infrastructure.Services
             if (task == null)
                 return Error.NotFound("Task not found");
 
-            var permissionLevel = await _groupService.GetUserPermissionLevelAsync(task.GroupId, userId);
+            var callerRole = await _groupService.GetUserRoleAsync(task.GroupId, userId);
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            if (permissionLevel < GroupRole.TeamLead && task.CreatedBy != userId)
+            if (callerRole < GroupRole.TeamLead && task.CreatedBy != userId)
                 return Error.Forbidden("Only the task creator or Team Leads and above can change task priority");
 
             if (!string.IsNullOrWhiteSpace(updateTaskDto.Title))
@@ -231,12 +231,12 @@ namespace Plantitask.Infrastructure.Services
             if (task == null)
                 return Error.NotFound("Task not found");
 
-            var permissionLevel = await _groupService.GetUserPermissionLevelAsync(task.GroupId, userId);
+            var callerRole = await _groupService.GetUserRoleAsync(task.GroupId, userId);
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            var canChangeStatus = permissionLevel >= GroupRole.TeamLead
+            var canChangeStatus = callerRole >= GroupRole.TeamLead
                 || task.AssignedToId == userId
                 || task.CreatedBy == userId;
 
@@ -290,13 +290,13 @@ namespace Plantitask.Infrastructure.Services
             if (task == null)
                 return Error.NotFound("Task not found");
 
-            var permissionLevel = await _groupService.GetUserPermissionLevelAsync(task.GroupId, userId);
+            var callerRole = await _groupService.GetUserRoleAsync(task.GroupId, userId);
 
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            if (permissionLevel < GroupRole.TeamLead)
+            if (callerRole < GroupRole.TeamLead)
                 return Error.Forbidden("Only Team Leads and above can change task priority");
 
             var oldPriority = task.Priority.Name;
@@ -336,13 +336,13 @@ namespace Plantitask.Infrastructure.Services
             if (task == null)
                 return Error.NotFound("Task not found");
 
-            var permissionLevel = await _groupService.GetUserPermissionLevelAsync(task.GroupId, userId);
+            var callerRole = await _groupService.GetUserRoleAsync(task.GroupId, userId);
 
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            if (permissionLevel < GroupRole.TeamLead)
+            if (callerRole < GroupRole.TeamLead)
                 return Error.Forbidden("Only Team Leads and above can assign tasks");
 
             var assigneeIsMember = await _context.GroupMembers
@@ -380,14 +380,14 @@ namespace Plantitask.Infrastructure.Services
             if (task == null)
                 return Error.NotFound("Task not found");
 
-            var permissionLevel = await _groupService.GetUserPermissionLevelAsync(task.GroupId, userId);
+            var callerRole = await _groupService.GetUserRoleAsync(task.GroupId, userId);
 
 
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            var canUnassign = permissionLevel >= GroupRole.TeamLead
+            var canUnassign = callerRole >= GroupRole.TeamLead
                 || task.AssignedToId == userId;
 
             if (!canUnassign)
@@ -412,13 +412,13 @@ namespace Plantitask.Infrastructure.Services
             if (task == null)
                 return Error.NotFound("Task not found");
 
-            var permissionLevel = await _groupService.GetUserPermissionLevelAsync(task.GroupId, userId);
+            var callerRole = await _groupService.GetUserRoleAsync(task.GroupId, userId);
 
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            if (permissionLevel < GroupRole.Manager)
+            if (callerRole < GroupRole.Manager)
                 return Error.Forbidden("Only Managers and Owners can delete tasks");
 
             var now = DateTime.UtcNow;
@@ -478,10 +478,10 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<KanbanBoardDto>> GetKanbanBoardAsync(Guid groupId, Guid userId)
         {
-            var permissionLevel = await _groupService.GetUserPermissionLevelAsync(groupId, userId);
+            var callerRole = await _groupService.GetUserRoleAsync(groupId, userId);
 
 
-            if (permissionLevel == null)
+            if (callerRole == null)
                 return Error.Forbidden("You are not a member of this group");
 
             var group = await _context.Groups
