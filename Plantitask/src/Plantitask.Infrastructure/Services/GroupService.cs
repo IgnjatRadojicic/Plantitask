@@ -444,7 +444,7 @@ namespace Plantitask.Infrastructure.Services
                     .SetProperty(a => a.IsDeleted, true)
                     .SetProperty(a => a.DeletedAt, now)
                     .SetProperty(a => a.DeletedBy, userId)
-                    .SetProperty(c => c.UpdatedAt, now));
+                    .SetProperty(a => a.UpdatedAt, now));
 
             await _context.Tasks
                 .IgnoreQueryFilters()
@@ -453,7 +453,7 @@ namespace Plantitask.Infrastructure.Services
                     .SetProperty(t => t.IsDeleted, true)
                     .SetProperty(t => t.DeletedAt, now)
                     .SetProperty(t => t.DeletedBy, userId)
-                    .SetProperty(c => c.UpdatedAt, now));
+                    .SetProperty(t => t.UpdatedAt, now));
 
             group.IsDeleted = true;
             group.DeletedAt = now;
