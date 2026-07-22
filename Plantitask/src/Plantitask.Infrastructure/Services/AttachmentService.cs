@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Plantitask.Core.Common;
 using Plantitask.Core.Configuration;
-using Plantitask.Core.Constants;
+using Plantitask.Core.Enums;
 using Plantitask.Core.DTO.Attachments;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
@@ -219,7 +219,7 @@ namespace Plantitask.Infrastructure.Services
 
             var permissionLevel = await _groupService.GetUserPermissionLevelAsync(groupId, userId);
 
-            var canDelete = permissionLevel >= PermissionLevels.Manager || attachment.CreatedBy == userId;
+            var canDelete = permissionLevel >= (int)GroupRole.Manager || attachment.CreatedBy == userId;
 
             if (!canDelete)
                 return Error.Forbidden("Only Managers, Owners, or the uploader can delete attachments");

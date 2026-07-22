@@ -280,7 +280,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < PermissionLevels.Manager)
+            if (permissionLevel < (int)GroupRole.Manager)
                 return Error.Forbidden("Only Owner or Manager can update group details");
 
             if (!string.IsNullOrEmpty(updateGroupDto.Name))
@@ -323,7 +323,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < PermissionLevels.Manager)
+            if (permissionLevel < (int)GroupRole.Manager)
                 return Error.Forbidden("Only Owner or Manager can change roles");
 
             if (memberId == userId)
@@ -378,7 +378,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < PermissionLevels.Owner)
+            if (permissionLevel < (int)GroupRole.Owner)
                 return Error.Forbidden("Only the owner can transfer ownership");
 
             var newOwnerMembership = await _context.GroupMembers
@@ -407,7 +407,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < PermissionLevels.Owner)
+            if (permissionLevel < (int)GroupRole.Owner)
                 return Error.Forbidden("Only the owner can delete the group");
 
             var memberCount = await _context.GroupMembers
@@ -484,7 +484,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < PermissionLevels.Manager) 
+            if (permissionLevel < (int)GroupRole.Manager) 
                 return Error.Forbidden("Only Owner or Manager can remove members");
 
             var targetMembership = await _context.GroupMembers

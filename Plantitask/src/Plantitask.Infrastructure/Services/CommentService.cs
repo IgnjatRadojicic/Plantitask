@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
-using Plantitask.Core.Constants;
+using Plantitask.Core.Enums;
 using Plantitask.Core.DTO.Comments;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
@@ -129,7 +129,7 @@ public class CommentService : ICommentService
         if (membership == null)
             return Error.Forbidden("You must be a member of the group");
 
-        var canDelete = comment.CreatedBy == userId || membership.Role.PermissionLevel >= PermissionLevels.Manager;
+        var canDelete = comment.CreatedBy == userId || membership.Role.PermissionLevel >= (int)GroupRole.Manager;
 
         if (!canDelete)
             return Error.Forbidden("You can only delete your own comments or you must be a Manager or Owner");

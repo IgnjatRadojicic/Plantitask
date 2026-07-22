@@ -6,7 +6,6 @@ using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
-using Plantitask.Core.Constants;
 using Pipelines.Sockets.Unofficial.Arenas;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -44,7 +43,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You must be a member of this group to create tasks");
 
-            if (permissionLevel < PermissionLevels.TeamLead)
+            if (permissionLevel < (int)GroupRole.TeamLead)
                 return Error.Forbidden("Only Team Leads, Managers, and Owners can create tasks");
 
             var priorityExists = await _context.TaskPriorities
@@ -173,7 +172,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            if (permissionLevel < PermissionLevels.TeamLead && task.CreatedBy != userId)
+            if (permissionLevel < (int)GroupRole.TeamLead && task.CreatedBy != userId)
                 return Error.Forbidden("Only the task creator or Team Leads and above can change task priority");
 
             if (!string.IsNullOrWhiteSpace(updateTaskDto.Title))
@@ -237,7 +236,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            var canChangeStatus = permissionLevel >= PermissionLevels.TeamLead
+            var canChangeStatus = permissionLevel >= (int)GroupRole.TeamLead
                 || task.AssignedToId == userId
                 || task.CreatedBy == userId;
 
@@ -297,7 +296,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            if (permissionLevel < PermissionLevels.TeamLead)
+            if (permissionLevel < (int)GroupRole.TeamLead)
                 return Error.Forbidden("Only Team Leads and above can change task priority");
 
             var oldPriority = task.Priority.Name;
@@ -343,7 +342,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            if (permissionLevel < PermissionLevels.TeamLead)
+            if (permissionLevel < (int)GroupRole.TeamLead)
                 return Error.Forbidden("Only Team Leads and above can assign tasks");
 
             var assigneeIsMember = await _context.GroupMembers
@@ -388,7 +387,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            var canUnassign = permissionLevel >= PermissionLevels.TeamLead
+            var canUnassign = permissionLevel >= (int)GroupRole.TeamLead
                 || task.AssignedToId == userId;
 
             if (!canUnassign)
@@ -419,7 +418,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            if (permissionLevel < PermissionLevels.Manager)
+            if (permissionLevel < (int)GroupRole.Manager)
                 return Error.Forbidden("Only Managers and Owners can delete tasks");
 
             var now = DateTime.UtcNow;
