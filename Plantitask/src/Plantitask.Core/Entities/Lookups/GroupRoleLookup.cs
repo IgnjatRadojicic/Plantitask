@@ -8,7 +8,7 @@ namespace Plantitask.Core.Entities.Lookups
 {
     public class GroupRoleLookup : BaseLookupEntity
     {
-        public int PermissionLevel { get; set; } 
+        // The rank is the Id (== the GroupRole enum value). There is no separate level column.
         public ICollection<GroupMember> GroupMembers { get; set; } = new List<GroupMember>();
     }
 }

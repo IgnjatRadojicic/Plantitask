@@ -123,13 +123,12 @@ public class CommentService : ICommentService
             return Error.NotFound("Comment not found");
 
         var membership = await _context.GroupMembers
-            .Include(gm => gm.Role)
             .FirstOrDefaultAsync(gm => gm.GroupId == comment.Task.GroupId && gm.UserId == userId);
 
         if (membership == null)
             return Error.Forbidden("You must be a member of the group");
 
-        var canDelete = comment.CreatedBy == userId || membership.Role.PermissionLevel >= (int)GroupRole.Manager;
+        var canDelete = comment.CreatedBy == userId || (GroupRole)membership.RoleId >= GroupRole.Manager;
 
         if (!canDelete)
             return Error.Forbidden("You can only delete your own comments or you must be a Manager or Owner");
