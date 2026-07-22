@@ -308,7 +308,7 @@ namespace Plantitask.Infrastructure.Services
                 GroupCode = group.GroupCode,
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
                 MemberCount = memberCount,
-                UserRole = permissionLevel >= PermissionLevels.Owner ? GroupRole.Owner : GroupRole.Manager,
+                UserRole = RoleFromLevel(permissionLevel.Value) ?? GroupRole.Member,
             };
         }
 
@@ -557,6 +557,15 @@ namespace Plantitask.Infrastructure.Services
             GroupRole.Manager => PermissionLevels.Manager,
             GroupRole.TeamLead => PermissionLevels.TeamLead,
             GroupRole.Member => PermissionLevels.Member,
+            _ => null,
+        };
+
+        private static GroupRole? RoleFromLevel(int level) => level switch
+        {
+            PermissionLevels.Owner => GroupRole.Owner,
+            PermissionLevels.Manager => GroupRole.Manager,
+            PermissionLevels.TeamLead => GroupRole.TeamLead,
+            PermissionLevels.Member => GroupRole.Member,
             _ => null,
         };
 
