@@ -540,17 +540,13 @@ namespace Plantitask.Infrastructure.Services
 
         private async Task<string> GenerateUniqueGroupCode(string groupName)
         {
-            string code;
-            bool codeExists;
-
-            do
+            for (int attemp = 0; attemp < 5; attemp++)
             {
-                code = _codeGenerator.Generate(groupName);
-                codeExists = await _context.Groups.AnyAsync(g => g.GroupCode == code);
+                var code = _codeGenerator.Generate(groupName);
+                if (!await _context.Groups.AnyAsync(g => g.GroupCode == code))
+                    return code;
             }
-            while (codeExists);
-
-            return code;
+            throw new InvalidOperationException("Could not generate a unique group code");
         }
 
         private static int? RoleLevel(GroupRole role) => role switch
