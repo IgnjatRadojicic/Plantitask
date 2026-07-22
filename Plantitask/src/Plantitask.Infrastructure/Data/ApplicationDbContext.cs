@@ -121,6 +121,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         {
             entity.HasKey(e => e.Id);
 
+            entity.HasIndex(e => new { e.GroupId, e.UserId }).IsUnique();
 
             entity.HasOne(e => e.Group)
                 .WithMany(g => g.Members)
