@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
-using Plantitask.Core.Constants;
 using Plantitask.Core.DTO.Groups;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
@@ -35,11 +34,11 @@ namespace Plantitask.Infrastructure.Services
                 .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
         }
 
-        public async Task<int?> GetUserPermissionLevelAsync(Guid groupId, Guid userId)
+        public async Task<GroupRole?> GetUserPermissionLevelAsync(Guid groupId, Guid userId)
         {
             return await _context.GroupMembers
                 .Where(gm => gm.GroupId == groupId && gm.UserId == userId)
-                .Select(gm => (int?)gm.Role.PermissionLevel)
+                .Select(gm => (GroupRole?)gm.RoleId)
                 .FirstOrDefaultAsync();
         }
 
@@ -280,7 +279,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < (int)GroupRole.Manager)
+            if (permissionLevel < GroupRole.Manager)
                 return Error.Forbidden("Only Owner or Manager can update group details");
 
             if (!string.IsNullOrEmpty(updateGroupDto.Name))
@@ -308,7 +307,7 @@ namespace Plantitask.Infrastructure.Services
                 GroupCode = group.GroupCode,
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
                 MemberCount = memberCount,
-                UserRole = RoleFromLevel(permissionLevel.Value) ?? GroupRole.Member,
+                UserRole = permissionLevel.Value,
             };
         }
 
@@ -323,7 +322,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < (int)GroupRole.Manager)
+            if (permissionLevel < GroupRole.Manager)
                 return Error.Forbidden("Only Owner or Manager can change roles");
 
             if (memberId == userId)
@@ -332,8 +331,7 @@ namespace Plantitask.Infrastructure.Services
             if (changeRoleDto.NewRole == GroupRole.Owner)
                 return Error.BadRequest("Ownership cannot be assigned through a role change");
 
-            var newRoleLevel = RoleLevel(changeRoleDto.NewRole);
-            if (newRoleLevel == null)
+            if (!Enum.IsDefined(changeRoleDto.NewRole))
                 return Error.BadRequest("Invalid role");
 
             var targetMembership = await _context.GroupMembers
@@ -343,11 +341,10 @@ namespace Plantitask.Infrastructure.Services
             if (targetMembership == null)
                 return Error.NotFound("Member not found in this group");
 
-            var targetLevel = RoleLevel((GroupRole)targetMembership.RoleId);
-            if (targetLevel == null || targetLevel >= permissionLevel)
+            if ((GroupRole)targetMembership.RoleId >= permissionLevel)
                 return Error.Forbidden("You can only change roles of members below your own role");
 
-            if (newRoleLevel >= permissionLevel)
+            if (changeRoleDto.NewRole >= permissionLevel)
                 return Error.Forbidden("You cannot assign a role at or above your own");
 
 
@@ -378,7 +375,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < (int)GroupRole.Owner)
+            if (permissionLevel < GroupRole.Owner)
                 return Error.Forbidden("Only the owner can transfer ownership");
 
             var newOwnerMembership = await _context.GroupMembers
@@ -407,7 +404,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < (int)GroupRole.Owner)
+            if (permissionLevel < GroupRole.Owner)
                 return Error.Forbidden("Only the owner can delete the group");
 
             var memberCount = await _context.GroupMembers
@@ -484,7 +481,7 @@ namespace Plantitask.Infrastructure.Services
             if (permissionLevel == null)
                 return Error.Forbidden("You are not a member of this group");
 
-            if (permissionLevel < (int)GroupRole.Manager) 
+            if (permissionLevel < GroupRole.Manager) 
                 return Error.Forbidden("Only Owner or Manager can remove members");
 
             var targetMembership = await _context.GroupMembers
@@ -497,8 +494,7 @@ namespace Plantitask.Infrastructure.Services
                 return Error.BadRequest("Cannot remove the group owner");
 
 
-            var targetLevel = RoleLevel(targetMembership.RoleId);
-            if (targetLevel == null || targetLevel >= permissionLevel)
+            if ((GroupRole)targetMembership.RoleId >= permissionLevel)
                 return Error.Forbidden("You can only remove members below your own role");
 
             targetMembership.IsDeleted = true;
@@ -548,26 +544,6 @@ namespace Plantitask.Infrastructure.Services
             }
             throw new InvalidOperationException("Could not generate a unique group code");
         }
-
-        private static int? RoleLevel(GroupRole role) => role switch
-        {
-            GroupRole.Owner => PermissionLevels.Owner,
-            GroupRole.Manager => PermissionLevels.Manager,
-            GroupRole.TeamLead => PermissionLevels.TeamLead,
-            GroupRole.Member => PermissionLevels.Member,
-            _ => null,
-        };
-
-        private static GroupRole? RoleFromLevel(int level) => level switch
-        {
-            PermissionLevels.Owner => GroupRole.Owner,
-            PermissionLevels.Manager => GroupRole.Manager,
-            PermissionLevels.TeamLead => GroupRole.TeamLead,
-            PermissionLevels.Member => GroupRole.Member,
-            _ => null,
-        };
-
-        private static int? RoleLevel(int roleId) => RoleLevel((GroupRole)roleId);
 
     }
 }

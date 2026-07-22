@@ -6,13 +6,14 @@ using System.Text;
 using System.Threading.Tasks;
 using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Groups;
+using Plantitask.Core.Enums;
 
 namespace Plantitask.Core.Interfaces
 {
     public interface IGroupService
     {
         Task<bool> IsUserMemberAsync(Guid groupId, Guid userId);
-        Task<int?> GetUserPermissionLevelAsync(Guid groupId, Guid userId);
+        Task<GroupRole?> GetUserPermissionLevelAsync(Guid groupId, Guid userId);
         Task<Result<GroupDto>> CreateGroupAsync(CreateGroupDto createGroupDto, Guid userId);
         Task<Result<GroupDto>> JoinGroupAsync(JoinGroupDto joinGroupDto, Guid userId);
         Task<Result<List<GroupDto>>> GetUserGroupsAsync(Guid userId);

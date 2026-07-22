@@ -219,7 +219,7 @@ namespace Plantitask.Infrastructure.Services
 
             var permissionLevel = await _groupService.GetUserPermissionLevelAsync(groupId, userId);
 
-            var canDelete = permissionLevel >= (int)GroupRole.Manager || attachment.CreatedBy == userId;
+            var canDelete = permissionLevel >= GroupRole.Manager || attachment.CreatedBy == userId;
 
             if (!canDelete)
                 return Error.Forbidden("Only Managers, Owners, or the uploader can delete attachments");
