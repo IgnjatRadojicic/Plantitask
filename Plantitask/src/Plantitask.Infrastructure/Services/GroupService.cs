@@ -384,7 +384,7 @@ namespace Plantitask.Infrastructure.Services
             var newOwnerMembership = await _context.GroupMembers
                 .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == newOwnerId);
             if (newOwnerMembership == null)
-                return Error.NotFound("New oner must be a group member");
+                return Error.NotFound("New owner must be a group member");
 
             var currentOwnerMembership = await _context.GroupMembers
                 .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
@@ -395,6 +395,8 @@ namespace Plantitask.Infrastructure.Services
             currentOwnerMembership!.RoleId = (int)GroupRole.Manager;
 
             await _context.SaveChangesAsync();
+            _logger.LogInformation("Ownership of group {GroupId} transferred from {UserId} to {NewOwnerId}",
+                groupId, userId, newOwnerId);
             return Result.Success();
         }
 
