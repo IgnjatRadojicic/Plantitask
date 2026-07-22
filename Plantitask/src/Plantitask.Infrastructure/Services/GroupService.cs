@@ -211,7 +211,10 @@ namespace Plantitask.Infrastructure.Services
                     Name = gm.Group.Name,
                     GroupCode = gm.Group.GroupCode,
                     IsPasswordProtected = !string.IsNullOrEmpty(gm.Group.PasswordHash),
-                    MemberCount = gm.Group.Members.Count
+                    MemberCount = gm.Group.Members.Count,
+                    UserRole = (GroupRole)gm.RoleId,
+                    JoinedAt = gm.CreatedAt,
+                    CreatedAt = gm.Group.CreatedAt,
                 }).ToListAsync();
 
             return groups;
