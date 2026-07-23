@@ -138,9 +138,9 @@ namespace Plantitask.Infrastructure.Services
                 }
             }
 
-            return await PaginatedList<TaskDto>.CreateAsync(
-                query.OrderByDescending(t => t.CreatedAt).Select(TaskProjections.ToTaskDto),
-                pageNumber, pageSize);
+            return await query.OrderByDescending(t => t.CreatedAt)
+                .Select(TaskProjections.ToTaskDto)
+                .ToPaginatedListAsync(pageNumber, pageSize);
         }
 
         public async Task<Result<TaskDto>> GetTaskByIdAsync(Guid taskId, Guid userId)

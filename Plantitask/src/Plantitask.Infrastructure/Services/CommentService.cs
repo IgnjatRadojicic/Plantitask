@@ -74,8 +74,7 @@ public class CommentService : ICommentService
             .Where(tc => tc.TaskId == taskId)
             .OrderBy(tc => tc.CreatedAt);
 
-        return await PaginatedList<CommentDto>.CreateAsync(
-            query.Select(tc => new CommentDto
+        return await query.Select(tc => new CommentDto
              {
                  Id = tc.Id,
                  TaskId = tc.TaskId,
@@ -85,7 +84,7 @@ public class CommentService : ICommentService
                  UserName = tc.Author.UserName,
                  CreatedAt = tc.CreatedAt,
                  UpdatedAt = tc.UpdatedAt
-             }), pageNumber, pageSize);
+             }).ToPaginatedListAsync(pageNumber, pageSize);
 
     }
 

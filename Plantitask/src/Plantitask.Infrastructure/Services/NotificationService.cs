@@ -239,8 +239,7 @@ public class NotificationService : INotificationService
             query = query.Where(n => !n.IsRead);
 
 
-        return await PaginatedList<NotificationDto>.CreateAsync(
-            query.OrderByDescending(n => n.CreatedAt)
+        return await query.OrderByDescending(n => n.CreatedAt)
             .Select(n => new NotificationDto
             {
                 Id = n.Id,
@@ -254,7 +253,7 @@ public class NotificationService : INotificationService
                 IsRead = n.IsRead,
                 ReadAt = n.ReadAt,
                 CreatedAt = n.CreatedAt
-            }), pageNumber, pageSize);
+            }).ToPaginatedListAsync(pageNumber, pageSize);
 
     }
 
