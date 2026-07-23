@@ -1,13 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Pipelines.Sockets.Unofficial.Arenas;
 using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Kanban;
 using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
-using Pipelines.Sockets.Unofficial.Arenas;
-using Microsoft.Extensions.Caching.Memory;
+using System.Text.RegularExpressions;
 
 
 namespace Plantitask.Infrastructure.Services
@@ -424,6 +425,17 @@ namespace Plantitask.Infrastructure.Services
             var now = DateTime.UtcNow;
 
             await using var transaction = await _context.BeginTransactionAsync();
+
+
+            await _context.Notifications
+                .IgnoreQueryFilters()
+                .Where(n => _context.Tasks.Any(t => t.Id == n.RelatedEntityId && t.GroupId == task.GroupId)
+                            && !n.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(n => n.IsDeleted, true)
+                    .SetProperty(n => n.DeletedAt, now)
+                    .SetProperty(n => n.DeletedBy, userId)
+                    .SetProperty(n => n.UpdatedAt, now));
 
             await _context.TaskComments
                 .IgnoreQueryFilters()

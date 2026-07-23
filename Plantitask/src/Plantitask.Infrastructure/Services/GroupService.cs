@@ -425,6 +425,16 @@ namespace Plantitask.Infrastructure.Services
 
             await using var transaction = await _context.BeginTransactionAsync();
 
+            await _context.Notifications
+                .IgnoreQueryFilters()
+                .Where(n => _context.Tasks.Any(t => t.Id == n.RelatedEntityId && t.GroupId == groupId)
+                            && !n.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(n => n.IsDeleted, true)
+                    .SetProperty(n => n.DeletedAt, now)
+                    .SetProperty(n => n.DeletedBy, userId)
+                    .SetProperty(n => n.UpdatedAt, now));
+
             await _context.TaskComments
                 .IgnoreQueryFilters()
                 .Where(tc => tc.Task.GroupId == groupId && !tc.IsDeleted)
@@ -443,6 +453,7 @@ namespace Plantitask.Infrastructure.Services
                     .SetProperty(a => a.DeletedAt, now)
                     .SetProperty(a => a.DeletedBy, userId)
                     .SetProperty(a => a.UpdatedAt, now));
+
 
             await _context.Tasks
                 .IgnoreQueryFilters()
