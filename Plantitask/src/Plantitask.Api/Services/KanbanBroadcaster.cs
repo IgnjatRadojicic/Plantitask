@@ -18,7 +18,7 @@ namespace Plantitask.Api.Services
         {
             await _hubContext.Clients
                 .Group($"kanban-{groupId}")
-                .SendAsync("TaskMoved", new
+                .SendAsync("TaskMoved", new KanbanTaskMovedEvent
                 {
                     TaskId = taskId,
                     OldStatusId = oldStatusId,
@@ -32,7 +32,7 @@ namespace Plantitask.Api.Services
         {
             await _hubContext.Clients
                 .Group($"kanban-{groupId}")
-                .SendAsync("TaskCreated", new
+                .SendAsync("TaskCreated", new KanbanTaskCreatedEvent
                 {
                     TaskId = taskId,
                     StatusId = statusId,
@@ -44,7 +44,7 @@ namespace Plantitask.Api.Services
         {
             await _hubContext.Clients
                 .Group($"kanban-{groupId}")
-                .SendAsync("TaskDeleted", new
+                .SendAsync("TaskDeleted", new KanbanTaskDeletedEvent
                 {
                     TaskId = taskId,
                     StatusId = statusId,
@@ -56,7 +56,7 @@ namespace Plantitask.Api.Services
         {
             await _hubContext.Clients
                 .Group($"kanban-{groupId}")
-                .SendAsync("TaskUpdated", new
+                .SendAsync("TaskUpdated", new KanbanTaskUpdatedEvent
                 {
                     TaskId = taskId,
                     UpdatedByUserId = updatedByUserId
