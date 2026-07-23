@@ -45,20 +45,9 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result<GroupDto>> CreateGroupAsync(CreateGroupDto createGroupDto, Guid userId)
         {
 
-            var userData = await _context.Users
-                .Where(u => u.Id == userId)
-                .Select(u => new { u.MaxGroups })
-                .FirstOrDefaultAsync();
-
-            if (userData == null)
-                return Error.NotFound("User not found");
-
-            var currentGroupCount = await _context.GroupMembers
-                .CountAsync(gm => gm.UserId == userId);
-
-            if (currentGroupCount >= userData.MaxGroups)
-                return Error.Forbidden($"You've reached your limit of {userData.MaxGroups} groups. Upgrade to Premium for more.");
-
+            var limitError = await CheckGroupLimitAsync(userId);
+            if (limitError != null)
+                return limitError;
 
             var groupCode = await GenerateUniqueGroupCode(createGroupDto.Name);
 
@@ -144,19 +133,9 @@ namespace Plantitask.Infrastructure.Services
                 }
             }
 
-            var userData = await _context.Users
-                .Where(u => u.Id == userId)
-                .Select(u => new { u.MaxGroups })
-                .FirstOrDefaultAsync();
-
-            if (userData == null)
-                return Error.NotFound("User not found");
-
-            var currentGroupCount = await _context.GroupMembers
-                .CountAsync(gm => gm.UserId == userId);
-
-            if (currentGroupCount >= userData?.MaxGroups)
-                return Error.Forbidden($"You've reached your limit of {userData.MaxGroups} Trees. Upgrade to Premium for more.");
+            var limitError = await CheckGroupLimitAsync(userId);
+            if (limitError != null)
+                return limitError;
 
             var Rejoin = existingMember != null;
 
@@ -411,6 +390,9 @@ namespace Plantitask.Infrastructure.Services
             var memberCount = await _context.GroupMembers
                 .CountAsync(gm => gm.GroupId == groupId);
 
+
+            // Keeps the cascade at single-membership: only the owner's row needs soft-deleting
+            // Relaxing this requires adding a GroupMembers ExecuteUpdate to the cascade
             if (memberCount > 1)
                 return Error.BadRequest("Remove all other members before deleting the group");
 
@@ -545,6 +527,22 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        private async Task<Error?> CheckGroupLimitAsync(Guid userId)
+        {
+            var maxGroups = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => (int?)u.MaxGroups)
+                .FirstOrDefaultAsync();
+            if (maxGroups == null)
+                return Error.NotFound("User not found");
+
+            var currentGroupCount = await _context.GroupMembers
+                .CountAsync(gm => gm.UserId == userId);
+
+            return currentGroupCount >= maxGroups
+                ? Error.Forbidden($"You've reached your limit of {maxGroups} Trees. Upgrade to Premium for more.")
+                : null;
+        }
 
 
         private async Task<string> GenerateUniqueGroupCode(string groupName)
