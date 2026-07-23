@@ -204,11 +204,6 @@ namespace Plantitask.Infrastructure.Services
                 task.DueDate = updateTaskDto.DueDate.Value; 
 
             task.UpdatedBy = userId;
-            
-
-            await _context.SaveChangesAsync();
-
-            var result = await GetTaskByIdAsync(task.Id, userId);
 
             if (task.DueSoonJobId != null)
             {
@@ -218,6 +213,10 @@ namespace Plantitask.Infrastructure.Services
             task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
                 ? await _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value)
                 : null;
+
+            await _context.SaveChangesAsync();
+
+            var result = await GetTaskByIdAsync(task.Id, userId);
 
             _logger.LogInformation("Task {TaskId} updated by user {UserId}", taskId, userId);
 
@@ -254,6 +253,11 @@ namespace Plantitask.Infrastructure.Services
                 return Error.BadRequest("Invalid status selected");
 
             var oldStatusId = task.StatusId;
+
+            if (oldStatusId == statusDto.NewStatusId)
+                return Error.BadRequest("Task is already in that status");
+
+            task.StatusId = statusDto.NewStatusId;          
 
             if (statusDto.NewStatusId == (int)TaskStatusItem.Completed)
                 task.CompletedAt ??= DateTime.UtcNow;
@@ -355,9 +359,6 @@ namespace Plantitask.Infrastructure.Services
 
             task.AssignedToId = assignDto.UserId;
             task.UpdatedBy = userId;
-            
-
-            await _context.SaveChangesAsync();
 
             if (task.DueSoonJobId != null)
             {
@@ -367,6 +368,10 @@ namespace Plantitask.Infrastructure.Services
             task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
              ? await _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value)
              : null;
+
+            await _context.SaveChangesAsync();
+
+
 
             _logger.LogInformation("Task {TaskId} assigned to user {AssignedUserId} by {UserId}",
                 taskId, assignDto.UserId, userId);
@@ -430,8 +435,7 @@ namespace Plantitask.Infrastructure.Services
 
             await _context.Notifications
                 .IgnoreQueryFilters()
-                .Where(n => _context.Tasks.Any(t => t.Id == n.RelatedEntityId && t.GroupId == task.GroupId)
-                            && !n.IsDeleted)
+                .Where(n => n.RelatedEntityId == taskId && !n.IsDeleted)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(n => n.IsDeleted, true)
                     .SetProperty(n => n.DeletedAt, now)
