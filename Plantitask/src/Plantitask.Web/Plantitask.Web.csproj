@@ -14,4 +14,7 @@
 		<PackageReference Include="MudBlazor" Version="9.1.0" />
 		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.0" />
 	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Plantitask.Contracts\Plantitask.Contracts.csproj" />
+	</ItemGroup>
 </Project>

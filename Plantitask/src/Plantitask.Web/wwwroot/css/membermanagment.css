@@ -373,22 +373,22 @@
     letter-spacing: 0.3px;
 }
 
-.members-role-1 {
+.members-role-Owner {
     background: rgba(156, 193, 3, 0.12);
     color: #7A9902;
 }
 
-.members-role-2 {
+.members-role-Manager {
     background: rgba(33, 150, 243, 0.1);
     color: #1976D2;
 }
 
-.members-role-3 {
+.members-role-TeamLead {
     background: rgba(255, 152, 0, 0.1);
     color: #F57C00;
 }
 
-.members-role-4 {
+.members-role-Member {
     background: var(--c-black-a06);
     color: var(--c-text-mid);
 }

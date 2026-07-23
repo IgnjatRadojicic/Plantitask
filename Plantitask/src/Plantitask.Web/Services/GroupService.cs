@@ -1,4 +1,6 @@
-﻿using Plantitask.Web.Interfaces;
+﻿using Plantitask.Core.DTO.Groups;
+using Plantitask.Core.Enums;
+using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
 namespace Plantitask.Web.Services
@@ -9,12 +11,12 @@ namespace Plantitask.Web.Services
         {
         }
 
-        public async Task<ServiceResult<GroupDto>> CreateGroupAsync(CreateGroupRequest request)
+        public async Task<ServiceResult<GroupDto>> CreateGroupAsync(CreateGroupDto request)
         {
             return await PostAsync<GroupDto>("api/groups", request);
         }
-        public Task<ServiceResult<GroupMemberDto>> ChangeUserRoleAsync(Guid groupId, Guid memberId, int newRoleId)
-         => PutAsync<GroupMemberDto>($"api/groups/{groupId}/members/{memberId}/role", new { NewRole = newRoleId });
+        public Task<ServiceResult<GroupMemberDto>> ChangeUserRoleAsync(Guid groupId, Guid memberId, GroupRole newRole)
+         => PutAsync<GroupMemberDto>($"api/groups/{groupId}/members/{memberId}/role", new ChangeRoleDto { NewRole = newRole });
 
         public Task<ServiceResult<object>> RemoveMemberAsync(Guid groupId, Guid memberId)
             => DeleteAsync<object>($"api/groups/{groupId}/members/{memberId}");
@@ -32,7 +34,7 @@ namespace Plantitask.Web.Services
             return await GetAsync<List<GroupDto>>("api/groups");
         }
 
-        public async Task<ServiceResult<GroupDto>> JoinGroupAsync(JoinGroupRequest request)
+        public async Task<ServiceResult<GroupDto>> JoinGroupAsync(JoinGroupDto request)
         {
             return await PostAsync<GroupDto>("api/groups/join", request);
         }

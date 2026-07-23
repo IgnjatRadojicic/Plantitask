@@ -1,54 +1,8 @@
 ﻿namespace Plantitask.Web.Models;
 
-// ===== Group Dtos =====
-
-public class GroupDto
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string GroupCode { get; set; } = string.Empty;
-    public bool IsPasswordProtected { get; set; }
-    public int MemberCount { get; set; }
-    public int UserRole { get; set; }
-    public DateTime JoinedAt { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
-
-public class GroupDetailsDto
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string GroupCode { get; set; } = string.Empty;
-    public Guid OwnerId { get; set; }
-    public string OwnerName { get; set; } = string.Empty;
-    public bool IsPasswordProtected { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public List<GroupMemberDto> Members { get; set; } = new();
-}
-
-public class GroupMemberDto
-{
-    public Guid UserId { get; set; }
-    public string UserName { get; set; } = string.Empty;
-    public string? FirstName { get; set; }
-    public string? LastName { get; set; }
-
-    public string? ProfilePictureUrl { get; set; }
-    public int Role { get; set; }
-    public DateTime JoinedAt { get; set; }
-}
-
-public class CreateGroupRequest
-{
-    public string Name { get; set; } = string.Empty;
-    public string? Password { get; set; }
-}
-
-public class JoinGroupRequest
-{
-    public string GroupCode { get; set; } = string.Empty;
-    public string? Password { get; set; }
-}
+// Group wire DTOs (GroupDto, GroupDetailsDto, GroupMemberDto, CreateGroupDto, JoinGroupDto)
+// now live in Plantitask.Contracts and are shared with the API. The tree/dashboard models
+// below are frontend-only view shapes and stay here.
 
 public enum TreeStage
 {

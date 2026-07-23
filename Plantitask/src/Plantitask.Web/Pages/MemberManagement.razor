@@ -1,5 +1,6 @@
 ﻿@page "/groups/{Slug}/{GroupId:guid}/members"
 @layout PublicLayout
+@using Plantitask.Core.Enums
 @inject IGroupService GroupService
 @inject ICurrentUserService CurrentUserService
 @inject NavigationManager Navigation
@@ -58,15 +59,15 @@
     {
         <div class="members-role-summary">
             <div class="members-role-card">
-                <span class="members-role-card-count text-sora">@_members.Count(m => m.Role == 1)</span>
+                <span class="members-role-card-count text-sora">@_members.Count(m => m.Role == GroupRole.Owner)</span>
                 <span class="members-role-card-label">Owners</span>
             </div>
             <div class="members-role-card">
-                <span class="members-role-card-count text-sora">@_members.Count(m => m.Role == 2)</span>
+                <span class="members-role-card-count text-sora">@_members.Count(m => m.Role == GroupRole.Manager)</span>
                 <span class="members-role-card-label">Managers</span>
             </div>
             <div class="members-role-card">
-                <span class="members-role-card-count text-sora">@_members.Count(m => m.Role == 3)</span>
+                <span class="members-role-card-count text-sora">@_members.Count(m => m.Role == GroupRole.TeamLead)</span>
                 <span class="members-role-card-label">Team Leads</span>
             </div>
         </div>
@@ -82,7 +83,7 @@
             @foreach (var member in FilteredMembers)
             {
                 var isCurrentUser = member.UserId == CurrentUserId;
-                var isOwner = member.Role == 1;
+                var isOwner = member.Role == GroupRole.Owner;
 
                 <div class="members-table-row @(isCurrentUser ? "members-row-self" : "")">
                     <div class="members-td-name">
@@ -105,23 +106,19 @@
                                     <span class="members-you-badge">You</span>
                                 }
                             </span>
-                            @if (!string.IsNullOrEmpty(member.FirstName) || !string.IsNullOrEmpty(member.LastName))
-                            {
-                                <span class="members-user-fullname">@member.FirstName @member.LastName</span>
-                            }
                         </div>
                     </div>
 
                     <div class="members-td">
                         @if (CanManageRoles && !isOwner && !isCurrentUser)
                         {
-                            <MudSelect T="int" Value="@member.Role"
-                                       ValueChanged="(int val) => HandleRoleChange(member, val)"
+                            <MudSelect T="GroupRole" Value="@member.Role"
+                                       ValueChanged="(GroupRole val) => HandleRoleChange(member, val)"
                                        Variant="Variant.Outlined" Dense="true"
                                        Class="members-role-select">
-                                <MudSelectItem T="int" Value="2">Manager</MudSelectItem>
-                                <MudSelectItem T="int" Value="3">Team Lead</MudSelectItem>
-                                <MudSelectItem T="int" Value="4">Member</MudSelectItem>
+                                <MudSelectItem T="GroupRole" Value="@GroupRole.Manager">Manager</MudSelectItem>
+                                <MudSelectItem T="GroupRole" Value="@GroupRole.TeamLead">Team Lead</MudSelectItem>
+                                <MudSelectItem T="GroupRole" Value="@GroupRole.Member">Member</MudSelectItem>
                             </MudSelect>
                         }
                         else
@@ -203,16 +200,15 @@
     private Func<Task>? _confirmCallback;
 
     private Guid CurrentUserId { get; set; }
-    private int CurrentUserRole { get; set; }
-    private bool CanManageRoles => CurrentUserRole is 1 or 2;
+    private GroupRole? CurrentUserRole { get; set; }
+    private bool CanManageRoles => CurrentUserRole >= GroupRole.Manager;
 
+    // Owner is the highest GroupRole value now, so order descending to keep Owners on top.
     private IEnumerable<GroupMemberDto> FilteredMembers => string.IsNullOrWhiteSpace(_searchQuery)
-        ? _members.OrderBy(m => m.Role).ThenBy(m => m.UserName)
+        ? _members.OrderByDescending(m => m.Role).ThenBy(m => m.UserName)
         : _members
-            .Where(m => m.UserName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)
-                || (m.FirstName?.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (m.LastName?.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ?? false))
-            .OrderBy(m => m.Role).ThenBy(m => m.UserName);
+            .Where(m => m.UserName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(m => m.Role).ThenBy(m => m.UserName);
 
     protected override async Task OnInitializedAsync()
     {
@@ -248,19 +244,17 @@
         _loading = false;
     }
 
-    private static string GetRoleName(int role) => role switch
+    private static string GetRoleName(GroupRole role) => role switch
     {
-        1 => "Owner",
-        2 => "Manager",
-        3 => "Team Lead",
-        4 => "Member",
+        GroupRole.Owner => "Owner",
+        GroupRole.Manager => "Manager",
+        GroupRole.TeamLead => "Team Lead",
+        GroupRole.Member => "Member",
         _ => "Unknown"
     };
 
     private string GetInitials(GroupMemberDto member)
     {
-        if (!string.IsNullOrEmpty(member.FirstName) && !string.IsNullOrEmpty(member.LastName))
-            return $"{member.FirstName[0]}{member.LastName[0]}".ToUpper();
         return member.UserName.Length > 0 ? member.UserName[0].ToString().ToUpper() : "?";
     }
 
@@ -270,7 +264,7 @@
         Snackbar.Add("Invite code copied!", MudBlazor.Severity.Success);
     }
 
-    private async Task HandleRoleChange(GroupMemberDto member, int newRole)
+    private async Task HandleRoleChange(GroupMemberDto member, GroupRole newRole)
     {
         if (member.Role == newRole || _saving) return;
         _saving = true;

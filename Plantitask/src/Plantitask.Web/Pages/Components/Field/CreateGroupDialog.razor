@@ -63,7 +63,7 @@
     [Parameter] public EventCallback<GroupDto> OnCreated { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
-    private CreateGroupRequest _model  = new();
+    private CreateGroupDto _model  = new();
     private bool               _isBusy;
     private string?            _error;
 

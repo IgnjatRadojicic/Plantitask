@@ -1,4 +1,6 @@
-﻿using Plantitask.Web.Models;
+using Plantitask.Core.DTO.Groups;
+using Plantitask.Core.Enums;
+using Plantitask.Web.Models;
 
 namespace Plantitask.Web.Interfaces
 {
@@ -6,10 +8,10 @@ namespace Plantitask.Web.Interfaces
     {
         Task<ServiceResult<List<GroupDto>>> GetGUserGroupsAsync();
         Task<ServiceResult<GroupDetailsDto>> GetGroupDetailsAsync(Guid groupId);
-        Task<ServiceResult<GroupDto>> CreateGroupAsync(CreateGroupRequest request);
-        Task<ServiceResult<GroupDto>> JoinGroupAsync(JoinGroupRequest request);
+        Task<ServiceResult<GroupDto>> CreateGroupAsync(CreateGroupDto request);
+        Task<ServiceResult<GroupDto>> JoinGroupAsync(JoinGroupDto request);
 
-        Task<ServiceResult<GroupMemberDto>> ChangeUserRoleAsync(Guid groupId, Guid memberId, int newRoleId);
+        Task<ServiceResult<GroupMemberDto>> ChangeUserRoleAsync(Guid groupId, Guid memberId, GroupRole newRole);
         Task<ServiceResult<object>> RemoveMemberAsync(Guid groupId, Guid memberId);
         Task<ServiceResult<MessageResponse>> LeaveGroupAsync(Guid groupId);
     }
