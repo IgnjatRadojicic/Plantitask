@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Plantitask.Web.Models;
 
 
+using Plantitask.Core.DTO.Notifications;
 namespace Plantitask.Web.Services
 {
     public class NotificationSignalRService : INotificationSignalRService

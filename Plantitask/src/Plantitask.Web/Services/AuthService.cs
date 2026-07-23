@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using Plantitask.Core.DTO.Auth;
 namespace Plantitask.Web.Services
 {
     public class AuthService : BaseApiService, IAuthService
@@ -24,26 +25,26 @@ namespace Plantitask.Web.Services
             _localStorage = localStorage;
             _authStateProvider = authStateProvider;
         }
-        public async Task<ServiceResult<CheckEmailResponse>> CheckEmailAsync(string email)
+        public async Task<ServiceResult<CheckEmailResponseDto>> CheckEmailAsync(string email)
         {
-            return await PostAsync<CheckEmailResponse>(
+            return await PostAsync<CheckEmailResponseDto>(
                 "api/auth/check-email",
-                new CheckEmailRequest { Email = email });
+                new CheckEmailDto { Email = email });
         }
 
         public async Task<ServiceResult<MessageResponse>> ForgotPasswordAsync(string email)
         {
             return await PostAsync<MessageResponse>(
                 "api/auth/forgot-password",
-                new ForgotPasswordRequest { Email = email });
+                new ForgotPasswordDto { Email = email });
         }
 
 
-        public async Task<ServiceResult<AuthResponse>> GoogleLoginAsync(string idToken)
+        public async Task<ServiceResult<AuthResponseDto>> GoogleLoginAsync(string idToken)
         {
-            var result = await PostAsync<AuthResponse>(
+            var result = await PostAsync<AuthResponseDto>(
                 "api/auth/google-login",
-                new GoogleLoginRequest { IdToken = idToken });
+                new GoogleLoginDto { IdToken = idToken });
 
             if (result.Success && result.Data != null)
                 await StoreTokensAndNotify(result.Data);
@@ -51,9 +52,9 @@ namespace Plantitask.Web.Services
             return result;
         }
 
-        public async Task<ServiceResult<AuthResponse>> LoginAsync(LoginRequest request)
+        public async Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginDto request)
         {
-            var result = await PostAsync<AuthResponse>("api/auth/login", request);
+            var result = await PostAsync<AuthResponseDto>("api/auth/login", request);
 
             if (result.Success && result.Data != null)
                 await StoreTokensAndNotify(result.Data);
@@ -70,7 +71,7 @@ namespace Plantitask.Web.Services
                 try
                 {
                     await Http.PostAsJsonAsync("api/auth/logout",
-                        new RefreshTokenRequest { RefreshToken = refreshToken });
+                        new RefreshTokenDto { RefreshToken = refreshToken });
                 }
                 catch { }
             }
@@ -80,11 +81,11 @@ namespace Plantitask.Web.Services
             _authStateProvider.NotifyUserLogout();
         }
 
-        public async Task<ServiceResult<AuthResponse>> RefreshTokenAsync(string refreshToken)
+        public async Task<ServiceResult<AuthResponseDto>> RefreshTokenAsync(string refreshToken)
         {
-            var result = await PostAsync<AuthResponse>(
+            var result = await PostAsync<AuthResponseDto>(
                 "api/auth/refresh",
-                new RefreshTokenRequest { RefreshToken = refreshToken });
+                new RefreshTokenDto { RefreshToken = refreshToken });
 
             if (result.Success && result.Data != null)
                 await StoreTokensAndNotify(result.Data);
@@ -92,9 +93,9 @@ namespace Plantitask.Web.Services
             return result;
         }
 
-        public async Task<ServiceResult<AuthResponse>> RegisterAsync(RegisterRequest request)
+        public async Task<ServiceResult<AuthResponseDto>> RegisterAsync(RegisterDto request)
         {
-            var result = await PostAsync<AuthResponse>("api/auth/register", request);
+            var result = await PostAsync<AuthResponseDto>("api/auth/register", request);
 
             if (result.Success && result.Data != null)
                 await StoreTokensAndNotify(result.Data);
@@ -102,7 +103,7 @@ namespace Plantitask.Web.Services
             return result;
         }
 
-        public async Task<ServiceResult<MessageResponse>> ResetPasswordAsync(ResetPasswordRequest request)
+        public async Task<ServiceResult<MessageResponse>> ResetPasswordAsync(ResetPasswordDto request)
         {
             return await PostAsync<MessageResponse>("api/auth/reset-password", request);
         }
@@ -118,7 +119,7 @@ namespace Plantitask.Web.Services
         {
             return await PostAsync<MessageResponse>(
                 "api/auth/verify-email",
-                new VerifyEmailRequest { Email = email, Code = code });
+                new VerifyEmailDto { Email = email, Code = code });
         }
 
         public async Task<string?> GetTokenAsync()
@@ -126,7 +127,7 @@ namespace Plantitask.Web.Services
             return await _localStorage.GetItemAsStringAsync(TokenKey);
         }
 
-        private async Task StoreTokensAndNotify(AuthResponse auth)
+        private async Task StoreTokensAndNotify(AuthResponseDto auth)
         {
             await _localStorage.SetItemAsStringAsync(TokenKey, auth.AccessToken);
             await _localStorage.SetItemAsStringAsync(RefreshTokenKey, auth.RefreshToken);

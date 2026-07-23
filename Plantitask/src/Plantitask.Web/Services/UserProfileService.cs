@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
+using Plantitask.Core.DTO.Users;
+using Plantitask.Core.DTO.Paypal;
 namespace Plantitask.Web.Services;
 
 public class UserProfileService : BaseApiService, IUserProfileService

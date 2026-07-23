@@ -1,4 +1,6 @@
-﻿namespace Plantitask.Web.Models;
+﻿using Plantitask.Core.DTO.Auth;
+
+namespace Plantitask.Web.Models;
 
 public class UserInfo
 {
@@ -35,7 +37,7 @@ public class UserInfo
     }
 
 
-    public static UserInfo FromAuthResponse(AuthResponse auth) => new()
+    public static UserInfo FromAuthResponse(AuthResponseDto auth) => new()
     {
         Id = auth.UserId,
         UserName = auth.UserName,

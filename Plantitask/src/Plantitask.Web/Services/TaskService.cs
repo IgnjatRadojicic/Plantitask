@@ -1,32 +1,35 @@
 ﻿using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
+using Plantitask.Core.Common;
+using Plantitask.Core.DTO.Tasks;
+using Plantitask.Web.Helpers;
 namespace Plantitask.Web.Services;
 
 public class TaskService : BaseApiService, ITaskService
 {
     public TaskService(HttpClient http) : base(http) { }
 
-    public Task<ServiceResult<TaskItemDto>> CreateTaskAsync(Guid groupId, CreateTaskDto model)
-        => PostAsync<TaskItemDto>($"api/task/groups/{groupId}", model);
+    public Task<ServiceResult<TaskDto>> CreateTaskAsync(Guid groupId, CreateTaskDto model)
+        => PostAsync<TaskDto>($"api/task/groups/{groupId}", model);
 
-    public Task<ServiceResult<List<TaskItemDto>>> GetGroupTasksAsync(Guid groupId, TaskFilterDto? filter = null)
+    public Task<ServiceResult<List<TaskDto>>> GetGroupTasksAsync(Guid groupId, TaskFilterDto? filter = null)
     {
         var qs = filter?.ToQueryString() ?? string.Empty;
-        return GetAsync<List<TaskItemDto>>($"api/task/groups/{groupId}{qs}");
+        return GetAsync<List<TaskDto>>($"api/task/groups/{groupId}{qs}");
     }
 
-    public Task<ServiceResult<TaskItemDto>> GetTaskByIdAsync(Guid taskId)
-        => GetAsync<TaskItemDto>($"api/task/{taskId}");
+    public Task<ServiceResult<TaskDto>> GetTaskByIdAsync(Guid taskId)
+        => GetAsync<TaskDto>($"api/task/{taskId}");
 
-    public Task<ServiceResult<TaskItemDto>> UpdateTaskAsync(Guid taskId, UpdateTaskDto model)
-        => PutAsync<TaskItemDto>($"api/task/{taskId}", model);
+    public Task<ServiceResult<TaskDto>> UpdateTaskAsync(Guid taskId, UpdateTaskDto model)
+        => PutAsync<TaskDto>($"api/task/{taskId}", model);
 
-    public Task<ServiceResult<TaskStatusChangeResultDto>> ChangeStatusAsync(Guid taskId, ChangeTaskStatusDto model)
-        => PutAsync<TaskStatusChangeResultDto>($"api/task/{taskId}/status", model);
+    public Task<ServiceResult<TaskStatusChangeResult>> ChangeStatusAsync(Guid taskId, ChangeTaskStatusDto model)
+        => PutAsync<TaskStatusChangeResult>($"api/task/{taskId}/status", model);
 
-    public Task<ServiceResult<TaskPriorityChangeResultDto>> ChangePriorityAsync(Guid taskId, int newPriorityId)
-        => PutAsync<TaskPriorityChangeResultDto>($"api/task/{taskId}/priority", newPriorityId);
+    public Task<ServiceResult<TaskPriorityChangeResult>> ChangePriorityAsync(Guid taskId, int newPriorityId)
+        => PutAsync<TaskPriorityChangeResult>($"api/task/{taskId}/priority", newPriorityId);
 
     public Task<ServiceResult<bool>> AssignTaskAsync(Guid taskId, AssignTaskDto model)
         => PostAsync<bool>($"api/task/{taskId}/assign", model);

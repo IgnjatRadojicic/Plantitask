@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
+using Plantitask.Core.DTO.Users;
 namespace Plantitask.Web.Services;
 
 public class CurrentUserService : ICurrentUserService

@@ -13,12 +13,12 @@
                 }
                 else if (!string.IsNullOrEmpty(Profile.ProfilePictureUrl))
                 {
-                    <img class="ds-profile-avatar" src="@Profile.ProfilePictureUrl" alt="@Profile.DisplayName" />
+                    <img class="ds-profile-avatar" src="@Profile.ProfilePictureUrl" alt="@Profile.DisplayName()" />
                 }
                 else
                 {
                     <div class="ds-profile-avatar ds-profile-avatar-placeholder">
-                        <span>@Profile.Initials</span>
+                        <span>@Profile.Initials()</span>
                     </div>
                 }
                 <label class="ds-profile-avatar-edit" title="Change avatar">
@@ -27,7 +27,7 @@
                 </label>
             </div>
             <div class="ds-profile-card-info">
-                <span class="text-sora ds-profile-display-name">@Profile.DisplayName</span>
+                <span class="text-sora ds-profile-display-name">@Profile.DisplayName()</span>
                 <span class="ds-profile-username">@@@Profile.UserName</span>
             </div>
         </div>

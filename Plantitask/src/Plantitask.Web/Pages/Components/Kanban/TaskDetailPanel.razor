@@ -164,10 +164,10 @@
     [Parameter] public TaskDetailViewMode ViewMode { get; set; } = TaskDetailViewMode.FullScreen;
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<TaskDetailViewMode> OnViewModeChanged { get; set; }
-    [Parameter] public EventCallback<TaskItemDto> OnTaskUpdated { get; set; }
+    [Parameter] public EventCallback<TaskDto> OnTaskUpdated { get; set; }
     [Parameter] public EventCallback<Guid> OnTaskDeleted { get; set; }
 
-    private TaskItemDto? _task;
+    private TaskDto? _task;
     private bool _loading = true;
     private bool _saving;
     private bool _editingDescription;

@@ -1,5 +1,6 @@
 ﻿using Plantitask.Web.Models;
 
+using Plantitask.Core.DTO.Kanban;
 namespace Plantitask.Web.Interfaces;
 
 

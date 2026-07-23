@@ -1,6 +1,6 @@
 @* KanbanCard.razor *@
 
-<div class="kanban-card @(Task.IsOverdue ? "kanban-card-overdue" : "")"
+<div class="kanban-card @(Task.IsOverdue() ? "kanban-card-overdue" : "")"
      data-task-id="@Task.Id"
      data-status-id="@Task.StatusId"
      @onclick="OnClicked"
@@ -9,7 +9,7 @@
         <span class="kanban-card-priority" style="background:@Task.PriorityColor">
             @Task.PriorityName
         </span>
-        @if (Task.IsOverdue)
+        @if (Task.IsOverdue())
         {
             <span class="kanban-card-overdue-badge">Overdue</span>
         }
@@ -23,7 +23,7 @@
         <div class="kanban-card-footer-left">
             @if (Task.DueDate.HasValue)
             {
-                <span class="kanban-card-due @(Task.IsOverdue ? "kanban-card-due-overdue" : "")">
+                <span class="kanban-card-due @(Task.IsOverdue() ? "kanban-card-due-overdue" : "")">
                     <MudIcon Icon="@Icons.Material.Outlined.CalendarToday" Size="Size.Small" />
                     @Task.DueDate.Value.ToString("MMM d")
                 </span>

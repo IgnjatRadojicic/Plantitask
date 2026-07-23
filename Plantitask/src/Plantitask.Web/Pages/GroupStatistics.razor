@@ -183,7 +183,7 @@
     [Parameter] public string Slug { get; set; } = "";
     [Parameter] public Guid GroupId { get; set; }
 
-    private GroupStatisticsModel? _stats;
+    private GroupStatisticsDto? _stats;
     private bool _loading = true;
 
     private double InProgressPercent => _stats is { TotalTasks: > 0 } ? (double)_stats.InProgressTasks / _stats.TotalTasks * 100 : 0;

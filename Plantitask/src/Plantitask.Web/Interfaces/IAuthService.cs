@@ -1,19 +1,20 @@
 ﻿using Plantitask.Web.Models;
 
+using Plantitask.Core.DTO.Auth;
 namespace Plantitask.Web.Interfaces
 {
     public interface IAuthService
     {
 
-        Task<ServiceResult<CheckEmailResponse>> CheckEmailAsync(string email);
-        Task<ServiceResult<AuthResponse>> LoginAsync(LoginRequest request);
+        Task<ServiceResult<CheckEmailResponseDto>> CheckEmailAsync(string email);
+        Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginDto request);
         Task<ServiceResult<MessageResponse>> SendVerificationCodeAsync(string email);
         Task<ServiceResult<MessageResponse>> VerifyCodeAsync(string email, string code);
-        Task<ServiceResult<AuthResponse>> RegisterAsync(RegisterRequest request);
-        Task<ServiceResult<AuthResponse>> GoogleLoginAsync(string idToken);
+        Task<ServiceResult<AuthResponseDto>> RegisterAsync(RegisterDto request);
+        Task<ServiceResult<AuthResponseDto>> GoogleLoginAsync(string idToken);
         Task<ServiceResult<MessageResponse>> ForgotPasswordAsync(string email);
-        Task<ServiceResult<MessageResponse>> ResetPasswordAsync(ResetPasswordRequest request);
-        Task<ServiceResult<AuthResponse>> RefreshTokenAsync(string refreshToken);
+        Task<ServiceResult<MessageResponse>> ResetPasswordAsync(ResetPasswordDto request);
+        Task<ServiceResult<AuthResponseDto>> RefreshTokenAsync(string refreshToken);
         Task LogoutAsync();
         Task<string?> GetTokenAsync();
 

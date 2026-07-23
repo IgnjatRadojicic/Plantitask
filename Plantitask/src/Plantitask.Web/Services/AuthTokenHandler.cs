@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
+using Plantitask.Core.DTO.Auth;
 namespace Plantitask.Web.Services;
 
 public class AuthTokenHandler : DelegatingHandler
@@ -101,7 +102,7 @@ public class AuthTokenHandler : DelegatingHandler
                 return false;
 
             var authResponse = await response.Content
-                .ReadFromJsonAsync<Models.AuthResponse>(cancellationToken: cancellationToken);
+                .ReadFromJsonAsync<AuthResponseDto>(cancellationToken: cancellationToken);
 
             if (authResponse == null)
                 return false;

@@ -294,7 +294,7 @@
     private void OpenTaskDetail(Guid taskId) => _selectedTaskId = taskId;
     private void CloseTaskDetail() => _selectedTaskId = null;
 
-    private void HandleTaskUpdated(TaskItemDto updated)
+    private void HandleTaskUpdated(TaskDto updated)
     {
         if (_board is null) return;
 

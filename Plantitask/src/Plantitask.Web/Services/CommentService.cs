@@ -1,6 +1,8 @@
 ﻿using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
+using Plantitask.Core.Common;
+using Plantitask.Core.DTO.Comments;
 namespace Plantitask.Web.Services;
 
 public class CommentService : BaseApiService, ICommentService
@@ -10,8 +12,8 @@ public class CommentService : BaseApiService, ICommentService
     public Task<ServiceResult<CommentDto>> AddCommentAsync(Guid taskId, CreateCommentDto model)
         => PostAsync<CommentDto>($"api/tasks/{taskId}/comments", model);
 
-    public Task<ServiceResult<PaginatedResult<CommentDto>>> GetCommentsAsync(Guid taskId, int page = 1, int pageSize = 20)
-        => GetAsync<PaginatedResult<CommentDto>>($"api/tasks/{taskId}/comments?pageNumber={page}&pageSize={pageSize}");
+    public Task<ServiceResult<PaginatedList<CommentDto>>> GetCommentsAsync(Guid taskId, int page = 1, int pageSize = 20)
+        => GetAsync<PaginatedList<CommentDto>>($"api/tasks/{taskId}/comments?pageNumber={page}&pageSize={pageSize}");
 
     public Task<ServiceResult<CommentDto>> UpdateCommentAsync(Guid taskId, Guid commentId, UpdateCommentDto model)
         => PutAsync<CommentDto>($"api/tasks/{taskId}/comments/{commentId}", model);

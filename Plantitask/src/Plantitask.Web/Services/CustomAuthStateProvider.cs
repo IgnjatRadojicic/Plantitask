@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 
+using Plantitask.Core.DTO.Auth;
 namespace Plantitask.Web.Services
 {
     public class CustomAuthStateProvider : AuthenticationStateProvider

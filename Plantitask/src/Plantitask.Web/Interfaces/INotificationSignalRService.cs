@@ -1,5 +1,6 @@
 ﻿using Plantitask.Web.Models;
 
+using Plantitask.Core.DTO.Notifications;
 namespace Plantitask.Web.Interfaces;
 
 public interface INotificationSignalRService : IAsyncDisposable

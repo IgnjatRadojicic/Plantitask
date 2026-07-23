@@ -1,6 +1,7 @@
 ﻿// In Models/ or a Helpers/ folder
 using Plantitask.Web.Models;
 
+using Plantitask.Core.DTO.Kanban;
 namespace Plantitask.Web.Helpers;
 
 public static class KanbanTreeMapper

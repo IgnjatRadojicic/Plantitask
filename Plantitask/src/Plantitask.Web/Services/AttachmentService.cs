@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
+using Plantitask.Core.DTO.Attachments;
 namespace Plantitask.Web.Services;
 
 public class AttachmentService : BaseApiService, IAttachmentService

@@ -101,9 +101,9 @@ else
 
     private async Task<(bool Success, string? Error)> HandleSave()
     {
-        var model = new UpdateNotificationPreferenceDto
+        var model = new UpdateNotificationPreferencesDto
         {
-            Preferences = _preferences.Select(p => new NotificationPreferenceItemDto
+            Preferences = _preferences.Select(p => new NotificationPreferenceUpdateItem
             {
                 Type = p.Type,
                 IsEnabled = p.IsEnabled,

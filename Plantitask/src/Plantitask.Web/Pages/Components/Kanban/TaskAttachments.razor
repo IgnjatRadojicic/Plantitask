@@ -42,7 +42,7 @@
                 </div>
                 <div class="kanban-attachment-info">
                     <a href="@att.DownloadUrl" target="_blank" rel="noopener" class="kanban-attachment-name">@att.FileName</a>
-                    <span class="kanban-attachment-meta">@att.FileSizeDisplay · @att.UploadedByUserName · @att.UploadedAt.ToLocalTime().ToString("MMM d")</span>
+                    <span class="kanban-attachment-meta">@att.FileSizeDisplay() · @att.UploadedByUserName · @att.UploadedAt.ToLocalTime().ToString("MMM d")</span>
                 </div>
                 <button class="field-icon-btn-sm" @onclick="() => DeleteAttachment(att.Id)">
                     <MudIcon Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" />

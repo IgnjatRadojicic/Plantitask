@@ -1,5 +1,6 @@
 ﻿using Plantitask.Web.Models;
 
+using Plantitask.Core.DTO.Attachments;
 namespace Plantitask.Web.Interfaces
 {
     public interface IAttachmentService
