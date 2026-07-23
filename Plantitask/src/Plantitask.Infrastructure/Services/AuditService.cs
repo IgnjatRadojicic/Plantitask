@@ -4,6 +4,7 @@ using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Audit;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.Projections;
 using Plantitask.Infrastructure.Data;
 
 
@@ -84,7 +85,7 @@ namespace Plantitask.Infrastructure.Services
                 .OrderByDescending(a => a.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(AuditLogDto.Projection)
+                .Select(AuditLogProjections.ToAuditLogDto)
                 .ToListAsync();
 
             return logs;
@@ -104,7 +105,7 @@ namespace Plantitask.Infrastructure.Services
                 .OrderByDescending(a => a.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(AuditLogDto.Projection)
+                .Select(AuditLogProjections.ToAuditLogDto)
                 .ToListAsync();
 
             return logs;
@@ -125,7 +126,7 @@ namespace Plantitask.Infrastructure.Services
                 .OrderByDescending(a => a.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(AuditLogDto.Projection)
+                .Select(AuditLogProjections.ToAuditLogDto)
                 .ToListAsync();
 
             return logs;

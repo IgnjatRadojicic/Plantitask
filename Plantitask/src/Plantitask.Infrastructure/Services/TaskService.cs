@@ -6,6 +6,7 @@ using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Kanban;
 using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
+using Plantitask.Core.Projections;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using System.Text.RegularExpressions;
@@ -138,7 +139,7 @@ namespace Plantitask.Infrastructure.Services
             }
 
             return await PaginatedList<TaskDto>.CreateAsync(
-                query.OrderByDescending(t => t.CreatedAt).Select(TaskDto.Projection),
+                query.OrderByDescending(t => t.CreatedAt).Select(TaskProjections.ToTaskDto),
                 pageNumber, pageSize);
         }
 
@@ -146,7 +147,7 @@ namespace Plantitask.Infrastructure.Services
         {
             var task = await _context.Tasks
                 .Where(t => t.Id == taskId)
-                .Select(TaskDto.Projection)
+                .Select(TaskProjections.ToTaskDto)
                 .FirstOrDefaultAsync();
 
             if (task == null)

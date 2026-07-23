@@ -1,9 +1,4 @@
-﻿using Plantitask.Core.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
+﻿using System;
 
 namespace Plantitask.Core.DTO.Tasks
 {
@@ -35,30 +30,5 @@ namespace Plantitask.Core.DTO.Tasks
         public string CreatedByUserName { get; set; } = string.Empty;
 
         public int AttachmentCount { get; set; }
-
-        public static Expression<Func<TaskItem, TaskDto>> Projection => t => new TaskDto
-        {
-            Id = t.Id,
-            Title = t.Title,
-            Description = t.Description,
-            GroupId = t.GroupId,
-            GroupName = t.Group.Name,
-            StatusId = t.StatusId,
-            StatusName = t.Status.Name,
-            StatusDisplayName = t.Status.DisplayName,
-            StatusColor = t.Status.Color,
-            PriorityId = t.PriorityId,
-            PriorityName = t.Priority.Name,
-            PriorityColor = t.Priority.Color,
-            AssignedToId = t.AssignedToId,
-            AssignedToUserName = t.AssignedTo != null ? t.AssignedTo.UserName : null,
-            DueDate = t.DueDate,
-            CompletedAt = t.CompletedAt,
-            CreatedAt = t.CreatedAt,
-            CreatedBy = t.CreatedBy,
-            CreatedByUserName = t.Creator.UserName,
-            AttachmentCount = t.Attachments.Count
-
-        };
     }
 }
