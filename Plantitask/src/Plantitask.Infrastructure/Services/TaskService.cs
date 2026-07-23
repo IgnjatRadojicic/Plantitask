@@ -77,22 +77,23 @@ namespace Plantitask.Infrastructure.Services
                 CreatedBy = userId,
             };
 
-            _context.Tasks.Add(task);
-            await _context.SaveChangesAsync();
-
-            var result = await GetTaskByIdAsync(task.Id, userId);
-
             if (task.DueDate.HasValue && task.AssignedToId.HasValue)
             {
                 try
                 {
-                    var jobId = await _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value);
+                    task.DueSoonJobId = await _backgroundJobService.ScheduleTaskDueSoonNotification(
+                        task.Id, task.AssignedToId.Value, task.DueDate.Value);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to schedule due date notification for task {TaskId}", task.Id);
                 }
             }
+
+            _context.Tasks.Add(task);
+            await _context.SaveChangesAsync();
+
+            var result = await GetTaskByIdAsync(task.Id, userId);
 
             _logger.LogInformation("Task {TaskId} created in group {GroupId} by user {UserId}",
                 task.Id, groupId, userId);
@@ -204,6 +205,7 @@ namespace Plantitask.Infrastructure.Services
                 task.DueDate = updateTaskDto.DueDate.Value; 
 
             task.UpdatedBy = userId;
+
 
             if (task.DueSoonJobId != null)
             {
