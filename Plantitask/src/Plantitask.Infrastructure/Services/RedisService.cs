@@ -78,6 +78,7 @@ namespace Plantitask.Infrastructure.Services
 
                 var userTokensKey = GetUserTokensKey(model.UserId);
                 await _db.SetAddAsync(userTokensKey, tokenHash);
+                await _db.KeyExpireAsync(userTokensKey, expiration);
                 _logger.LogInformation("Refresh token stored in Redis for user {UserId}", model.UserId);
             
         }
