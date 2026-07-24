@@ -137,7 +137,7 @@ namespace Plantitask.Infrastructure.Services
             var newAccessToken = _tokenGenerator.GenerateAccessToken(user);
             var newRefreshToken = _tokenGenerator.GenerateRefreshToken();
 
-            await _redisService.RevokeRefreshTokenAsync(TokenHasher.Sha256(refreshToken));
+            await _redisService.MarkRefreshTokenRevokedAsync(TokenHasher.Sha256(refreshToken));
             await StoreRefreshTokenAsync(user.Id, newRefreshToken, tokenModel.CreatedByIp);
 
             _logger.LogInformation("Token refreshed for user: {UserId}", user.Id);
@@ -155,7 +155,7 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result> LogoutAsync(string refreshToken)
         {
             _logger.LogInformation("User logging out");
-            await _redisService.RevokeRefreshTokenAsync(TokenHasher.Sha256(refreshToken));
+            await _redisService.DeleteRefreshTokenAsync(TokenHasher.Sha256(refreshToken));
             return Result.Success();
         }
 

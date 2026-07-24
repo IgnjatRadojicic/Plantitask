@@ -10,16 +10,17 @@ namespace Plantitask.Core.Interfaces
     public interface IRedisService
     {
 
-        Task SetRefreshTokenAsync(string token, RefreshTokenModel model, TimeSpan expiration);
+        Task SetRefreshTokenAsync(string tokenHash, RefreshTokenModel model, TimeSpan expiration);
 
 
-        Task<RefreshTokenModel?> GetRefreshTokenAsync(string token);
+        Task<RefreshTokenModel?> GetRefreshTokenAsync(string tokenHash);
 
 
-        Task RevokeRefreshTokenAsync(string token);
+        Task MarkRefreshTokenRevokedAsync(string tokenHash);
 
         Task RevokeAllUserTokensAsync(Guid userId);
 
+        Task DeleteRefreshTokenAsync(string tokenHash);
 
         Task StoreVerificationCodeAsync(string email, string codeHash, TimeSpan expiration);
         Task<string?> GetVerificationCodeHashAsync(string email);

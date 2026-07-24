@@ -98,24 +98,24 @@ namespace Plantitask.Infrastructure.Services
                 _logger.LogInformation("Refresh token revoked");
         }
 
-        public async Task RevokeRefreshTokenAsync(string tokenHash)
+        public async Task MarkRefreshTokenRevokedAsync(string tokenHash)
         {
-                var key = GetRefreshTokenKey(tokenHash);
+            var key = GetRefreshTokenKey(tokenHash);
+            var model = await GetRefreshTokenAsync(tokenHash);
+            if (model == null) return;
 
-                var model = await GetRefreshTokenAsync(tokenHash);
-
-                await _db.KeyDeleteAsync(key);
-
-                if (model != null)
-                {
-                    var userTokensKey = GetUserTokensKey(model.UserId);
-                    await _db.SetRemoveAsync(userTokensKey, tokenHash);
-                }
-
-                _logger.LogInformation("Refresh token revoked");
-            
+            model.IsRevoked = true;
+            model.RevokedAt = DateTime.UtcNow;
+            var remainingTtl = await _db.KeyTimeToLiveAsync(key) ?? TimeSpan.FromDays(7);
+            await _db.StringSetAsync(key, JsonSerializer.Serialize(model), remainingTtl);
         }
-
+        public async Task DeleteRefreshTokenAsync(string tokenHash)
+        {
+            var model = await GetRefreshTokenAsync(tokenHash);
+            await _db.KeyDeleteAsync(GetRefreshTokenKey(tokenHash));
+            if (model != null)
+                await _db.SetRemoveAsync(GetUserTokensKey(model.UserId), tokenHash);
+        }
 
         public async Task StoreVerificationCodeAsync(string email, string codeHash, TimeSpan expiration)
         {
