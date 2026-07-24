@@ -49,7 +49,7 @@ namespace Plantitask.Infrastructure.Services
                 var userTokensKey = GetUserTokensKey(model.UserId);
                 await _db.SetAddAsync(userTokensKey, tokenHash);
                 await _db.KeyExpireAsync(userTokensKey, expiration);
-                _logger.LogInformation("Refresh token stored in Redis for user {UserId}", model.UserId);
+                _logger.LogDebug("Stored refresh token for user {UserId}", model.UserId);
             
         }
 
@@ -66,7 +66,7 @@ namespace Plantitask.Infrastructure.Services
                 }
 
                 await _db.KeyDeleteAsync(userTokensKey);
-                _logger.LogInformation("Refresh token revoked");
+                _logger.LogDebug("Revoked all refresh tokens for user {UserId}", userId);
         }
 
         public async Task MarkRefreshTokenRevokedAsync(string tokenHash)
@@ -79,13 +79,17 @@ namespace Plantitask.Infrastructure.Services
             model.RevokedAt = DateTime.UtcNow;
             var remainingTtl = await _db.KeyTimeToLiveAsync(key) ?? TimeSpan.FromDays(7);
             await _db.StringSetAsync(key, JsonSerializer.Serialize(model), remainingTtl);
+            _logger.LogDebug("Marked refresh token revoked for user {UserId}", model.UserId);
         }
         public async Task DeleteRefreshTokenAsync(string tokenHash)
         {
             var model = await GetRefreshTokenAsync(tokenHash);
             await _db.KeyDeleteAsync(GetRefreshTokenKey(tokenHash));
             if (model != null)
+            {
                 await _db.SetRemoveAsync(GetUserTokensKey(model.UserId), tokenHash);
+                _logger.LogDebug("Deleted refresh token for user {UserId}", model.UserId);
+            }
         }
 
         public async Task StoreVerificationCodeAsync(string email, string codeHash, TimeSpan expiration)
