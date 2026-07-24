@@ -117,7 +117,7 @@ namespace Plantitask.Infrastructure.Services
         {
             _logger.LogInformation("Attempting to refresh token");
 
-            var tokenModel = await _redisService.GetRefreshTokenAsync(refreshToken);
+            var tokenModel = await _redisService.GetRefreshTokenAsync(TokenHasher.Sha256(refreshToken));
 
             if (tokenModel == null)
                 return Error.Forbidden("Invalid refresh token");
@@ -137,7 +137,7 @@ namespace Plantitask.Infrastructure.Services
             var newAccessToken = _tokenGenerator.GenerateAccessToken(user);
             var newRefreshToken = _tokenGenerator.GenerateRefreshToken();
 
-            await _redisService.RevokeRefreshTokenAsync(refreshToken);
+            await _redisService.RevokeRefreshTokenAsync(TokenHasher.Sha256(refreshToken));
             await StoreRefreshTokenAsync(user.Id, newRefreshToken, tokenModel.CreatedByIp);
 
             _logger.LogInformation("Token refreshed for user: {UserId}", user.Id);
