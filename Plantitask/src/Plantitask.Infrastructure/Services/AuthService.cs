@@ -122,7 +122,11 @@ namespace Plantitask.Infrastructure.Services
             if (tokenModel == null)
                 return Error.Forbidden("Invalid refresh token");
             if (tokenModel.IsRevoked)
-                return Error.Forbidden("Token has been revoked");
+            {
+                _logger.LogWarning("Refresh token reuse detected for user {UserId} — revoking all sessions", tokenModel.UserId);
+                await _redisService.RevokeAllUserTokensAsync(tokenModel.UserId);
+                return Error.Unauthorized("Invalid refresh token");
+            }
             if (tokenModel.ExpiresAt < DateTime.UtcNow)
                 return Error.Forbidden("Token has expired");
 
