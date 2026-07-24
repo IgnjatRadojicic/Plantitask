@@ -57,9 +57,9 @@ namespace Plantitask.Infrastructure.Services
             
         }
 
-        public async Task<RefreshTokenModel?> GetRefreshTokenAsync(string token)
+        public async Task<RefreshTokenModel?> GetRefreshTokenAsync(string tokenHash)
         {
-                var key = GetRefreshTokenKey(token);
+                var key = GetRefreshTokenKey(tokenHash);
                 var json = await _db.StringGetAsync(key);
 
                 if (json.IsNullOrEmpty)
@@ -70,14 +70,14 @@ namespace Plantitask.Infrastructure.Services
                 return JsonSerializer.Deserialize<RefreshTokenModel>(json!);
         }
 
-        public async Task SetRefreshTokenAsync(string token, RefreshTokenModel model, TimeSpan expiration)
+        public async Task SetRefreshTokenAsync(string tokenHash, RefreshTokenModel model, TimeSpan expiration)
         {
-                var key = GetRefreshTokenKey(token);
+                var key = GetRefreshTokenKey(tokenHash);
                 var json = JsonSerializer.Serialize(model);
                 await _db.StringSetAsync(key, json, expiration);
 
                 var userTokensKey = GetUserTokensKey(model.UserId);
-                await _db.SetAddAsync(userTokensKey, token);
+                await _db.SetAddAsync(userTokensKey, tokenHash);
                 _logger.LogInformation("Refresh token stored in Redis for user {UserId}", model.UserId);
             
         }
@@ -88,9 +88,9 @@ namespace Plantitask.Infrastructure.Services
 
                 var tokens = await _db.SetMembersAsync(userTokensKey);
 
-                foreach(var token in tokens)
+                foreach(var tokenHash in tokens)
                 {
-                    var key = GetRefreshTokenKey(token!);
+                    var key = GetRefreshTokenKey(tokenHash!);
                     await _db.KeyDeleteAsync(key);
                 }
 
@@ -98,18 +98,18 @@ namespace Plantitask.Infrastructure.Services
                 _logger.LogInformation("Refresh token revoked");
         }
 
-        public async Task RevokeRefreshTokenAsync(string token)
+        public async Task RevokeRefreshTokenAsync(string tokenHash)
         {
-                var key = GetRefreshTokenKey(token);
+                var key = GetRefreshTokenKey(tokenHash);
 
-                var model = await GetRefreshTokenAsync(token);
+                var model = await GetRefreshTokenAsync(tokenHash);
 
                 await _db.KeyDeleteAsync(key);
 
                 if (model != null)
                 {
                     var userTokensKey = GetUserTokensKey(model.UserId);
-                    await _db.SetRemoveAsync(userTokensKey, token);
+                    await _db.SetRemoveAsync(userTokensKey, tokenHash);
                 }
 
                 _logger.LogInformation("Refresh token revoked");
@@ -185,7 +185,7 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
-        public static string GetRefreshTokenKey(string token) => $"refresh_token:{token}";
+        public static string GetRefreshTokenKey(string tokenHash) => $"refresh_token:{tokenHash}";
         public static string GetUserTokensKey(Guid userId) => $"user_tokens:{userId}";
     }
 }

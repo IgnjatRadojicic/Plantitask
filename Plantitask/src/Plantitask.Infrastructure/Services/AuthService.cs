@@ -8,6 +8,7 @@ using Plantitask.Core.DTO.Auth;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Models;
+using Plantitask.Infrastructure.Security;
 using System.Net;
 using System.Security.Cryptography;
 
@@ -150,7 +151,7 @@ namespace Plantitask.Infrastructure.Services
         public async Task<Result> LogoutAsync(string refreshToken)
         {
             _logger.LogInformation("User logging out");
-            await _redisService.RevokeRefreshTokenAsync(refreshToken);
+            await _redisService.RevokeRefreshTokenAsync(TokenHasher.Sha256(refreshToken));
             return Result.Success();
         }
 
@@ -355,7 +356,7 @@ namespace Plantitask.Infrastructure.Services
         {
             var accessToken = _tokenGenerator.GenerateAccessToken(user);
             var refreshToken = _tokenGenerator.GenerateRefreshToken();
-            await StoreRefreshTokenAsync(user.Id, refreshToken, ipAddress);
+            await StoreRefreshTokenAsync(user.Id, TokenHasher.Sha256(refreshToken), ipAddress);
 
             return new AuthResponseDto
             {
@@ -372,7 +373,6 @@ namespace Plantitask.Infrastructure.Services
             var tokenModel = new RefreshTokenModel
             {
                 UserId = userId,
-                TokenHash = _passwordHasher.HashPassword(refreshToken),
                 ExpiresAt = DateTime.UtcNow.AddDays(
                     int.Parse(_configuration["Jwt:RefreshTokenExpirationDays"] ?? "7")),
                 CreatedByIp = ipAddress,
@@ -380,7 +380,7 @@ namespace Plantitask.Infrastructure.Services
             };
 
             var expiration = tokenModel.ExpiresAt - DateTime.UtcNow;
-            await _redisService.SetRefreshTokenAsync(refreshToken, tokenModel, expiration);
+            await _redisService.SetRefreshTokenAsync(TokenHasher.Sha256(refreshToken), tokenModel, expiration);
         }
 
         private static string GenerateVerificationCode()
