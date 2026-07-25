@@ -8,11 +8,24 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # The compose stack lives in this fixed directory (it holds .env and the
+      # named volumes). actions/checkout writes to the runner's _work dir, which
+      # the compose steps never use, so sync this directory to the pushed commit
+      # explicitly before building - otherwise deploys build stale code.
+      - name: Sync deploy directory to pushed commit
+        run: |
+          cd /home/dragonshield/Plantitask/Plantitask
+          git fetch origin main
+          git reset --hard origin/main
+
+      # Build first so the running containers keep serving until the new images
+      # are ready (avoids the downtime of a `compose down` up front).
+      - name: Build images
+        run: |
+          cd /home/dragonshield/Plantitask/Plantitask
+          docker compose build
 
       - name: Deploy
         run: |
           cd /home/dragonshield/Plantitask/Plantitask
-          docker compose down
-          docker compose up -d --build
+          docker compose up -d --remove-orphans
