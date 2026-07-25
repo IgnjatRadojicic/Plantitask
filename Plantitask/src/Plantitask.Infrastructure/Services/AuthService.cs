@@ -105,7 +105,7 @@ namespace Plantitask.Infrastructure.Services
                 return Error.Unauthorized("Invalid email or password");
 
             if (!user.IsEmailConfirmed)
-                return Error.BadRequest("Please verify your email before logging in. Check your inbox for the verification code.");
+                return Error.Unauthorized("Invalid email or password");
 
             user.LastLoginAt = DateTime.UtcNow;
             
