@@ -8,6 +8,7 @@ WORKDIR /src
 
 # Copy project files for restore
 COPY Plantitask/Plantitask.sln ./Plantitask/
+COPY Plantitask/src/Plantitask.Contracts/*.csproj ./Plantitask/src/Plantitask.Contracts/
 COPY Plantitask/src/Plantitask.Web/*.csproj ./Plantitask/src/Plantitask.Web/
 # Include all csproj files referenced by the .sln so restore works
 COPY Plantitask/src/Plantitask.Core/*.csproj ./Plantitask/src/Plantitask.Core/
@@ -21,6 +22,7 @@ RUN dotnet restore src/Plantitask.Web/Plantitask.Web.csproj
 # Copy full Web source (Web doesn't reference Core/Infrastructure directly
 # but may share models — copy what's needed)
 WORKDIR /src
+COPY Plantitask/src/Plantitask.Contracts/ ./Plantitask/src/Plantitask.Contracts/
 COPY Plantitask/src/Plantitask.Web/ ./Plantitask/src/Plantitask.Web/
 
 # Publish as static files
