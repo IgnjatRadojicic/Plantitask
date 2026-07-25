@@ -1,92 +1,88 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using SendGrid;
-using SendGrid.Helpers.Mail;
-using Plantitask.Core.Common;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.Models;
 using Plantitask.Infrastructure.Services.Email;
 
 namespace Plantitask.Infrastructure.Services
 {
     public class EmailService : IEmailService
     {
-        private readonly EmailSettings _settings;
-        private readonly ILogger<EmailService> _logger;
-        private readonly SendGridClient _client;
+        private readonly IEmailSender _sender;
 
-        public EmailService(IOptions<EmailSettings> settings, ILogger<EmailService> logger)
+        public EmailService(IEmailSender sender)
         {
-            _settings = settings.Value;
-            _logger = logger;
-            _client = new SendGridClient(_settings.SendGridApiKey);
+            _sender = sender;
         }
 
-        public async Task SendWelcomeEmailAsync(string email, string displayName)
+        public Task SendWelcomeEmailAsync(string email, string displayName)
         {
-            var html = EmailTemplates.Welcome(displayName);
-            await SendEmailAsync(email, $"Welcome to Plantitask, {displayName}!", html, "welcome");
+            return _sender.SendAsync(new EmailMessage(
+                email,
+                $"Welcome to Plantitask, {displayName}!",
+                EmailTemplates.Welcome(displayName),
+                "welcome"));
         }
 
-        public async Task SendPasswordResetEmailAsync(string email, string userName, string resetLink)
+        public Task SendPasswordResetEmailAsync(string email, string userName, string resetLink)
         {
-            var html = EmailTemplates.PasswordReset(userName, resetLink);
-            await SendEmailAsync(email, "Reset Your Password - Plantitask", html, "password reset");
+            return _sender.SendAsync(new EmailMessage(
+                email,
+                "Reset Your Password - Plantitask",
+                EmailTemplates.PasswordReset(userName, resetLink),
+                "password reset"));
         }
 
-        public async Task SendTaskAssignmentEmailAsync(string email, string userName, string taskTitle, string groupName, string assignedBy)
+        public Task SendTaskAssignmentEmailAsync(string email, string userName, string taskTitle, string groupName, string assignedBy)
         {
-            var html = EmailTemplates.TaskAssignment(userName, taskTitle, groupName, assignedBy);
-            await SendEmailAsync(email, $"New Task Assigned: {taskTitle}", html, "task assignment");
+            return _sender.SendAsync(new EmailMessage(
+                email,
+                $"New Task Assigned: {taskTitle}",
+                EmailTemplates.TaskAssignment(userName, taskTitle, groupName, assignedBy),
+                "task assignment"));
         }
 
-        public async Task SendGroupInvitationEmailAsync(string email, string inviterName, string groupName, string groupCode)
+        public Task SendGroupInvitationEmailAsync(string email, string inviterName, string groupName, string groupCode)
         {
-            var html = EmailTemplates.GroupInvitation(inviterName, groupName, groupCode);
-            await SendEmailAsync(email, $"You've been invited to join {groupName}", html, "group invitation");
+            return _sender.SendAsync(new EmailMessage(
+                email,
+                $"You've been invited to join {groupName}",
+                EmailTemplates.GroupInvitation(inviterName, groupName, groupCode),
+                "group invitation"));
         }
 
-        public async Task SendTaskCommentEmailAsync(string email, string userName, string commenterName, string taskTitle, string commentText)
+        public Task SendTaskCommentEmailAsync(string email, string userName, string commenterName, string taskTitle, string commentText)
         {
-            var html = EmailTemplates.TaskComment(userName, commenterName, taskTitle, commentText);
-            await SendEmailAsync(email, $"New comment on {taskTitle}", html, "task comment");
+            return _sender.SendAsync(new EmailMessage(
+                email,
+                $"New comment on {taskTitle}",
+                EmailTemplates.TaskComment(userName, commenterName, taskTitle, commentText),
+                "task comment"));
         }
 
-        public async Task SendTaskDueSoonEmailAsync(string email, string userName, string taskTitle, DateTime dueDate)
+        public Task SendTaskDueSoonEmailAsync(string email, string userName, string taskTitle, DateTime dueDate)
         {
-            var html = EmailTemplates.TaskDueSoon(userName, taskTitle, dueDate);
-            await SendEmailAsync(email, $"Task Due Soon: {taskTitle}", html, "task due soon");
+            return _sender.SendAsync(new EmailMessage(
+                email,
+                $"Task Due Soon: {taskTitle}",
+                EmailTemplates.TaskDueSoon(userName, taskTitle, dueDate),
+                "task due soon"));
         }
 
-        public async Task SendTaskOverdueEmailAsync(string email, string userName, string taskTitle, int daysOverdue)
+        public Task SendTaskOverdueEmailAsync(string email, string userName, string taskTitle, int daysOverdue)
         {
-            var html = EmailTemplates.TaskOverdue(userName, taskTitle, daysOverdue);
-            await SendEmailAsync(email, $"Task Overdue: {taskTitle}", html, "task overdue");
+            return _sender.SendAsync(new EmailMessage(
+                email,
+                $"Task Overdue: {taskTitle}",
+                EmailTemplates.TaskOverdue(userName, taskTitle, daysOverdue),
+                "task overdue"));
         }
 
-        public async Task SendEmailVerificationCodeAsync(string email, string userName, string code)
+        public Task SendEmailVerificationCodeAsync(string email, string userName, string code)
         {
-            var html = EmailTemplates.EmailVerification(userName, code);
-            await SendEmailAsync(email, $"Your Plantitask verification code: {code}", html, "email verification");
-        }
-
-        private async Task SendEmailAsync(string toEmail, string subject, string htmlContent, string emailType)
-        {
-            var from = new EmailAddress(_settings.FromEmail, _settings.FromName);
-            var to = new EmailAddress(toEmail);
-            var msg = MailHelper.CreateSingleEmail(from, to, subject, null, htmlContent);
-
-            var response = await _client.SendEmailAsync(msg);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var body = await response.Body.ReadAsStringAsync();
-                _logger.LogError("Failed to send {EmailType} email to {Email}. Status: {StatusCode}. Body: {Body}",
-                    emailType, toEmail, response.StatusCode, body);
-
-                throw new EmailSendException($"SendGrid rejected the {emailType} email with status {response.StatusCode}");
-            }
-
-            _logger.LogInformation("Sent {EmailType} email to {Email}", emailType, toEmail);
+            return _sender.SendAsync(new EmailMessage(
+                email,
+                $"Your Plantitask verification code: {code}",
+                EmailTemplates.EmailVerification(userName, code),
+                "email verification"));
         }
     }
 }

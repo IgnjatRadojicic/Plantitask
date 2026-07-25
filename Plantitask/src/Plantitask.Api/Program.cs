@@ -16,6 +16,7 @@ using Plantitask.Core.DTO.Paypal;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Data;
 using Plantitask.Infrastructure.Services;
+using Plantitask.Infrastructure.Services.Email;
 using Plantitask.Infrastructure.Services.Storage;
 using StackExchange.Redis;
 using System.Text;
@@ -57,8 +58,25 @@ var jwtAudience = builder.Configuration["JwtSettings:Audience"]!;
 
 
 // Email
-builder.Services.Configure<EmailSettings>(
-    builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddOptions<EmailSettings>()
+    .Bind(builder.Configuration.GetSection("EmailSettings"))
+    .Validate(s => !string.IsNullOrWhiteSpace(s.FromEmail), "EmailSettings:FromEmail must be set")
+    .Validate(s => s.Provider is "Smtp" or "SendGrid", "EmailSettings:Provider must be Smtp or SendGrid")
+    .Validate(s => s.Provider != "SendGrid" || !string.IsNullOrWhiteSpace(s.SendGridApiKey),
+        "EmailSettings:SendGridApiKey must be set when the provider is SendGrid")
+    .ValidateOnStart();
+
+builder.Services.AddOptions<SmtpSettings>()
+    .Bind(builder.Configuration.GetSection("Smtp"))
+    .Validate(s => builder.Configuration["EmailSettings:Provider"] != "Smtp"
+        || (!string.IsNullOrWhiteSpace(s.Host) && !string.IsNullOrWhiteSpace(s.UserName) && !string.IsNullOrWhiteSpace(s.Password)),
+        "Smtp:Host, Smtp:UserName and Smtp:Password must be set when the provider is Smtp")
+    .ValidateOnStart();
+
+if (builder.Configuration["EmailSettings:Provider"] == "SendGrid")
+    builder.Services.AddScoped<IEmailSender, SendGridEmailSender>();
+else
+    builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 
 
 builder.Services.AddAuthentication(options =>
