@@ -123,7 +123,7 @@ namespace Plantitask.Infrastructure.Services
             var tokenModel = await _redisService.GetRefreshTokenAsync(TokenHasher.Sha256(refreshToken));
 
             if (tokenModel == null)
-                return Error.Forbidden("Invalid refresh token");
+                return Error.Unauthorized("Invalid refresh token");
             if (tokenModel.IsRevoked)
             {
                 _logger.LogWarning("Refresh token reuse detected for user {UserId} — revoking all sessions", tokenModel.UserId);
