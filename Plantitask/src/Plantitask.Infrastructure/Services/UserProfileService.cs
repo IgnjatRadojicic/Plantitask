@@ -13,6 +13,7 @@ public class UserProfileService : IUserProfileService
     private readonly ApplicationDbContext _context;
     private readonly IFileStorageService _fileStorage;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IRedisService _redisService;
     private readonly ILogger<UserProfileService> _logger;
 
     private const long MaxProfilePictureBytes = 5 * 1024 * 1024;
@@ -21,11 +22,13 @@ public class UserProfileService : IUserProfileService
         ApplicationDbContext context,
         IFileStorageService fileStorage,
         IPasswordHasher passwordHasher,
+        IRedisService redisService,
         ILogger<UserProfileService> logger)
     {
         _context = context;
         _fileStorage = fileStorage;
         _passwordHasher = passwordHasher;
+        _redisService = redisService;
         _logger = logger;
     }
 
@@ -137,6 +140,8 @@ public class UserProfileService : IUserProfileService
         user.PasswordHash = _passwordHasher.HashPassword(dto.NewPassword);
 
         await _context.SaveChangesAsync();
+
+        await _redisService.RevokeAllUserTokensAsync(userId);
 
         _logger.LogInformation("User {UserId} changed their password", userId);
 

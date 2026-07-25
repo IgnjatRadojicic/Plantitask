@@ -287,6 +287,8 @@ namespace Plantitask.Infrastructure.Services
 
             await _context.SaveChangesAsync();
 
+            await _redisService.RevokeAllUserTokensAsync(user.Id);
+
             _logger.LogInformation("Password reset successfully for user: {UserId}", user.Id);
 
             return user.Id;
