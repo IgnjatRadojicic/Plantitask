@@ -182,7 +182,16 @@ namespace Plantitask.Infrastructure.Services
             await _redisService.StoreVerificationCodeAsync(email, codeHash, TimeSpan.FromMinutes(15));
 
             var userName = email.Split('@')[0];
-            await _emailService.SendEmailVerificationCodeAsync(email, userName, code);
+
+            try
+            {
+                await _emailService.SendEmailVerificationCodeAsync(email, userName, code);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send verification code to {Email}", email);
+                return Error.Internal("Could not send the verification email. Please try again");
+            }
 
             _logger.LogInformation("Verification code sent to {Email}", email);
 

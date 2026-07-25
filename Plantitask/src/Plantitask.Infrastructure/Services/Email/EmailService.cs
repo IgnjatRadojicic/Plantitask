@@ -77,16 +77,16 @@ namespace Plantitask.Infrastructure.Services
 
             var response = await _client.SendEmailAsync(msg);
 
-            if (response.IsSuccessStatusCode)
-            {
-                _logger.LogInformation("Email sent to {Email}: {Subject}", toEmail, subject);
-            }
-            else
+            if (!response.IsSuccessStatusCode)
             {
                 var body = await response.Body.ReadAsStringAsync();
                 _logger.LogError("Failed to send email to {Email}. Status: {StatusCode}. Body: {Body}",
                     toEmail, response.StatusCode, body);
+
+                throw new EmailSendException($"SendGrid rejected the email with status {response.StatusCode}");
             }
+
+            _logger.LogInformation("Email sent to {Email}: {Subject}", toEmail, subject);
         }
     }
 }
