@@ -1,4 +1,6 @@
-﻿namespace Plantitask.Infrastructure.Services.Email
+﻿using System.Net;
+
+namespace Plantitask.Infrastructure.Services.Email
 {
     public static class EmailTemplates
     {
@@ -143,7 +145,7 @@
         public static string Welcome(string firstName)
         {
             return BaseTemplate($@"
-                <h2 style='color:#4a7c2e; margin-top:0;'>Welcome to Plantitask, {firstName}!</h2>
+                <h2 style='color:#4a7c2e; margin-top:0;'>Welcome to Plantitask, {WebUtility.HtmlEncode(firstName)}!</h2>
                 <p>Your account has been created successfully. Your journey starts with a seed — create your first group and watch your tree grow as your team completes tasks.</p>
                 <p>Get started by creating your first group or joining an existing one.</p>");
         }
@@ -152,10 +154,10 @@
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>Password Reset Request</h2>
-                <p>Hello {userName},</p>
+                <p>Hello {WebUtility.HtmlEncode(userName)},</p>
                 <p>You requested to reset your password. Click the button below to set a new password:</p>
                 <p style='text-align: center;'>
-                    <a href='{resetLink}' class='button'
+                    <a href='{WebUtility.HtmlEncode(resetLink)}' class='button'
                        style='display:inline-block; background-color:#4a7c2e; color:white; text-decoration:none; padding:12px 28px; border-radius:6px; font-weight:600; font-size:14px;'>
                         Reset Password
                     </a>
@@ -168,10 +170,10 @@
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>New Task Assigned</h2>
-                <p>Hello {userName},</p>
-                <p><strong>{assignedBy}</strong> assigned you a new task in <strong>{groupName}</strong>:</p>
+                <p>Hello {WebUtility.HtmlEncode(userName)},</p>
+                <p><strong>{WebUtility.HtmlEncode(assignedBy)}</strong> assigned you a new task in <strong>{WebUtility.HtmlEncode(groupName)}</strong>:</p>
                 <div class='highlight' style='background-color:#f2f7e9; padding:16px; border-radius:6px; border-left:4px solid #7cb342; margin:12px 0;'>
-                    {taskTitle}
+                    {WebUtility.HtmlEncode(taskTitle)}
                 </div>
                 <p>Log in to view the details and start working on it.</p>");
         }
@@ -180,10 +182,10 @@
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>You've Been Invited!</h2>
-                <p><strong>{inviterName}</strong> invited you to join <strong>{groupName}</strong> on Plantitask.</p>
+                <p><strong>{WebUtility.HtmlEncode(inviterName)}</strong> invited you to join <strong>{WebUtility.HtmlEncode(groupName)}</strong> on Plantitask.</p>
                 <p>Use this code to join:</p>
                 <div class='code-box' style='text-align:center; font-size:24px; letter-spacing:4px; background-color:#f2f7e9; padding:16px; border-radius:6px; font-weight:bold; color:#4a7c2e;'>
-                    {groupCode}
+                    {WebUtility.HtmlEncode(groupCode)}
                 </div>
                 <p>Log in to your account and enter this code to join the group.</p>");
         }
@@ -192,10 +194,10 @@
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>New Comment on Your Task</h2>
-                <p>Hello {userName},</p>
-                <p><strong>{commenterName}</strong> commented on <strong>{taskTitle}</strong>:</p>
+                <p>Hello {WebUtility.HtmlEncode(userName)},</p>
+                <p><strong>{WebUtility.HtmlEncode(commenterName)}</strong> commented on <strong>{WebUtility.HtmlEncode(taskTitle)}</strong>:</p>
                 <div class='highlight' style='background-color:#f2f7e9; padding:16px; border-radius:6px; border-left:4px solid #7cb342; margin:12px 0; font-style:italic;'>
-                    {commentText}
+                    {WebUtility.HtmlEncode(commentText)}
                 </div>");
         }
 
@@ -203,10 +205,10 @@
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>Task Due Soon</h2>
-                <p>Hello {userName},</p>
+                <p>Hello {WebUtility.HtmlEncode(userName)},</p>
                 <p>Your task is due on <strong>{dueDate:MMMM dd, yyyy 'at' h:mm tt} UTC</strong>:</p>
                 <div class='highlight' style='background-color:#f2f7e9; padding:16px; border-radius:6px; border-left:4px solid #7cb342; margin:12px 0;'>
-                    {taskTitle}
+                    {WebUtility.HtmlEncode(taskTitle)}
                 </div>
                 <p>Log in to check the details and make sure it's on track.</p>");
         }
@@ -219,10 +221,10 @@
 
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>Task Overdue</h2>
-                <p>Hello {userName},</p>
+                <p>Hello {WebUtility.HtmlEncode(userName)},</p>
                 <p>Your task {overdueText}:</p>
                 <div class='highlight' style='background-color:#f2f7e9; padding:16px; border-radius:6px; border-left:4px solid #7cb342; margin:12px 0;'>
-                    {taskTitle}
+                    {WebUtility.HtmlEncode(taskTitle)}
                 </div>
                 <p>Log in to update the status or reach out to your team.</p>");
         }
@@ -231,10 +233,10 @@
         {
             return BaseTemplate($@"
         <h2 style='color:#4a7c2e; margin-top:0;'>Verify Your Email</h2>
-        <p>Hello {userName},</p>
+        <p>Hello {WebUtility.HtmlEncode(userName)},</p>
         <p>Your verification code is:</p>
         <div class='code-box' style='text-align:center; font-size:32px; letter-spacing:8px; background-color:#f2f7e9; padding:20px; border-radius:6px; font-weight:bold; color:#4a7c2e;'>
-            {code}
+            {WebUtility.HtmlEncode(code)}
         </div>
         <p>This code expires in 15 minutes.</p>
         <p>If you didn't create an account, you can safely ignore this email.</p>");
