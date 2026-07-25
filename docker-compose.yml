@@ -57,13 +57,19 @@ services:
       JwtSettings__Issuer: PlantitaskApi
       JwtSettings__Audience: PlantitaskClient
       JwtSettings__AccessTokenExpiryInMinutes: 60
-      JwtSettings__RefreshTokenExpiryDays: 7
+      JwtSettings__RefreshTokenExpiryInDays: 7
       App__FrontendUrl: "https://plantitask.com"
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:8080"
+      EmailSettings__Provider: "Smtp"
       EmailSettings__SendGridApiKey: ${SENDGRID_API_KEY:-}
       EmailSettings__FromEmail: "noreply@plantitask.com"
       EmailSettings__FromName: "Plantitask"
+      Smtp__Host: "smtp.resend.com"
+      Smtp__Port: 587
+      Smtp__UserName: "resend"
+      Smtp__Password: ${RESEND_API_KEY:?Set RESEND_API_KEY in .env}
+      Smtp__UseStartTls: true
       PayPal__ClientId: ${PAYPAL_CLIENT_ID:-}
       PayPal__ClientSecret: ${PAYPAL_CLIENT_SECRET:-}
       PayPal__BaseUrl: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
