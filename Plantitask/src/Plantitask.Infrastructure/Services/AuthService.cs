@@ -24,6 +24,7 @@ namespace Plantitask.Infrastructure.Services
         private readonly ILogger<AuthService> _logger;
         private readonly IConfiguration _configuration;
         private readonly GoogleAuthSettings _googleSettings;
+        private readonly JwtSettings _jwtSettings;
 
         public AuthService(
             IApplicationDbContext context,
@@ -33,7 +34,8 @@ namespace Plantitask.Infrastructure.Services
             ILogger<AuthService> logger,
             IConfiguration configuration,
             IRedisService redisService,
-            IOptions<GoogleAuthSettings> googleSettings)
+            IOptions<GoogleAuthSettings> googleSettings,
+            IOptions<JwtSettings> jwtSettings)
         {
             _context = context;
             _redisService = redisService;
@@ -43,6 +45,7 @@ namespace Plantitask.Infrastructure.Services
             _emailService = emailService;
             _logger = logger;
             _googleSettings = googleSettings.Value;
+            _jwtSettings = jwtSettings.Value;
         }
 
         public async Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto)
@@ -377,8 +380,7 @@ namespace Plantitask.Infrastructure.Services
             var tokenModel = new RefreshTokenModel
             {
                 UserId = userId,
-                ExpiresAt = DateTime.UtcNow.AddDays(
-                    int.Parse(_configuration["Jwt:RefreshTokenExpirationDays"] ?? "7")),
+                ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryInDays),
                 CreatedByIp = ipAddress,
                 IsRevoked = false
             };

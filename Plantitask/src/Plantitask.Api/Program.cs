@@ -44,7 +44,12 @@ if (string.IsNullOrEmpty(redisConnection))
 builder.Services.AddSingleton<IConnectionMultiplexer>(
     ConnectionMultiplexer.Connect(redisConnection));
 builder.Services.AddScoped<IRedisService, RedisService>();
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+builder.Services.AddOptions<JwtSettings>()
+    .Bind(builder.Configuration.GetSection("JwtSettings"))
+    .Validate(s => !string.IsNullOrEmpty(s.Secret) && s.Secret.Length >= 32, "JWT secret must be at least 32 characters")
+    .Validate(s => s.RefreshTokenExpiryInDays > 0, "RefreshTokenExpiryInDays must be set")
+    .Validate(s => s.AccessTokenExpiryInMinutes > 0, "AccessTokenExpiryInMinutes must be set")
+    .ValidateOnStart();
 // JWT Authentication
 var jwtKey = builder.Configuration["JwtSettings:Secret"]!;
 var jwtIssuer = builder.Configuration["JwtSettings:Issuer"]!;
