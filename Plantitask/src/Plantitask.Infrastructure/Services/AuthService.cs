@@ -315,6 +315,9 @@ namespace Plantitask.Infrastructure.Services
                 return Error.Forbidden("Invalid Google token");
             }
 
+            if (payload.EmailVerified != true)
+                return Error.Forbidden("Google account email is not verified");
+
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == payload.Email);
 
@@ -322,7 +325,7 @@ namespace Plantitask.Infrastructure.Services
             {
                 user = new User
                 {
-                    UserName = GenerateUsernameFromEmail(payload.Email),
+                    UserName = await GenerateUniqueUsernameAsync(payload.Email),
                     Email = payload.Email,
                     PasswordHash = _passwordHasher.HashPassword(Guid.NewGuid().ToString()),
                     FirstName = payload.GivenName,
@@ -394,6 +397,18 @@ namespace Plantitask.Infrastructure.Services
         private static string GenerateVerificationCode()
         {
             return RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        }
+
+        private async Task<string> GenerateUniqueUsernameAsync(string email)
+        {
+            string userName;
+            do
+            {
+                userName = GenerateUsernameFromEmail(email);
+            }
+            while (await _context.Users.AnyAsync(u => u.UserName == userName));
+
+            return userName;
         }
 
         private static string GenerateUsernameFromEmail(string email)
