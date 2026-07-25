@@ -5,15 +5,15 @@ namespace Plantitask.Core.Interfaces
 {
     public interface IAuthService
     {
-        Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto);
-        Task<Result<AuthResponseDto>> LoginAsync(LoginDto loginDto);
+        Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto, string ipAddress);
+        Task<Result<AuthResponseDto>> LoginAsync(LoginDto loginDto, string ipAddress);
         Task<Result<AuthResponseDto>> RefreshTokenAsync(string refreshToken);
         Task<Result> LogoutAsync(string refreshToken);
         Task<Result<CheckEmailResponseDto>> CheckEmailAsync(string email);
         Task<Result> SendVerificationCodeAsync(string email);
         Task<Result> VerifyEmailCodeAsync(string email, string code);
-        Task<Result> ForgotPasswordAsync(string email);
+        Task<Result> ForgotPasswordAsync(string email, string ipAddress);
         Task<Result<Guid>> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
-        Task<Result<AuthResponseDto>> GoogleLoginAsync(GoogleLoginDto dto);
+        Task<Result<AuthResponseDto>> GoogleLoginAsync(GoogleLoginDto dto, string ipAddress);
     }
 }

@@ -48,7 +48,7 @@ namespace Plantitask.Infrastructure.Services
             _jwtSettings = jwtSettings.Value;
         }
 
-        public async Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto)
+        public async Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto, string ipAddress)
         {
             _logger.LogInformation("Attempting to register user with email: {Email}", registerDto.Email);
 
@@ -91,10 +91,10 @@ namespace Plantitask.Infrastructure.Services
                 _logger.LogError(ex, "Failed to send welcome email");
             }
 
-            return await GenerateAuthResponseAsync(user, "Unknown");
+            return await GenerateAuthResponseAsync(user, ipAddress);
         }
 
-        public async Task<Result<AuthResponseDto>> LoginAsync(LoginDto loginDto)
+        public async Task<Result<AuthResponseDto>> LoginAsync(LoginDto loginDto, string ipAddress)
         {
             _logger.LogInformation("Login attempt for email: {Email}", loginDto.Email);
 
@@ -113,7 +113,7 @@ namespace Plantitask.Infrastructure.Services
 
             _logger.LogInformation("User logged in successfully: {Email}", user.Email);
 
-            return await GenerateAuthResponseAsync(user, "Unknown");
+            return await GenerateAuthResponseAsync(user, ipAddress);
         }
 
         public async Task<Result<AuthResponseDto>> RefreshTokenAsync(string refreshToken)
@@ -206,7 +206,7 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
-        public async Task<Result> ForgotPasswordAsync(string email)
+        public async Task<Result> ForgotPasswordAsync(string email, string ipAddress)
         {
             _logger.LogInformation("Password reset requested for email: {Email}", email);
 
@@ -227,7 +227,7 @@ namespace Plantitask.Infrastructure.Services
                 TokenHash = tokenHash,
                 ExpiresAt = DateTime.UtcNow.AddHours(1),
                 IsUsed = false,
-                IpAddress = "Unknown",
+                IpAddress = ipAddress,
 
             };
 
@@ -294,7 +294,7 @@ namespace Plantitask.Infrastructure.Services
             return user.Id;
         }
 
-        public async Task<Result<AuthResponseDto>> GoogleLoginAsync(GoogleLoginDto dto)
+        public async Task<Result<AuthResponseDto>> GoogleLoginAsync(GoogleLoginDto dto, string ipAddress)
         {
             _logger.LogInformation("Google login attempt");
 
@@ -361,7 +361,7 @@ namespace Plantitask.Infrastructure.Services
                 _logger.LogInformation("Existing user logged in via Google: {Email}", user.Email);
             }
 
-            return await GenerateAuthResponseAsync(user, "Unknown");
+            return await GenerateAuthResponseAsync(user, ipAddress);
         }
 
         private async Task<AuthResponseDto> GenerateAuthResponseAsync(User user, string ipAddress)

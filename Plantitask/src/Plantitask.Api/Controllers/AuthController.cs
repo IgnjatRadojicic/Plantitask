@@ -32,7 +32,7 @@ namespace Plantitask.Api.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
-            var result = await _authService.RegisterAsync(registerDto);
+            var result = await _authService.RegisterAsync(registerDto, GetClientIpAddress());
 
             if (result.IsFailure)
                 return result.ToActionResult();
@@ -59,7 +59,7 @@ namespace Plantitask.Api.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            var result = await _authService.LoginAsync(loginDto);
+            var result = await _authService.LoginAsync(loginDto, GetClientIpAddress());
 
             if (result.IsFailure)
                 return result.ToActionResult();
@@ -115,7 +115,7 @@ namespace Plantitask.Api.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto forgotPasswordDto)
         {
-            var result = await _authService.ForgotPasswordAsync(forgotPasswordDto.Email);
+            var result = await _authService.ForgotPasswordAsync(forgotPasswordDto.Email, GetClientIpAddress());
             if (result.IsFailure)
                 return result.ToActionResult();
 
@@ -182,7 +182,7 @@ namespace Plantitask.Api.Controllers
 
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
         {
-            var result = await _authService.GoogleLoginAsync(dto);
+            var result = await _authService.GoogleLoginAsync(dto, GetClientIpAddress());
             return result.ToActionResult();
         }
     }
