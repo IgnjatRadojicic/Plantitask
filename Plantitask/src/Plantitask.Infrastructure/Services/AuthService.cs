@@ -84,7 +84,7 @@ namespace Plantitask.Infrastructure.Services
 
             try
             {
-                await _emailService.SendWelcomeEmailAsync(user.Email, user.UserName);
+                await _emailService.SendWelcomeEmailAsync(user.Email, user.FirstName ?? user.UserName);
             }
             catch (Exception ex)
             {
@@ -351,7 +351,7 @@ namespace Plantitask.Infrastructure.Services
 
                 try
                 {
-                    await _emailService.SendWelcomeEmailAsync(user.Email, user.UserName);
+                    await _emailService.SendWelcomeEmailAsync(user.Email, user.FirstName ?? user.UserName);
                 }
                 catch (Exception ex)
                 {

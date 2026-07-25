@@ -142,10 +142,10 @@ namespace Plantitask.Infrastructure.Services.Email
 </html>";
         }
 
-        public static string Welcome(string firstName)
+        public static string Welcome(string displayName)
         {
             return BaseTemplate($@"
-                <h2 style='color:#4a7c2e; margin-top:0;'>Welcome to Plantitask, {WebUtility.HtmlEncode(firstName)}!</h2>
+                <h2 style='color:#4a7c2e; margin-top:0;'>Welcome to Plantitask, {WebUtility.HtmlEncode(displayName)}!</h2>
                 <p>Your account has been created successfully. Your journey starts with a seed — create your first group and watch your tree grow as your team completes tasks.</p>
                 <p>Get started by creating your first group or joining an existing one.</p>");
         }

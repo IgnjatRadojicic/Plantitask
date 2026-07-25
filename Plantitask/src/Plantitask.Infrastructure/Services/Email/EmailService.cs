@@ -21,10 +21,10 @@ namespace Plantitask.Infrastructure.Services
             _client = new SendGridClient(_settings.SendGridApiKey);
         }
 
-        public async Task SendWelcomeEmailAsync(string email, string firstName)
+        public async Task SendWelcomeEmailAsync(string email, string displayName)
         {
-            var html = EmailTemplates.Welcome(firstName);
-            await SendEmailAsync(email, $"Welcome to Plantitask, {firstName}!", html, "welcome");
+            var html = EmailTemplates.Welcome(displayName);
+            await SendEmailAsync(email, $"Welcome to Plantitask, {displayName}!", html, "welcome");
         }
 
         public async Task SendPasswordResetEmailAsync(string email, string userName, string resetLink)
