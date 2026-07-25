@@ -360,7 +360,7 @@ namespace Plantitask.Infrastructure.Services
         {
             var accessToken = _tokenGenerator.GenerateAccessToken(user);
             var refreshToken = _tokenGenerator.GenerateRefreshToken();
-            await StoreRefreshTokenAsync(user.Id, TokenHasher.Sha256(refreshToken), ipAddress);
+            await StoreRefreshTokenAsync(user.Id, refreshToken, ipAddress);
 
             return new AuthResponseDto
             {
