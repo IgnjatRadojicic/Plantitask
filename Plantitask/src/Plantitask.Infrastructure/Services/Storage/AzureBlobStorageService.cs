@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+﻿using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Plantitask.Core.Configuration;
 using Plantitask.Core.Interfaces;
 
@@ -55,17 +56,22 @@ public class AzureBlobStorageService : IFileStorageService
                     $"File extension '{ext}' is not allowed.");
         }
 
-        var blobClient = _containerClient.GetBlobClient(fileName);
+        var extension = Path.GetExtension(Path.GetFileName(fileName)).ToLowerInvariant();
+        var storedName = $"{Guid.NewGuid()}{extension}";
+
+        var blobClient = _containerClient.GetBlobClient(storedName);
 
         await blobClient.UploadAsync(fileStream, new BlobUploadOptions
         {
-            HttpHeaders = new BlobHttpHeaders { ContentType = contentType }
+            HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            Conditions = new BlobRequestConditions { IfNoneMatch = ETag.All }
         });
 
-        _logger.LogInformation("Uploaded blob '{BlobName}' ({ContentType})", fileName, contentType);
+        _logger.LogInformation("Uploaded blob '{BlobName}' ({ContentType})", storedName, contentType);
 
-        return fileName;
+        return storedName;
     }
+    
 
     public async Task<Stream> DownloadFileAsync(string storagePath)
     {

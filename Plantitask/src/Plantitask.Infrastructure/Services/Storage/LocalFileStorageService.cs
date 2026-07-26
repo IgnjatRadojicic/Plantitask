@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Plantitask.Core.Configuration;
 using Plantitask.Core.Interfaces;
-using System.IO;
 namespace Plantitask.Infrastructure.Services.Storage
 {
     public class LocalFileStorageService : IFileStorageService
@@ -55,6 +54,7 @@ namespace Plantitask.Infrastructure.Services.Storage
             var fullPath = ResolveStoredPath(storagePath);
 
             if (!File.Exists(fullPath))
+
                 throw new FileNotFoundException("File not found", storagePath);
 
             return Task.FromResult<Stream>(new FileStream(
@@ -67,7 +67,7 @@ namespace Plantitask.Infrastructure.Services.Storage
         {
             try
             {
-                var fullPath = Path.Combine(_settings.LocalStorage.BasePath, storagePath);
+                var fullPath = ResolveStoredPath(storagePath);
 
                 if (File.Exists(fullPath))
                 {
@@ -87,7 +87,8 @@ namespace Plantitask.Infrastructure.Services.Storage
 
         private string ResolveStoredPath(string storagePath)
         {
-            var basePath = Path.GetFullPath(_settings.LocalStorage.BasePath);
+            var basePath = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(_settings.LocalStorage.BasePath));
             var fullPath = Path.GetFullPath(Path.Combine(basePath, storagePath));
 
             if (!fullPath.StartsWith(basePath + Path.DirectorySeparatorChar, StringComparison.Ordinal))
@@ -96,11 +97,8 @@ namespace Plantitask.Infrastructure.Services.Storage
             return fullPath;
         }
 
-        public Task<bool> FileExistsAsync(string storagePath)
-        {
-            var fullPath = Path.Combine(_settings.LocalStorage.BasePath, storagePath);
-            return Task.FromResult(File.Exists(fullPath));
-        }
+        public Task<bool> FileExistsAsync(string storagePath) =>
+            Task.FromResult(File.Exists(ResolveStoredPath(storagePath)));
 
         public string GetFileUrl(string storagePath)
         {
