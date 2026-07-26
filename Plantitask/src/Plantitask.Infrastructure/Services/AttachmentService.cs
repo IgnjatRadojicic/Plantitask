@@ -8,7 +8,7 @@ using Plantitask.Core.Enums;
 using Plantitask.Core.DTO.Attachments;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
-using System.Text.RegularExpressions;
+using Plantitask.Core.Validation;
 
 namespace Plantitask.Infrastructure.Services
 {
@@ -50,14 +50,17 @@ namespace Plantitask.Infrastructure.Services
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to upload attachments");
 
-            var validationError = ValidateFile(file);
-            if (validationError != null)
-                return validationError;
-
             string storagePath;
+            string contentType;
             using (var stream = file.OpenReadStream())
             {
-                storagePath = await _fileStorage.UploadFileAsync(stream, file.FileName, file.ContentType);
+                var validation = await FileUploadRules.ValidateAsync(
+                    stream, file.FileName, _settings.MaxFileSizeInMB, _settings.AllowedExtensions);
+                if (validation.IsFailure)
+                    return validation.Error!;
+
+                contentType = FileUploadRules.ContentTypeFor(validation.Value!);
+                storagePath = await _fileStorage.UploadFileAsync(stream, file.FileName, contentType);
             }
 
             var attachment = new TaskAttachment
@@ -66,7 +69,7 @@ namespace Plantitask.Infrastructure.Services
                 FileName = file.FileName,
                 FilePath = storagePath,
                 FileSize = file.Length,
-                ContentType = file.ContentType,
+                ContentType = contentType,
                 CreatedBy = userId,
             };
 
@@ -244,20 +247,5 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
-        private Error? ValidateFile(IFormFile file)
-        {
-            if (file == null || file.Length == 0)
-                return Error.BadRequest("File is empty");
-
-            var maxSizeBytes = _settings.MaxFileSizeInMB * 1024 * 1024;
-            if (file.Length > maxSizeBytes)
-                return Error.BadRequest($"File size exceeds maximum allowed size of {_settings.MaxFileSizeInMB}MB");
-
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            if (!_settings.AllowedExtensions.Contains(extension))
-                return Error.BadRequest($"File type '{extension}' is not allowed. Allowed types: {string.Join(", ", _settings.AllowedExtensions)}");
-
-            return null;
-        }
     }
 }

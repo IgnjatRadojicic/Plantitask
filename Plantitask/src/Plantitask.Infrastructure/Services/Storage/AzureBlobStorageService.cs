@@ -11,8 +11,6 @@ namespace Plantitask.Infrastructure.Services.Storage;
 public class AzureBlobStorageService : IFileStorageService
 {
     private readonly AzureBlobStorageSettings _blobSettings;
-    private readonly int _maxFileSizeBytes;
-    private readonly List<string> _allowedExtensions;
     private readonly ILogger<AzureBlobStorageService> _logger;
     private readonly BlobContainerClient _containerClient;
 
@@ -22,8 +20,6 @@ public class AzureBlobStorageService : IFileStorageService
     {
         _logger = logger;
         _blobSettings = settings.Value.AzureBlobStorage;
-        _maxFileSizeBytes = settings.Value.MaxFileSizeInMB * 1024 * 1024;
-        _allowedExtensions = settings.Value.AllowedExtensions;
 
         if (string.IsNullOrWhiteSpace(_blobSettings.ConnectionString))
             throw new InvalidOperationException(
@@ -44,18 +40,8 @@ public class AzureBlobStorageService : IFileStorageService
 
     public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType)
     {
-        if (fileStream.Length > _maxFileSizeBytes)
-            throw new InvalidOperationException(
-                $"File exceeds maximum allowed size of {_maxFileSizeBytes / (1024 * 1024)}MB.");
-
-        if (_allowedExtensions.Count > 0)
-        {
-            var ext = Path.GetExtension(fileName).ToLowerInvariant();
-            if (!_allowedExtensions.Contains(ext))
-                throw new InvalidOperationException(
-                    $"File extension '{ext}' is not allowed.");
-        }
-
+        // Size/extension/content validation is the caller's job (FileUploadRules) so failures
+        // surface as Result errors, not exceptions.
         var extension = Path.GetExtension(Path.GetFileName(fileName)).ToLowerInvariant();
         var storedName = $"{Guid.NewGuid()}{extension}";
 

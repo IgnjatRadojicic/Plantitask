@@ -4,6 +4,7 @@ using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Users;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.Validation;
 using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Infrastructure.Services;
@@ -16,7 +17,8 @@ public class UserProfileService : IUserProfileService
     private readonly IRedisService _redisService;
     private readonly ILogger<UserProfileService> _logger;
 
-    private const long MaxProfilePictureBytes = 5 * 1024 * 1024;
+    // Matches [RequestSizeLimit] on UserProfileController.UploadProfilePicture.
+    private const int MaxProfilePictureMb = 5;
 
     public UserProfileService(
         ApplicationDbContext context,
@@ -80,9 +82,10 @@ public class UserProfileService : IUserProfileService
         if (user is null)
             return Error.NotFound("User not found");
 
-        var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
-        if (!allowedTypes.Contains(contentType.ToLower()))
-            return Error.Validation("Only JPEG, PNG, WebP, and GIF images are allowed");
+        var validation = await FileUploadRules.ValidateAsync(
+            fileStream, fileName, MaxProfilePictureMb, FileUploadRules.ImageExtensions);
+        if (validation.IsFailure)
+            return validation.Error!;
 
         if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
         {
@@ -90,8 +93,9 @@ public class UserProfileService : IUserProfileService
             catch { }
         }
 
-        var path = $"profile-pictures/{userId}/{Guid.NewGuid()}{Path.GetExtension(fileName)}";
-        var storagePath = await _fileStorage.UploadFileAsync(fileStream, path, contentType);
+        // The storage layer picks the stored name; the original is metadata only.
+        var storagePath = await _fileStorage.UploadFileAsync(
+            fileStream, fileName, FileUploadRules.ContentTypeFor(validation.Value!));
         user.ProfilePictureUrl = _fileStorage.GetFileUrl(storagePath);
 
         await _context.SaveChangesAsync();
