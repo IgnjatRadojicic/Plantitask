@@ -31,26 +31,22 @@ namespace Plantitask.Infrastructure.Services.Storage
         }
 
         public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType)
-        { try
+        {
+            var extension = Path.GetExtension(Path.GetFileName(fileName)).ToLowerInvariant();
+            var storedName = $"{Guid.NewGuid()}{extension}";
+
+            var fullPath = Path.Combine(_settings.LocalStorage.BasePath, storedName);
+
+            var basePath = Path.GetFullPath(_settings.LocalStorage.BasePath);
+            if (!Path.GetFullPath(fullPath).StartsWith(basePath + Path.DirectorySeparatorChar))
+                throw new InvalidOperationException("Resolved path escaped the storage root");
+
+            await using (var output = new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write))
             {
-                var uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
-                var fullPath = Path.Combine(_settings.LocalStorage.BasePath, uniqueFileName);
-
-                Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-
-                using (var fileStreamOutput = new FileStream(fullPath, FileMode.Create, FileAccess.Write))
-                {
-                    await fileStream.CopyToAsync(fileStreamOutput);
-                }
-                _logger.LogInformation("File uploaded to local storage: {Path}", fullPath);
-
-                return uniqueFileName;
+                await fileStream.CopyToAsync(output);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error uploading file to local storage");
-                throw;
-            }
+
+            return storedName;
         }
         public async Task<Stream> DownloadFileAsync(string storagePath)
         {
