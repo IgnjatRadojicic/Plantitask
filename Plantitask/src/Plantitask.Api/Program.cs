@@ -14,6 +14,7 @@ using Plantitask.Core.Common;
 using Plantitask.Core.Configuration;
 using Plantitask.Core.DTO.Paypal;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.Validation;
 using Plantitask.Infrastructure.Data;
 using Plantitask.Infrastructure.Services;
 using Plantitask.Infrastructure.Services.Email;
@@ -24,6 +25,12 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Global backstop for request bodies. Per-endpoint [RequestSizeLimit] tightens this;
+// no endpoint may exceed it. Framework default is 30 MB, well above anything we accept.
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 8 * 1024 * 1024;
+});
 
 // Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -148,8 +155,19 @@ builder.Services.Configure<GoogleAuthSettings>(
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
-var storageProvider = builder.Configuration["FileStorage:Provider"];
-if (storageProvider == "Azure")
+builder.Services.AddOptions<FileStorageSettings>()
+    .Bind(builder.Configuration.GetSection("FileStorage"))
+    .Validate(s => s.AllowedExtensions.Count > 0,
+        "FileStorage:AllowedExtensions must not be empty")
+    .Validate(s => s.MaxFileSizeInMB > 0,
+        "FileStorage:MaxFileSizeInMB must be > 0")
+    .Validate(s => s.AllowedExtensions.All(FileUploadRules.CanVerify),
+        "FileStorage:AllowedExtensions contains a type with no magic-byte signature")
+    .ValidateOnStart();
+
+var fileStorageSettings =
+    builder.Configuration.GetSection("FileStorage").Get<FileStorageSettings>() ?? new();
+if (fileStorageSettings.Provider == "Azure")
     builder.Services.AddScoped<IFileStorageService, AzureBlobStorageService>();
 else
     builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
@@ -164,8 +182,6 @@ builder.Services.AddScoped<IBackgroundJobService, BackgroundJobService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<NotificationBackgroundJob>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.Configure<FileStorageSettings>(
-    builder.Configuration.GetSection("FileStorage"));
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IGroupCodeGenerator, GroupCodeGenerator>();

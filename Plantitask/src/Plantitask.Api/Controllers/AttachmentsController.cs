@@ -29,10 +29,14 @@ public class AttachmentsController : BaseApiController
     }
 
     [HttpPost]
+    // Backstop only, deliberately above FileStorage:MaxFileSizeInMB so the friendly
+    // "exceeds maximum allowed size" Result can fire instead of a bare 413.
+    [RequestSizeLimit(6 * 1024 * 1024)]
     [ProducesResponseType(typeof(AttachmentDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
     public async Task<IActionResult> UploadAttachment(Guid taskId, [FromForm] IFormFile file)
     {
         var userId = GetUserId();

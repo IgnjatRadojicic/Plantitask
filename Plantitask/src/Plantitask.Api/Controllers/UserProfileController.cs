@@ -40,7 +40,9 @@ public class UserProfileController : BaseApiController
 
     [HttpPost("picture")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [RequestSizeLimit(5 * 1024 * 1024)] // 5 MB
+    // Above MaxProfilePictureMb (5) so the friendly Result fires instead of a bare 413.
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
     public async Task<IActionResult> UploadProfilePicture(IFormFile file)
     {
         if (file is null || file.Length == 0)
