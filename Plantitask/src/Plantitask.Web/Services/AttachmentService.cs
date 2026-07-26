@@ -48,6 +48,32 @@ public class AttachmentService : BaseApiService, IAttachmentService
     public Task<ServiceResult<AttachmentDto>> GetByIdAsync(Guid taskId, Guid attachmentId)
         => GetAsync<AttachmentDto>($"api/tasks/{taskId}/attachments/{attachmentId}");
 
+    public async Task<ServiceResult<FileDownload>> DownloadAsync(Guid taskId, Guid attachmentId)
+    {
+        try
+        {
+            // AuthTokenHandler attaches the bearer token here, which a plain <a href> could not.
+            var response = await Http.GetAsync($"api/tasks/{taskId}/attachments/{attachmentId}/download");
+
+            if (!response.IsSuccessStatusCode)
+                return ServiceResult<FileDownload>.Fail(await ReadErrorResponse(response));
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
+                ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                ?? "download";
+            var contentType = response.Content.Headers.ContentType?.MediaType
+                ?? "application/octet-stream";
+
+            return ServiceResult<FileDownload>.Ok(new FileDownload(bytes, fileName, contentType));
+        }
+        catch (HttpRequestException)
+        {
+            return ServiceResult<FileDownload>.Fail(
+                "Cannot reach the server. Please check your connection.");
+        }
+    }
+
     public Task<ServiceResult<bool>> DeleteAsync(Guid taskId, Guid attachmentId)
         => DeleteAsync<bool>($"api/tasks/{taskId}/attachments/{attachmentId}");
 

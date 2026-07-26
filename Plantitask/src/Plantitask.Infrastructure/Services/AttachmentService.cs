@@ -90,11 +90,16 @@ namespace Plantitask.Infrastructure.Services
                 FileName = attachment.FileName,
                 FileSize = attachment.FileSize,
                 ContentType = attachment.ContentType,
-                DownloadUrl = _fileStorage.GetFileUrl(attachment.FilePath),
+                DownloadUrl = BuildDownloadUrl(attachment.TaskId, attachment.Id),
                 UploadedAt = attachment.CreatedAt,
                 UploadedByUserName = user!
             };
         }
+
+        // The authorized endpoint, not the storage URL. Attachments are group scoped so they
+        // must go through membership checks rather than an anonymous static path.
+        private static string BuildDownloadUrl(Guid taskId, Guid attachmentId) =>
+            $"/api/tasks/{taskId}/attachments/{attachmentId}/download";
 
         public async Task<Result<List<AttachmentDto>>> GetTaskAttachmentsAsync(Guid taskId, Guid userId)
         {
@@ -133,7 +138,7 @@ namespace Plantitask.Infrastructure.Services
                 FileName = a.FileName,
                 FileSize = a.FileSize,
                 ContentType = a.ContentType,
-                DownloadUrl = _fileStorage.GetFileUrl(a.FilePath),
+                DownloadUrl = BuildDownloadUrl(a.TaskId, a.Id),
                 UploadedAt = a.CreatedAt,
                 UploadedByUserName = a.UploaderName
             }).ToList();
@@ -174,7 +179,7 @@ namespace Plantitask.Infrastructure.Services
                 FileName = attachment.FileName,
                 FileSize = attachment.FileSize,
                 ContentType = attachment.ContentType,
-                DownloadUrl = _fileStorage.GetFileUrl(attachment.FilePath),
+                DownloadUrl = BuildDownloadUrl(attachment.TaskId, attachment.Id),
                 UploadedAt = attachment.CreatedAt,
                 UploadedByUserName = attachment.UploaderName
             };

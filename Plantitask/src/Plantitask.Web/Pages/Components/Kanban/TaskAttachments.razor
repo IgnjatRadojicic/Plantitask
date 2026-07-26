@@ -41,7 +41,9 @@
                     <MudIcon Icon="@GetFileIcon(att.ContentType)" Size="Size.Small" />
                 </div>
                 <div class="kanban-attachment-info">
-                    <a href="@att.DownloadUrl" target="_blank" rel="noopener" class="kanban-attachment-name">@att.FileName</a>
+                    <button type="button" class="kanban-attachment-name"
+                            disabled="@(_downloadingId == att.Id)"
+                            @onclick="() => DownloadAttachment(att)">@att.FileName</button>
                     <span class="kanban-attachment-meta">@att.FileSizeDisplay() · @att.UploadedByUserName · @att.UploadedAt.ToLocalTime().ToString("MMM d")</span>
                 </div>
                 <button class="field-icon-btn-sm" @onclick="() => DeleteAttachment(att.Id)">
@@ -61,10 +63,12 @@
     [Parameter, EditorRequired] public Guid TaskId { get; set; }
     [Parameter] public Guid CurrentUserId { get; set; }
 
-    private const long MaxFileSize = 10 * 1024 * 1024;
+    // Keep in step with FileStorage:MaxFileSizeInMB on the API.
+    private const long MaxFileSize = 5 * 1024 * 1024;
     private List<AttachmentDto> _attachments = new();
     private bool _loadingAttachments = true;
     private bool _uploading;
+    private Guid? _downloadingId;
     private Guid _lastLoadedTaskId;
     private readonly string _inputId = $"att-input-{Guid.NewGuid():N}";
 
@@ -83,7 +87,7 @@
     {
         var file = e.File;
         if (file is null) return;
-        if (file.Size > MaxFileSize) { Snackbar.Add("File must be under 10 MB.", MudBlazor.Severity.Warning); return; }
+        if (file.Size > MaxFileSize) { Snackbar.Add("File must be under 5 MB.", MudBlazor.Severity.Warning); return; }
 
         _uploading = true;
         StateHasChanged();
@@ -106,6 +110,30 @@
         finally
         {
             _uploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DownloadAttachment(AttachmentDto att)
+    {
+        if (_downloadingId is not null) return;
+
+        _downloadingId = att.Id;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AttachmentService.DownloadAsync(TaskId, att.Id);
+            if (result.Success && result.Data is not null)
+            {
+                await JS.InvokeVoidAsync("fileDownload.save",
+                    result.Data.FileName, result.Data.ContentType, result.Data.Content);
+            }
+            else Snackbar.Add(result.Error ?? "Download failed.", MudBlazor.Severity.Error);
+        }
+        finally
+        {
+            _downloadingId = null;
             StateHasChanged();
         }
     }

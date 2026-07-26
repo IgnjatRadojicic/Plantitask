@@ -812,8 +812,10 @@
 .kanban-attachment-item:hover { background: var(--c-primary-a10); }
 .kanban-attachment-icon { width: 32px; height: 32px; border-radius: 6px; background: var(--c-glass-65); display: flex; align-items: center; justify-content: center; color: var(--c-text-mid); flex-shrink: 0; }
 .kanban-attachment-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.kanban-attachment-name { font-family: var(--font-body); font-size: 0.82rem; font-weight: 600; color: var(--c-primary); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Renders as a <button> because downloads need an authorized fetch, not a plain link. */
+.kanban-attachment-name { font-family: var(--font-body); font-size: 0.82rem; font-weight: 600; color: var(--c-primary); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%; padding: 0; border: none; background: none; text-align: left; cursor: pointer; }
 .kanban-attachment-name:hover { text-decoration: underline; }
+.kanban-attachment-name:disabled { opacity: 0.6; cursor: default; text-decoration: none; }
 .kanban-attachment-meta { font-family: var(--font-body); font-size: 0.7rem; color: var(--c-text-faint); }
 
 /* ---- Responsive ---- */
