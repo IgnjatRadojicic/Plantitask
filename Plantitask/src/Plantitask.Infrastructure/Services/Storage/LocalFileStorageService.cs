@@ -35,11 +35,7 @@ namespace Plantitask.Infrastructure.Services.Storage
             var extension = Path.GetExtension(Path.GetFileName(fileName)).ToLowerInvariant();
             var storedName = $"{Guid.NewGuid()}{extension}";
 
-            var fullPath = Path.Combine(_settings.LocalStorage.BasePath, storedName);
-
-            var basePath = Path.GetFullPath(_settings.LocalStorage.BasePath);
-            if (!Path.GetFullPath(fullPath).StartsWith(basePath + Path.DirectorySeparatorChar))
-                throw new InvalidOperationException("Resolved path escaped the storage root");
+            var fullPath = ResolveStoredPath(storedName);
 
             await using (var output = new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write))
             {
@@ -48,32 +44,24 @@ namespace Plantitask.Infrastructure.Services.Storage
 
             return storedName;
         }
-        public async Task<Stream> DownloadFileAsync(string storagePath)
+
+        // When adding a retention job that hard-deletes
+        // blobs while leaving rows, or move to storage where objects legitimately expire,
+        // missing-file becomes an expected state and Result<Stream> with Error.NotFound becomes right.
+        // Re-run the "can a well-behaved system reach this?" test then, not the cost question.
+
+        public Task<Stream> DownloadFileAsync(string storagePath)
         {
-            try
-            {
-                var fullPath = Path.Combine(_settings.LocalStorage.BasePath, storagePath);
+            var fullPath = ResolveStoredPath(storagePath);
 
-                if (!File.Exists(fullPath))
-                {
-                    throw new FileNotFoundException("File not found", storagePath);
-                }
+            if (!File.Exists(fullPath))
+                throw new FileNotFoundException("File not found", storagePath);
 
-                var memoryStream = new MemoryStream();
-                using (var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read))
-                {
-                    await fileStream.CopyToAsync(memoryStream);
-                }
-                memoryStream.Position = 0;
-
-                return memoryStream;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error downloading file from local storage: {Path}", storagePath);
-                throw;
-            }
+            return Task.FromResult<Stream>(new FileStream(
+                fullPath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                bufferSize: 64 * 1024, useAsync: true));
         }
+
 
         public Task DeleteFileAsync(string storagePath)
         {
@@ -94,6 +82,18 @@ namespace Plantitask.Infrastructure.Services.Storage
                 _logger.LogError(ex, "Error deleting file from local storage: {Path}", storagePath);
                 throw;
             }
+        }
+
+
+        private string ResolveStoredPath(string storagePath)
+        {
+            var basePath = Path.GetFullPath(_settings.LocalStorage.BasePath);
+            var fullPath = Path.GetFullPath(Path.Combine(basePath, storagePath));
+
+            if (!fullPath.StartsWith(basePath + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                throw new InvalidOperationException("Resolved path escaped the storage root");
+
+            return fullPath;
         }
 
         public Task<bool> FileExistsAsync(string storagePath)
