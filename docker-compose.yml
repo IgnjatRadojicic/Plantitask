@@ -72,7 +72,16 @@ services:
       FileStorage__Provider: "Local"
       FileStorage__LocalStorage__BasePath: "/app/uploads"
       FileStorage__LocalStorage__BaseUrl: "https://plantitask.com/files"
-      FileStorage__MaxFileSizeInMB: 10
+      FileStorage__MaxFileSizeInMB: 5
+      # Required: FileStorageSettings is ValidateOnStart, so a missing/empty list
+      # fails startup. Every entry must have a magic-byte signature in FileUploadRules.
+      FileStorage__AllowedExtensions__0: ".png"
+      FileStorage__AllowedExtensions__1: ".jpg"
+      FileStorage__AllowedExtensions__2: ".jpeg"
+      FileStorage__AllowedExtensions__3: ".gif"
+      FileStorage__AllowedExtensions__4: ".webp"
+      FileStorage__AllowedExtensions__5: ".pdf"
+      FileStorage__AllowedExtensions__6: ".zip"
     volumes:
       - uploads-data:/app/uploads
     ports:
