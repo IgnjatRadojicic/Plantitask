@@ -50,26 +50,29 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto, string ipAddress)
         {
-            _logger.LogInformation("Attempting to register user with email: {Email}", registerDto.Email);
+            var email = NormalizeEmail(registerDto.Email);
+            var userName = registerDto.UserName.Trim();
 
-            var isVerified = await _redisService.IsEmailVerifiedAsync(registerDto.Email);
+            _logger.LogInformation("Attempting to register user with email: {Email}", email);
+
+            var isVerified = await _redisService.IsEmailVerifiedAsync(email);
             if (!isVerified)
                 return Error.BadRequest("Email must be verified before registration");
 
             var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == registerDto.Email || u.UserName == registerDto.UserName);
+                .FirstOrDefaultAsync(u => u.Email == email || u.UserName == userName);
 
             if (existingUser != null)
             {
-                if (existingUser.Email == registerDto.Email)
+                if (existingUser.Email == email)
                     return Error.Conflict("A user with this email already exists");
                 return Error.Conflict("A user with this username already exists");
             }
 
             var user = new User
             {
-                UserName = registerDto.UserName,
-                Email = registerDto.Email,
+                UserName = userName,
+                Email = email,
                 PasswordHash = _passwordHasher.HashPassword(registerDto.Password),
                 FirstName = registerDto.FirstName,
                 LastName = registerDto.LastName,
@@ -96,10 +99,12 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<AuthResponseDto>> LoginAsync(LoginDto loginDto, string ipAddress)
         {
-            _logger.LogInformation("Login attempt for email: {Email}", loginDto.Email);
+            var email = NormalizeEmail(loginDto.Email);
+
+            _logger.LogInformation("Login attempt for email: {Email}", email);
 
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == loginDto.Email);
+                .FirstOrDefaultAsync(u => u.Email == email);
 
             if (user == null || !_passwordHasher.VerifyPassword(loginDto.Password, user.PasswordHash))
                 return Error.Unauthorized("Invalid email or password");
@@ -164,13 +169,17 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<CheckEmailResponseDto>> CheckEmailAsync(string email)
         {
+            var normalized = NormalizeEmail(email);
+
             var exists = await _context.Users
-                .AnyAsync(u => u.Email == email);
+                .AnyAsync(u => u.Email == normalized);
             return new CheckEmailResponseDto { Exists = exists };
         }
 
         public async Task<Result> SendVerificationCodeAsync(string email)
         {
+            email = NormalizeEmail(email);
+
             var createdAt = await _redisService.GetVerificationCodeCreatedAtAsync(email);
 
             if (createdAt.HasValue && createdAt.Value > DateTime.UtcNow.AddMinutes(-1))
@@ -200,6 +209,8 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result> VerifyEmailCodeAsync(string email, string code)
         {
+            email = NormalizeEmail(email);
+
             var codeHash = await _redisService.GetVerificationCodeHashAsync(email);
 
             if (codeHash == null)
@@ -217,6 +228,8 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result> ForgotPasswordAsync(string email, string ipAddress)
         {
+            email = NormalizeEmail(email);
+
             _logger.LogInformation("Password reset requested for email: {Email}", email);
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
@@ -263,8 +276,10 @@ namespace Plantitask.Infrastructure.Services
         {
             _logger.LogInformation("Attempting password reset");
 
+            var email = NormalizeEmail(resetPasswordDto.Email);
+
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == resetPasswordDto.Email);
+                .FirstOrDefaultAsync(u => u.Email == email);
 
             if (user == null)
                 return Error.BadRequest("Invalid or expired reset token");
@@ -327,15 +342,17 @@ namespace Plantitask.Infrastructure.Services
             if (payload.EmailVerified != true)
                 return Error.Forbidden("Google account email is not verified");
 
+            var email = NormalizeEmail(payload.Email);
+
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == payload.Email);
+                .FirstOrDefaultAsync(u => u.Email == email);
 
             if (user == null)
             {
                 user = new User
                 {
-                    UserName = await GenerateUniqueUsernameAsync(payload.Email),
-                    Email = payload.Email,
+                    UserName = await GenerateUniqueUsernameAsync(email),
+                    Email = email,
                     PasswordHash = _passwordHasher.HashPassword(Guid.NewGuid().ToString()),
                     FirstName = payload.GivenName,
                     LastName = payload.FamilyName,
@@ -422,12 +439,28 @@ namespace Plantitask.Infrastructure.Services
 
         private static string GenerateUsernameFromEmail(string email)
         {
-            var baseName = email.Split('@')[0]
-                .Replace(".", "_")
-                .Replace("-", "_");
+            var localPart = email.Split('@')[0];
+
+            // Match the rules RegisterDto and UpdateUserProfileDto enforce: letters, digits
+            // and underscore only. SSO writes the entity directly so nothing else validates it.
+            var cleaned = new string(localPart
+                .Select(c => char.IsAsciiLetterOrDigit(c) ? c : '_')
+                .ToArray());
+
+            // The "_NNNN" suffix is always 5 chars so cap the base at 19 to stay inside the
+            // 24 char limit. Without this a long address overflows the 50 char column.
+            if (cleaned.Length > 19)
+                cleaned = cleaned[..19];
+
+            if (cleaned.Length == 0)
+                cleaned = "user";
 
             var suffix = RandomNumberGenerator.GetInt32(1000, 9999);
-            return $"{baseName}_{suffix}";
+            return $"{cleaned}_{suffix}";
         }
+
+        // Mail providers treat the mailbox case insensitively so the address is stored and
+        // compared in one canonical form. RedisService already lowercases its verification keys.
+        private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
     }
 }
