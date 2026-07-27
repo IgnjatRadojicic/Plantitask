@@ -5,7 +5,6 @@ using Plantitask.Core.DTO.Users;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Validation;
-using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Infrastructure.Services;
 
@@ -50,16 +49,23 @@ public class UserProfileService : IUserProfileService
         if (user is null)
             return Error.NotFound("User not found");
 
-        if (!string.IsNullOrWhiteSpace(dto.UserName) &&
-            !dto.UserName.Equals(user.UserName, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(dto.UserName))
         {
-            var usernameTaken = await _context.Users
-                .AnyAsync(u => u.UserName == dto.UserName && u.Id != userId);
+            // Trim first so the name we check for availability is the name we store.
+            var requested = dto.UserName.Trim();
 
-            if (usernameTaken)
-                return Error.Validation("Username is already taken");
+            // Ordinal not OrdinalIgnoreCase. Usernames are case sensitive here so Bob and bob
+            // are two different handles and Bob -> bob is a real rename that must be checked.
+            if (!string.Equals(requested, user.UserName, StringComparison.Ordinal))
+            {
+                var usernameTaken = await _context.Users
+                    .AnyAsync(u => u.UserName == requested && u.Id != userId);
 
-            user.UserName = dto.UserName.Trim();
+                if (usernameTaken)
+                    return Error.Conflict("Username is already taken");
+
+                user.UserName = requested;
+            }
         }
 
         if (dto.FirstName is not null)
@@ -68,7 +74,15 @@ public class UserProfileService : IUserProfileService
         if (dto.LastName is not null)
             user.LastName = dto.LastName.Trim();
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // The unique index is the real guard. Two requests can both pass the check above.
+            return Error.Conflict("Username is already taken");
+        }
 
         _logger.LogInformation("User {UserId} updated their profile", userId);
 

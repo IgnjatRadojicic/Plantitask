@@ -9,7 +9,10 @@ namespace Plantitask.Core.DTO.Users
 {
     public class UpdateUserProfileDto
     {
+        [StringLength(50)]
         public string? FirstName { get; set; }
+
+        [StringLength(50)]
         public string? LastName { get; set; }
 
         [StringLength(24, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 24 characters!")]
