@@ -103,14 +103,15 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<List<AttachmentDto>>> GetTaskAttachmentsAsync(Guid taskId, Guid userId)
         {
-            var task = await _context.Tasks
-                .Include(t => t.Group)
-                .FirstOrDefaultAsync(t => t.Id == taskId);
+            var groupId = await _context.Tasks
+                .Where(t => t.Id == taskId)
+                .Select(t => (Guid?)t.GroupId)
+                .FirstOrDefaultAsync();
 
-            if (task == null)
+            if (groupId == null)
                 return Error.NotFound("Task not found");
 
-            var isMember = await _groupService.IsUserMemberAsync(task.GroupId, userId);
+            var isMember = await _groupService.IsUserMemberAsync(groupId.Value, userId);
 
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to view attachments");
