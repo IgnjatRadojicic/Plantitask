@@ -51,7 +51,7 @@ public class UserProfileController : BaseApiController
         var userId = GetUserId();
         using var stream = file.OpenReadStream();
         var result = await _profileService.UploadProfilePictureAsync(
-            userId, stream, file.FileName, file.ContentType);
+            userId, stream, file.FileName);
 
         if (result.IsFailure)
             return result.ToActionResult();

@@ -10,7 +10,7 @@ namespace Plantitask.Core.Interfaces
     {
         Task<Result<UserProfileDto>> GetProfileAsync(Guid userId);
         Task<Result<UserProfileDto>> UpdateProfileAsync(Guid userId, UpdateUserProfileDto dto);
-        Task<Result<string>> UploadProfilePictureAsync(Guid userId, Stream fileStream, string fileName, string contentType);
+        Task<Result<string>> UploadProfilePictureAsync(Guid userId, Stream fileStream, string fileName);
         Task<Result> RemoveProfilePictureAsync(Guid userId);
         Task<Result> ChangePasswordAsync(Guid userId, ChangePasswordDto dto);
     }

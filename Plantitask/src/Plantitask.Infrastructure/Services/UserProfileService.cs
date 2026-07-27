@@ -11,7 +11,7 @@ namespace Plantitask.Infrastructure.Services;
 
 public class UserProfileService : IUserProfileService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IApplicationDbContext _context;
     private readonly IFileStorageService _fileStorage;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IRedisService _redisService;
@@ -21,7 +21,7 @@ public class UserProfileService : IUserProfileService
     private const int MaxProfilePictureMb = 5;
 
     public UserProfileService(
-        ApplicationDbContext context,
+        IApplicationDbContext context,
         IFileStorageService fileStorage,
         IPasswordHasher passwordHasher,
         IRedisService redisService,
@@ -76,7 +76,7 @@ public class UserProfileService : IUserProfileService
     }
 
     public async Task<Result<string>> UploadProfilePictureAsync(
-        Guid userId, Stream fileStream, string fileName, string contentType)
+        Guid userId, Stream fileStream, string fileName)
     {
         var user = await _context.Users.FindAsync(userId);
         if (user is null)
