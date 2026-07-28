@@ -1,46 +1,10 @@
-﻿
-[data-theme="dark"] .landing-hero .landing-headline,
-[data-theme="dark"] .landing-hero .landing-subtext,
-[data-theme="dark"] .landing-hero .landing-cta,
-[data-theme="dark"] .landing-hero .landing-brand,
-[data-theme="dark"] .landing-hero .landing-nav-link,
-[data-theme="dark"] .landing-hero .landing-signin-btn,
-[data-theme="dark"] .landing-hero .landing-logout-btn {
-    color: #FFFFFF;
-}
+﻿/* Landing hero has no dark-mode block any more: everything sitting on the photo
+   uses the --c-on-media / --c-media-surface tokens, which do not invert. */
 
 [data-theme="dark"] .dash-vine {
     mix-blend-mode: normal;
     opacity: 0.08;
     filter: invert(1) brightness(0.5) sepia(1) hue-rotate(30deg) saturate(2);
-}
-
-/* Landing: logo background in dark mode */
-[data-theme="dark"] .landing-logo {
-    background: rgba(30,30,30,0.95);
-}
-
-[data-theme="dark"] .landing-nav-center-logo {
-    background: rgba(30,30,30,0.95);
-}
-
-/* Landing: user avatar border */
-[data-theme="dark"] .landing-user-avatar {
-    border-color: rgba(255,255,255,0.2);
-}
-
-[data-theme="dark"] .landing-cta {
-    border-color: #FFFFFF;
-    color: #FFFFFF;
-}
-
-[data-theme="dark"] .landing-subtext {
-    color: rgba(255,255,255,0.85);
-}
-
-/* ---- Landing: nav scrolled bg ---- */
-[data-theme="dark"] .landing-nav-scrolled {
-    background: rgba(18,18,18,0.9);
 }
 
 /* ---- Landing: features section ---- */

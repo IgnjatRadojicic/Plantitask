@@ -4,14 +4,42 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Plantitask</title>
+    <meta name="description" content="Task management for small teams who plant trees. Kanban boards, real-time collaboration, and a portion of all revenue planting real trees." />
     <base href="/" />
     <link rel="icon" href="favicon.ico" type="image/x-icon">
+
+    <!-- LCP is the landing hero. Blazor only paints it after the WASM runtime boots,
+         so preload it here where the parser finds it immediately. The media queries
+         mirror the breakpoint in css/landing.css — keep the two in sync. -->
+    <link rel="preload" as="image" href="images/landing.webp" type="image/webp"
+          media="(min-width: 901px)" fetchpriority="high" />
+    <link rel="preload" as="image" href="images/landing-960.webp" type="image/webp"
+          media="(max-width: 900px)" fetchpriority="high" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link href="css/app.css" rel="stylesheet" />
+
+    <!-- Was one link to css/app.css, which @import-ed these 14. That cost an extra
+         serialized round trip on the critical path: app.css had to arrive and parse
+         before the browser learned the real stylesheets existed. Listed here they
+         download in parallel. Order is identical to the old @import order, so the
+         cascade is unchanged. Add new stylesheets HERE, not to app.css. -->
+    <link href="css/_variables.css" rel="stylesheet" />
+    <link href="css/_base.css" rel="stylesheet" />
+    <link href="css/dark-mode-fixes.css" rel="stylesheet" />
+    <link href="css/landing.css" rel="stylesheet" />
+    <link href="css/landingsubpages.css" rel="stylesheet" />
+    <link href="css/auth.css" rel="stylesheet" />
+    <link href="css/legal.css" rel="stylesheet" />
+    <link href="css/notification-panel.css" rel="stylesheet" />
+    <link href="css/settings.css" rel="stylesheet" />
+    <link href="css/field.css" rel="stylesheet" />
+    <link href="css/kanban.css" rel="stylesheet" />
+    <link href="css/groupstatistics.css" rel="stylesheet" />
+    <link href="css/membermanagment.css" rel="stylesheet" />
+    <link href="css/dashboard.css" rel="stylesheet" />
     <script>
     (function() {
         var t = localStorage.getItem('theme') || 'light';
@@ -138,7 +166,7 @@
 <body>
     <div id="app">
         <div class="loading-screen">
-            <img src="images/logo.png" alt="Plantitask" class="loading-logo" />
+            <img src="images/logo.png" alt="" width="80" height="80" class="loading-logo" />
             <div class="loading-brand">PLANTITASK</div>
             <div class="line-container">
                 <div class="line-glow"></div>
@@ -146,20 +174,25 @@
             <p class="loading-text">Loading<span class="loading-dots"></span></p>
         </div>
     </div>
-    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.6.6/pixi.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <!-- Everything below is deferred: none of it is touched until a component calls
+         into it via JS interop, which cannot happen before the WASM runtime boots.
+         Deferring keeps them off the parser's path and out of the `load` event.
+         Pixi (~450 KB) and Chart.js (~200 KB) are still downloaded on every page
+         including this one, which needs neither — see docs/rewrite/frontend/05-js-interop.md. -->
+    <script defer src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.6.6/pixi.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="js/googleAuth.js"></script>
+    <script defer src="js/googleAuth.js"></script>
 
-    <script src="js/darkmode.js"></script>
-    <script src="js/dom-helpers.js"></script>
-    <script src="js/file-download.js"></script>
-    <script src="js/field-engine.js"></script>
-    <script src="js/scroll-watcher.js"></script>
-    <script src="js/dashboard-chart.js"></script>
-    <script src="js/group-stats.js"></script>
-    <script src="js/kanban-drag.js"></script>
+    <script defer src="js/darkmode.js"></script>
+    <script defer src="js/dom-helpers.js"></script>
+    <script defer src="js/file-download.js"></script>
+    <script defer src="js/field-engine.js"></script>
+    <script defer src="js/scroll-watcher.js"></script>
+    <script defer src="js/dashboard-chart.js"></script>
+    <script defer src="js/group-stats.js"></script>
+    <script defer src="js/kanban-drag.js"></script>
 
     <script src="_framework/blazor.webassembly.js"></script>
 
