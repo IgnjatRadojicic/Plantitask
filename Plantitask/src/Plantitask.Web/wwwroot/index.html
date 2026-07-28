@@ -25,21 +25,27 @@
          serialized round trip on the critical path: app.css had to arrive and parse
          before the browser learned the real stylesheets existed. Listed here they
          download in parallel. Order is identical to the old @import order, so the
-         cascade is unchanged. Add new stylesheets HERE, not to app.css. -->
-    <link href="css/_variables.css" rel="stylesheet" />
-    <link href="css/_base.css" rel="stylesheet" />
-    <link href="css/dark-mode-fixes.css" rel="stylesheet" />
-    <link href="css/landing.css" rel="stylesheet" />
-    <link href="css/landingsubpages.css" rel="stylesheet" />
-    <link href="css/auth.css" rel="stylesheet" />
-    <link href="css/legal.css" rel="stylesheet" />
-    <link href="css/notification-panel.css" rel="stylesheet" />
-    <link href="css/settings.css" rel="stylesheet" />
-    <link href="css/field.css" rel="stylesheet" />
-    <link href="css/kanban.css" rel="stylesheet" />
-    <link href="css/groupstatistics.css" rel="stylesheet" />
-    <link href="css/membermanagment.css" rel="stylesheet" />
-    <link href="css/dashboard.css" rel="stylesheet" />
+         cascade is unchanged. Add new stylesheets HERE, not to app.css.
+
+         ?v= is a manual cache buster. Unlike _framework, .NET does not fingerprint
+         our own css/js, so the URL never changes when the contents do. index.html is
+         served no-cache, so bumping this number is what forces returning visitors off
+         a stale stylesheet. Bump it whenever a css or js file changes shape enough
+         that old markup + new styles (or the reverse) would look broken. -->
+    <link href="css/_variables.css?v=2" rel="stylesheet" />
+    <link href="css/_base.css?v=2" rel="stylesheet" />
+    <link href="css/dark-mode-fixes.css?v=2" rel="stylesheet" />
+    <link href="css/landing.css?v=2" rel="stylesheet" />
+    <link href="css/landingsubpages.css?v=2" rel="stylesheet" />
+    <link href="css/auth.css?v=2" rel="stylesheet" />
+    <link href="css/legal.css?v=2" rel="stylesheet" />
+    <link href="css/notification-panel.css?v=2" rel="stylesheet" />
+    <link href="css/settings.css?v=2" rel="stylesheet" />
+    <link href="css/field.css?v=2" rel="stylesheet" />
+    <link href="css/kanban.css?v=2" rel="stylesheet" />
+    <link href="css/groupstatistics.css?v=2" rel="stylesheet" />
+    <link href="css/membermanagment.css?v=2" rel="stylesheet" />
+    <link href="css/dashboard.css?v=2" rel="stylesheet" />
     <script>
     (function() {
         var t = localStorage.getItem('theme') || 'light';
@@ -183,16 +189,16 @@
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.6.6/pixi.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script defer src="js/googleAuth.js"></script>
+    <script defer src="js/googleAuth.js?v=2"></script>
 
-    <script defer src="js/darkmode.js"></script>
-    <script defer src="js/dom-helpers.js"></script>
-    <script defer src="js/file-download.js"></script>
-    <script defer src="js/field-engine.js"></script>
-    <script defer src="js/scroll-watcher.js"></script>
-    <script defer src="js/dashboard-chart.js"></script>
-    <script defer src="js/group-stats.js"></script>
-    <script defer src="js/kanban-drag.js"></script>
+    <script defer src="js/darkmode.js?v=2"></script>
+    <script defer src="js/dom-helpers.js?v=2"></script>
+    <script defer src="js/file-download.js?v=2"></script>
+    <script defer src="js/field-engine.js?v=2"></script>
+    <script defer src="js/scroll-watcher.js?v=2"></script>
+    <script defer src="js/dashboard-chart.js?v=2"></script>
+    <script defer src="js/group-stats.js?v=2"></script>
+    <script defer src="js/kanban-drag.js?v=2"></script>
 
     <script src="_framework/blazor.webassembly.js"></script>
 
