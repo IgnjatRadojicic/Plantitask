@@ -1,16 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 
 namespace Plantitask.Core.DTO.Users
 {
     public class ChangePasswordDto
     {
+        [Required(ErrorMessage = "Current password is required!")]
         public string CurrentPassword { get; set; } = string.Empty;
+
+        // Same rules as RegisterDto.Password. A password you can set here is a password you
+        // could have registered with.
+        [Required(ErrorMessage = "Password is required!")]
+        [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be between 8 and 100 characters")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$",
+        ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character")]
         public string NewPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please confirm your new password")]
         public string ConfirmNewPassword { get; set; } = string.Empty;
     }
-
 }
