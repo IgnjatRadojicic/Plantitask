@@ -1,5 +1,6 @@
 ﻿using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Auth;
+using Plantitask.Core.DTO.Users;
 
 namespace Plantitask.Core.Interfaces
 {
@@ -10,6 +11,8 @@ namespace Plantitask.Core.Interfaces
         Task<Result<AuthResponseDto>> RefreshTokenAsync(string refreshToken);
         Task<Result> LogoutAsync(string refreshToken);
         Task<Result<CheckEmailResponseDto>> CheckEmailAsync(string email);
+
+        Task<Result<AuthResponseDto>> ChangePasswordAsync(Guid userId, ChangePasswordDto dto, string ipAddress);
         Task<Result> SendVerificationCodeAsync(string email);
         Task<Result> VerifyEmailCodeAsync(string email, string code);
         Task<Result> ForgotPasswordAsync(string email, string ipAddress);

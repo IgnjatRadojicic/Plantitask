@@ -5,6 +5,7 @@ using Plantitask.Web.Models;
 
 using Plantitask.Core.DTO.Users;
 using Plantitask.Core.DTO.Paypal;
+using Plantitask.Core.DTO.Auth;
 namespace Plantitask.Web.Services;
 
 public class UserProfileService : BaseApiService, IUserProfileService
@@ -50,8 +51,8 @@ public class UserProfileService : BaseApiService, IUserProfileService
     public Task<ServiceResult<MessageResponse>> RemoveProfilePictureAsync()
         => DeleteAsync<MessageResponse>("api/user/profile/picture");
 
-    public Task<ServiceResult<MessageResponse>> ChangePasswordAsync(ChangePasswordDto dto)
-        => PostAsync<MessageResponse>("api/user/profile/change-password", dto);
+    public Task<ServiceResult<AuthResponseDto>> ChangePasswordAsync(ChangePasswordDto dto)
+        => PostAsync<AuthResponseDto>("api/user/profile/change-password", dto);
 
     private static async Task<string> ReadErrorResponse(HttpResponseMessage response)
     {

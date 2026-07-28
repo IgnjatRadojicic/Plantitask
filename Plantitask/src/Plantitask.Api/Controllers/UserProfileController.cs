@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Plantitask.Api.Extensions;
+using Plantitask.Core.DTO.Auth;
 using Plantitask.Core.DTO.Users;
 using Plantitask.Core.Interfaces;
+using Plantitask.Infrastructure.Services;
 
 namespace Plantitask.Api.Controllers;
 
@@ -14,10 +16,12 @@ namespace Plantitask.Api.Controllers;
 public class UserProfileController : BaseApiController
 {
     private readonly IUserProfileService _profileService;
+    private readonly IAuthService _authService;
 
-    public UserProfileController(IUserProfileService profileService)
+    public UserProfileController(IUserProfileService profileService, IAuthService authService)
     {
         _profileService = profileService;
+        _authService = authService;
     }
 
     [HttpGet]
@@ -73,15 +77,12 @@ public class UserProfileController : BaseApiController
     }
 
     [HttpPost("change-password")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
     {
-        var userId = GetUserId();
-        var result = await _profileService.ChangePasswordAsync(userId, dto);
+        var result = await _authService.ChangePasswordAsync(GetUserId(), dto, GetClientIpAddress());
 
-        if (result.IsFailure)
-            return result.ToActionResult();
-
-        return Ok(new { message = "Password changed successfully" });
+        return result.ToActionResult();
     }
+
 }

@@ -127,6 +127,8 @@ namespace Plantitask.Web.Services
             return await _localStorage.GetItemAsStringAsync(TokenKey);
         }
 
+        public Task AdoptSessionAsync(AuthResponseDto auth) => StoreTokensAndNotify(auth);
+
         private async Task StoreTokensAndNotify(AuthResponseDto auth)
         {
             await _localStorage.SetItemAsStringAsync(TokenKey, auth.AccessToken);

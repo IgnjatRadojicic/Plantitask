@@ -12,8 +12,6 @@ public class UserProfileService : IUserProfileService
 {
     private readonly IApplicationDbContext _context;
     private readonly IFileStorageService _fileStorage;
-    private readonly IPasswordHasher _passwordHasher;
-    private readonly IRedisService _redisService;
     private readonly ILogger<UserProfileService> _logger;
 
     // Matches [RequestSizeLimit] on UserProfileController.UploadProfilePicture.
@@ -22,14 +20,10 @@ public class UserProfileService : IUserProfileService
     public UserProfileService(
         IApplicationDbContext context,
         IFileStorageService fileStorage,
-        IPasswordHasher passwordHasher,
-        IRedisService redisService,
         ILogger<UserProfileService> logger)
     {
         _context = context;
         _fileStorage = fileStorage;
-        _passwordHasher = passwordHasher;
-        _redisService = redisService;
         _logger = logger;
     }
 
@@ -140,31 +134,7 @@ public class UserProfileService : IUserProfileService
         return Result.Success();
     }
 
-    public async Task<Result> ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
-    {
-        if (dto.NewPassword != dto.ConfirmNewPassword)
-            return Error.Validation("Passwords do not match");
 
-        if (dto.NewPassword.Length < 8)
-            return Error.Validation("Password must be at least 8 characters");
-
-        var user = await _context.Users.FindAsync(userId);
-        if (user is null)
-            return Error.NotFound("User not found");
-
-        if (!_passwordHasher.VerifyPassword(dto.CurrentPassword, user.PasswordHash))
-            return Error.Validation("Current password is incorrect");
-
-        user.PasswordHash = _passwordHasher.HashPassword(dto.NewPassword);
-
-        await _context.SaveChangesAsync();
-
-        await _redisService.RevokeAllUserTokensAsync(userId);
-
-        _logger.LogInformation("User {UserId} changed their password", userId);
-
-        return Result.Success();
-    }
 
     private static UserProfileDto MapToDto(User user)
     {

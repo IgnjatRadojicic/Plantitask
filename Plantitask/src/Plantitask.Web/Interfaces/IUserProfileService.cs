@@ -3,6 +3,7 @@ using Plantitask.Web.Models;
 
 using Plantitask.Core.DTO.Users;
 using Plantitask.Core.DTO.Paypal;
+using Plantitask.Core.DTO.Auth;
 namespace Plantitask.Web.Interfaces;
 
     public interface IUserProfileService
@@ -11,5 +12,5 @@ namespace Plantitask.Web.Interfaces;
         Task<ServiceResult<UserProfileDto>> UpdateProfileAsync(UpdateUserProfileDto dto);
         Task<ServiceResult<ProfilePictureResponse>> UploadProfilePictureAsync(Stream fileStream, string fileName, string contentType);
         Task<ServiceResult<MessageResponse>> RemoveProfilePictureAsync();
-        Task<ServiceResult<MessageResponse>> ChangePasswordAsync(ChangePasswordDto dto);
+        Task<ServiceResult<AuthResponseDto>> ChangePasswordAsync(ChangePasswordDto dto);
     }

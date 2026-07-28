@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Auth;
+using Plantitask.Core.DTO.Users;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Models;
@@ -405,6 +406,34 @@ namespace Plantitask.Infrastructure.Services
                 Email = user.Email
             };
         }
+
+        public async Task<Result<AuthResponseDto>> ChangePasswordAsync(
+            Guid userId, ChangePasswordDto dto, string ipAddress)
+        {
+            if (dto.NewPassword != dto.ConfirmNewPassword)
+                return Error.Validation("Passwords do not match");
+
+            if (dto.NewPassword.Length < 8)
+                return Error.Validation("Password must be at least 8 characters");
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user is null)
+                return Error.NotFound("User not found");
+
+            if (!_passwordHasher.VerifyPassword(dto.CurrentPassword, user.PasswordHash))
+                return Error.Validation("Current password is incorrect");
+
+            user.PasswordHash = _passwordHasher.HashPassword(dto.NewPassword);
+
+            await _context.SaveChangesAsync();
+
+            await _redisService.RevokeAllUserTokensAsync(userId);
+
+            _logger.LogInformation("User {UserId} changed their password", userId);
+
+            return await GenerateAuthResponseAsync(user, ipAddress);
+        }
+
 
         private async Task StoreRefreshTokenAsync(Guid userId, string refreshToken, string ipAddress)
         {
