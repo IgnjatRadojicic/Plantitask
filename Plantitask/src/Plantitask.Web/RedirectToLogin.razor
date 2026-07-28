@@ -1,0 +1,21 @@
+@inject NavigationManager Navigation
+
+@*
+    Rendered by <AuthorizeRouteView><NotAuthorized> in App.razor when an unauthenticated
+    user hits a protected route. /login is the combined auth page — it walks Email ->
+    Password for existing accounts and Email -> VerifyCode -> Register for new ones, so
+    this is the sign up entry point as well as the sign in one.
+*@
+
+@code {
+    protected override void OnInitialized()
+    {
+        var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+
+        var target = string.IsNullOrEmpty(returnUrl)
+            ? "/login"
+            : $"/login?returnUrl={Uri.EscapeDataString(returnUrl)}";
+
+        Navigation.NavigateTo(target, forceLoad: false);
+    }
+}
