@@ -10,7 +10,8 @@ public class KanbanTaskDto
     public int PriorityId { get; set; }
     public string PriorityName { get; set; } = string.Empty;
     public string PriorityColor { get; set; } = string.Empty;
-    public string? AssignedToProfilePictureUrl { get; set; }
+    // Storage key, not a URL. The client composes the address (Web: FileUrls.ToUrl).
+    public string? AssignedToProfilePicturePath { get; set; }
     public Guid? AssignedToId { get; set; }
     public string? AssignedToUserName { get; set; }
 

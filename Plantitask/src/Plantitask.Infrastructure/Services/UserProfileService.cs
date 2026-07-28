@@ -95,22 +95,20 @@ public class UserProfileService : IUserProfileService
         if (validation.IsFailure)
             return validation.Error!;
 
+        // Captured BEFORE the field is overwritten on the next statement.
+        var oldPath = user.ProfilePicturePath;
+
         // The storage layer picks the stored name; the original is metadata only.
-        var storagePath = await _fileStorage.UploadFileAsync(
+        user.ProfilePicturePath = await _fileStorage.UploadFileAsync(
             fileStream, fileName, FileUploadRules.ContentTypeFor(validation.Value!));
-        user.ProfilePictureUrl = _fileStorage.GetFileUrl(storagePath);
 
         await _context.SaveChangesAsync();
 
-        if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
-        {
-            try { await _fileStorage.DeleteFileAsync(user.ProfilePictureUrl); }
-            catch { }
-        }
+        await TryDeleteStoredPictureAsync(oldPath, userId);
 
         _logger.LogInformation("User {UserId} updated their profile picture", userId);
 
-        return user.ProfilePictureUrl;
+        return user.ProfilePicturePath!;
     }
 
     public async Task<Result> RemoveProfilePictureAsync(Guid userId)
@@ -119,22 +117,42 @@ public class UserProfileService : IUserProfileService
         if (user is null)
             return Error.NotFound("User not found");
 
-        user.ProfilePictureUrl = null;
+        var oldPath = user.ProfilePicturePath;
+
+        user.ProfilePicturePath = null;
 
         await _context.SaveChangesAsync();
 
-        if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
-        {
-            try { await _fileStorage.DeleteFileAsync(user.ProfilePictureUrl); }
-            catch { }
-        }
+        await TryDeleteStoredPictureAsync(oldPath, userId);
 
         _logger.LogInformation("User {UserId} removed their profile picture", userId);
 
         return Result.Success();
     }
 
+    /// <summary>
+    /// Best-effort cleanup of a replaced picture. The DB is the source of truth - a failed
+    /// delete must not fail the request, but it must not be invisible either.
+    /// </summary>
+    private async Task TryDeleteStoredPictureAsync(string? storedValue, Guid userId)
+    {
+        if (string.IsNullOrEmpty(storedValue))
+            return;
 
+        // Google SSO avatars live on Google's CDN so the column holds their absolute URL
+        // rather than one of our keys. Not ours to delete.
+        if (storedValue.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        try
+        {
+            await _fileStorage.DeleteFileAsync(storedValue);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete old profile picture for {UserId}", userId);
+        }
+    }
 
     private static UserProfileDto MapToDto(User user)
     {
@@ -145,7 +163,7 @@ public class UserProfileService : IUserProfileService
             Email = user.Email,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            ProfilePictureUrl = user.ProfilePictureUrl,
+            ProfilePicturePath = user.ProfilePicturePath,
             LastLoginAt = user.LastLoginAt,
             CreatedAt = user.CreatedAt,
             IsPremium = user.HasActivePremium,

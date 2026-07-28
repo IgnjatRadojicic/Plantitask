@@ -13,7 +13,8 @@ namespace Plantitask.Core.DTO.Groups
         public string Email { get; set; } = string.Empty;
         public GroupRole Role { get; set; }
 
-        public string? ProfilePictureUrl { get; set; }
+        // Storage key, not a URL. The client composes the address (Web: FileUrls.ToUrl).
+        public string? ProfilePicturePath { get; set; }
         public DateTime JoinedAt { get; set; }
     }
 }

@@ -9,7 +9,7 @@ public class UserInfo
     public string Email { get; set; } = string.Empty;
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
-    public string? ProfilePictureUrl { get; set; }
+    public string? ProfilePicturePath { get; set; }
 
     public bool IsPremium { get; set; }
     public string? SubscriptionType { get; set; }

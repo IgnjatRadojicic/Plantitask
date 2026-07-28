@@ -357,7 +357,7 @@ namespace Plantitask.Infrastructure.Services
                     PasswordHash = _passwordHasher.HashPassword(Guid.NewGuid().ToString()),
                     FirstName = payload.GivenName,
                     LastName = payload.FamilyName,
-                    ProfilePictureUrl = payload.Picture,
+                    ProfilePicturePath = payload.Picture,
                     IsEmailConfirmed = true,
     
                 };

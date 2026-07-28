@@ -14,7 +14,8 @@ namespace Plantitask.Core.DTO.Comments
         public Guid UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
 
-        public string? ProfilePictureUrl { get; set; }
+        // Storage key, not a URL. The client composes the address (Web: FileUrls.ToUrl).
+        public string? ProfilePicturePath { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public bool IsEdited => UpdatedAt.HasValue;

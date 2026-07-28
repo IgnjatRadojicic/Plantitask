@@ -60,7 +60,7 @@ public class UserProfileController : BaseApiController
         if (result.IsFailure)
             return result.ToActionResult();
 
-        return Ok(new { url = result.Value });
+        return Ok(new { path = result.Value });
     }
 
     [HttpDelete("picture")]

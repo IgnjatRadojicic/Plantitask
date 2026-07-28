@@ -385,7 +385,7 @@ else
             var result = await ProfileService.UploadProfilePictureAsync(stream, file.Name, file.ContentType);
             if (result.Success && result.Data is not null)
             {
-                _profile.ProfilePictureUrl = result.Data.Url;
+                _profile.ProfilePicturePath = result.Data.Path;
                 CurrentUser.ClearCache();
                 Snackbar.Add("Profile picture updated", Severity.Success);
             }
@@ -410,7 +410,7 @@ else
         var result = await ProfileService.RemoveProfilePictureAsync();
         if (result.Success)
         {
-            _profile.ProfilePictureUrl = null;
+            _profile.ProfilePicturePath = null;
             Snackbar.Add("Profile picture removed", Severity.Success);
             StateHasChanged();
             CurrentUser.ClearCache();

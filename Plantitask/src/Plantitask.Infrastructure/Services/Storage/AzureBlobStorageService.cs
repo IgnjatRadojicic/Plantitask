@@ -94,6 +94,8 @@ public class AzureBlobStorageService : IFileStorageService
         if (!string.IsNullOrWhiteSpace(_blobSettings.BaseUrl))
             return $"{_blobSettings.BaseUrl.TrimEnd('/')}/{storagePath}";
 
+        // GetBlobClient percent encodes the blob name and keeps any query string on the
+        // container Uri where it belongs. Appending by hand gets both of those wrong.
         var blobClient = _containerClient.GetBlobClient(storagePath);
         return blobClient.Uri.ToString();
     }

@@ -16,7 +16,7 @@ namespace Plantitask.Core.Entities
 
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
-        public string? ProfilePictureUrl { get; set; }
+        public string? ProfilePicturePath { get; set; }
 
         public bool IsEmailConfirmed { get; set; } = false;
         public DateTime? LastLoginAt { get; set; }

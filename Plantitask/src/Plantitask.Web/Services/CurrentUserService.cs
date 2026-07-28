@@ -54,7 +54,7 @@ public class CurrentUserService : ICurrentUserService
             var result = await _profileService.GetProfileAsync();
             if (result.Success && result.Data is not null)
             {
-                info.ProfilePictureUrl = result.Data.ProfilePictureUrl;
+                info.ProfilePicturePath = result.Data.ProfilePicturePath;
                 info.IsPremium = result.Data.IsPremium;
                 info.SubscriptionType = result.Data.SubscriptionType;
                 info.PremiumExpiresAt = result.Data.PremiumExpiresAt;

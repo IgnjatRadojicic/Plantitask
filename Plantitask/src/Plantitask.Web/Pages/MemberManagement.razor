@@ -88,9 +88,9 @@
                 <div class="members-table-row @(isCurrentUser ? "members-row-self" : "")">
                     <div class="members-td-name">
                     <div class="members-avatar">
-                        @if (!string.IsNullOrEmpty(member.ProfilePictureUrl))
+                        @if (!string.IsNullOrEmpty(member.ProfilePicturePath))
                         {
-                            <img src="@member.ProfilePictureUrl" alt="@member.UserName"
+                            <img src="@FileUrls.ToUrl(member.ProfilePicturePath)" alt="@member.UserName"
                                  style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />
                         }
                         else

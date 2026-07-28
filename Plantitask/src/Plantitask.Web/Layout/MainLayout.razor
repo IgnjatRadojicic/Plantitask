@@ -37,9 +37,9 @@
                 </button>
                 <button class="field-profile-btn" @onclick="ToggleProfileMenu">
                     <div class="field-profile-avatar">
-                        @if (!string.IsNullOrEmpty(_userInfo.ProfilePictureUrl))
+                        @if (!string.IsNullOrEmpty(_userInfo.ProfilePicturePath))
                         {
-                            <img src="@_userInfo.ProfilePictureUrl" alt="@_userInfo.DisplayName" />
+                            <img src="@FileUrls.ToUrl(_userInfo.ProfilePicturePath)" alt="@_userInfo.DisplayName" />
                         }
                         else
                         {
@@ -141,9 +141,9 @@
         <div class="field-profile-menu">
             <div class="field-profile-menu-header">
                 <div class="field-profile-avatar-lg">
-                    @if (!string.IsNullOrEmpty(_userInfo.ProfilePictureUrl))
+                    @if (!string.IsNullOrEmpty(_userInfo.ProfilePicturePath))
                     {
-                        <img src="@_userInfo.ProfilePictureUrl" alt="@_userInfo.DisplayName" />
+                        <img src="@FileUrls.ToUrl(_userInfo.ProfilePicturePath)" alt="@_userInfo.DisplayName" />
                     }
                     else
                     {

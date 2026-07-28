@@ -47,9 +47,9 @@
             @if (Task.AssignedToId.HasValue)
             {
                 <div class="kanban-card-assignee" title="@Task.AssignedToUserName">
-                    @if (!string.IsNullOrEmpty(Task.AssignedToProfilePictureUrl))
+                    @if (!string.IsNullOrEmpty(Task.AssignedToProfilePicturePath))
                     {
-                        <img src="@Task.AssignedToProfilePictureUrl" alt="@Task.AssignedToUserName"
+                        <img src="@FileUrls.ToUrl(Task.AssignedToProfilePicturePath)" alt="@Task.AssignedToUserName"
                              style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />
                     }
                     else

@@ -87,7 +87,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.FirstName).HasMaxLength(50);
             entity.Property(e => e.MaxGroups).HasDefaultValue(5);
             entity.Property(e => e.LastName).HasMaxLength(50);
-            entity.Property(e => e.ProfilePictureUrl).HasMaxLength(500);
+            entity.Property(e => e.ProfilePicturePath).HasMaxLength(500);
             entity.Property(e => e.IsPremium).HasDefaultValue(false);
             entity.Property(e => e.PayPalSubscriptionId).HasMaxLength(200);
             entity.Property(e => e.PayPalOrderId).HasMaxLength(200);

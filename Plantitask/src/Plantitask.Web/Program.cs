@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using Plantitask.Web;
+using Plantitask.Web.Helpers;
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Services;
 
@@ -13,6 +14,12 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"]
     ?? "http://localhost:5212";
+
+// Where uploaded files are served from. In development that is the API's own static file
+// route (see UseStaticFiles with RequestPath "/files" in the API Program.cs). In production
+// it is whatever host serves the storage container.
+FileUrls.Configure(builder.Configuration["FileSettings:BaseUrl"]
+    ?? $"{apiBaseUrl}/files");
 
 // Register the DelegatingHandler
 builder.Services.AddScoped<AuthTokenHandler>();

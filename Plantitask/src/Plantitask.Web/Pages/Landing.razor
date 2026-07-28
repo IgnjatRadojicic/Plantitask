@@ -13,9 +13,9 @@
                 <Authorized>
                     <a href="/profile" class="landing-user-avatar-link" title="@_userInfo.DisplayName">
                         <div class="landing-user-avatar">
-                            @if (!string.IsNullOrEmpty(_userInfo.ProfilePictureUrl))
+                            @if (!string.IsNullOrEmpty(_userInfo.ProfilePicturePath))
                             {
-                                <img src="@_userInfo.ProfilePictureUrl" alt="@_userInfo.DisplayName" class="landing-user-avatar-img" />
+                                <img src="@FileUrls.ToUrl(_userInfo.ProfilePicturePath)" alt="@_userInfo.DisplayName" class="landing-user-avatar-img" />
                             }
                             else
                             {

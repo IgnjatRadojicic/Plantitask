@@ -11,9 +11,9 @@
                         <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
                     </div>
                 }
-                else if (!string.IsNullOrEmpty(Profile.ProfilePictureUrl))
+                else if (!string.IsNullOrEmpty(Profile.ProfilePicturePath))
                 {
-                    <img class="ds-profile-avatar" src="@Profile.ProfilePictureUrl" alt="@Profile.DisplayName()" />
+                    <img class="ds-profile-avatar" src="@FileUrls.ToUrl(Profile.ProfilePicturePath)" alt="@Profile.DisplayName()" />
                 }
                 else
                 {
@@ -31,7 +31,7 @@
                 <span class="ds-profile-username">@@@Profile.UserName</span>
             </div>
         </div>
-        @if (!string.IsNullOrEmpty(Profile.ProfilePictureUrl))
+        @if (!string.IsNullOrEmpty(Profile.ProfilePicturePath))
         {
             <button class="ds-btn-text ds-btn-danger-text" @onclick="OnRemovePicture">
                 Remove Avatar

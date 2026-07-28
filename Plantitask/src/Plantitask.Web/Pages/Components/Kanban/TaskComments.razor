@@ -38,9 +38,9 @@
             <div class="kanban-comment">
                 <div class="kanban-comment-header">
             <div class="kanban-card-assignee" style="width:28px; height:28px; font-size:0.65rem;">
-            @if (!string.IsNullOrEmpty(comment.ProfilePictureUrl))
+            @if (!string.IsNullOrEmpty(comment.ProfilePicturePath))
             {
-                <img src="@comment.ProfilePictureUrl" alt="@comment.UserName"
+                <img src="@FileUrls.ToUrl(comment.ProfilePicturePath)" alt="@comment.UserName"
                 style="width:100%; height:100%; border-radius:50%; object-fit:cover;" />
             }
             else

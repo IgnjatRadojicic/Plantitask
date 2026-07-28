@@ -230,7 +230,7 @@ namespace Plantitask.Infrastructure.Services
                     UserId = gm.UserId,
                     UserName = gm.User.UserName,
                     Email = gm.User.Email,
-                    ProfilePictureUrl = gm.User.ProfilePictureUrl,
+                    ProfilePicturePath = gm.User.ProfilePicturePath,
                     Role = (GroupRole)gm.RoleId,
                 }).ToListAsync();
 
@@ -340,7 +340,7 @@ namespace Plantitask.Infrastructure.Services
                 UserId = targetMembership.UserId,
                 UserName = targetMembership.User.UserName,
                 Email = targetMembership.User.Email,
-                ProfilePictureUrl = targetMembership.User.ProfilePictureUrl,
+                ProfilePicturePath = targetMembership.User.ProfilePicturePath,
                 Role = changeRoleDto.NewRole
             };
         }

@@ -75,17 +75,16 @@ public class CommentService : ICommentService
             .OrderBy(tc => tc.CreatedAt);
 
         return await query.Select(tc => new CommentDto
-             {
-                 Id = tc.Id,
-                 TaskId = tc.TaskId,
-                 Content = tc.Content,
-                 UserId = tc.CreatedBy,
-                 ProfilePictureUrl = tc.Author.ProfilePictureUrl,
-                 UserName = tc.Author.UserName,
-                 CreatedAt = tc.CreatedAt,
-                 UpdatedAt = tc.UpdatedAt
-             }).ToPaginatedListAsync(pageNumber, pageSize);
-
+        {
+            Id = tc.Id,
+            TaskId = tc.TaskId,
+            Content = tc.Content,
+            UserId = tc.CreatedBy,
+            ProfilePicturePath = tc.Author.ProfilePicturePath,
+            UserName = tc.Author.UserName,
+            CreatedAt = tc.CreatedAt,
+            UpdatedAt = tc.UpdatedAt
+        }).ToPaginatedListAsync(pageNumber, pageSize);
     }
 
     public async Task<Result<CommentDto>> UpdateCommentAsync(Guid commentId, UpdateCommentDto updateCommentDto, Guid userId)
@@ -157,7 +156,7 @@ public class CommentService : ICommentService
             Id = comment.Id,
             TaskId = comment.TaskId,
             Content = comment.Content,
-            ProfilePictureUrl = comment.Author.ProfilePictureUrl,
+            ProfilePicturePath = comment.Author.ProfilePicturePath,
             UserId = comment.CreatedBy,
             UserName = comment.Author.UserName,
             CreatedAt = comment.CreatedAt,
