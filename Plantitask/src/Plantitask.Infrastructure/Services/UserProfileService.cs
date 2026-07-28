@@ -95,18 +95,18 @@ public class UserProfileService : IUserProfileService
         if (validation.IsFailure)
             return validation.Error!;
 
-        if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
-        {
-            try { await _fileStorage.DeleteFileAsync(user.ProfilePictureUrl); }
-            catch { }
-        }
-
         // The storage layer picks the stored name; the original is metadata only.
         var storagePath = await _fileStorage.UploadFileAsync(
             fileStream, fileName, FileUploadRules.ContentTypeFor(validation.Value!));
         user.ProfilePictureUrl = _fileStorage.GetFileUrl(storagePath);
 
         await _context.SaveChangesAsync();
+
+        if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
+        {
+            try { await _fileStorage.DeleteFileAsync(user.ProfilePictureUrl); }
+            catch { }
+        }
 
         _logger.LogInformation("User {UserId} updated their profile picture", userId);
 
@@ -119,15 +119,15 @@ public class UserProfileService : IUserProfileService
         if (user is null)
             return Error.NotFound("User not found");
 
+        user.ProfilePictureUrl = null;
+
+        await _context.SaveChangesAsync();
+
         if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
         {
             try { await _fileStorage.DeleteFileAsync(user.ProfilePictureUrl); }
             catch { }
         }
-
-        user.ProfilePictureUrl = null;
-
-        await _context.SaveChangesAsync();
 
         _logger.LogInformation("User {UserId} removed their profile picture", userId);
 
