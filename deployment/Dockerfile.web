@@ -35,8 +35,22 @@ RUN dotnet publish src/Plantitask.Web/Plantitask.Web.csproj \
 # Stage 2: Serve with nginx
 FROM nginx:alpine AS runtime
 
-# Copy the published Blazor WASM output (it's all static files)
+# Copy the published Blazor WASM output (it's all static files).
+# This deliberately includes the .br/.gz twins publish generates; nginx-blazor.conf
+# serves the .gz via gzip_static instead of recompressing per request.
 COPY --from=build /app/publish/wwwroot /usr/share/nginx/html
+
+# ---- Optional: brotli (.br is ~1 MB smaller than .gz on our framework payload) ----
+# nginx:alpine has no ngx_brotli, and `brotli_static on;` in the config would stop
+# nginx from starting. To enable it, swap the runtime stage for Alpine's own nginx
+# plus the matching module package, then add `brotli_static on;` to nginx-blazor.conf:
+#
+#   FROM alpine:3.20 AS runtime
+#   RUN apk add --no-cache nginx nginx-mod-http-brotli
+#   # modules under /etc/nginx/modules are auto-loaded by Alpine's nginx.conf
+#
+# Verify before deploying either way:
+#   docker run --rm nginx:alpine nginx -V 2>&1 | tr ' ' '\n' | grep -E 'gzip_static|brotli'
 
 # Custom nginx config for Blazor WASM (SPA routing)
 COPY deployment/nginx-blazor.conf /etc/nginx/conf.d/default.conf
