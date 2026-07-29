@@ -13,7 +13,5 @@ namespace Plantitask.Core.DTO.Auth
 
         [Required(ErrorMessage = "Password is required")]
         public string Password { get; set; } = string.Empty;
-
-        public bool RememberMe { get; set; }
     }
 }

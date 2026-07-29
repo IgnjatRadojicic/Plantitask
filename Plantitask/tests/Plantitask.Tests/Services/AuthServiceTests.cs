@@ -100,7 +100,7 @@ public class AuthServiceTests
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User>()).Object);
         _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _mockHasher.Setup(h => h.HashPassword(It.IsAny<string>())).Returns("hashed_pw");
-        _mockTokenGen.Setup(t => t.GenerateAccessToken(It.IsAny<User>(), It.IsAny<bool>())).Returns("access_123");
+        _mockTokenGen.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("access_123");
         _mockTokenGen.Setup(t => t.GenerateRefreshToken()).Returns("refresh_456");
 
         var dto = new RegisterDto { Email = "new@test.com", UserName = "newuser", Password = "Password123!", FirstName = "New", LastName = "User" };
@@ -121,7 +121,7 @@ public class AuthServiceTests
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User>()).Object);
         _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _mockHasher.Setup(h => h.HashPassword(It.IsAny<string>())).Returns("hash");
-        _mockTokenGen.Setup(t => t.GenerateAccessToken(It.IsAny<User>(), It.IsAny<bool>())).Returns("t");
+        _mockTokenGen.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("t");
         _mockTokenGen.Setup(t => t.GenerateRefreshToken()).Returns("r");
 
         await _sut.RegisterAsync(new RegisterDto { Email = "new@test.com", UserName = "newuser", Password = "P@ss1", FirstName = "N", LastName = "U" });
@@ -136,7 +136,7 @@ public class AuthServiceTests
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User>()).Object);
         _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _mockHasher.Setup(h => h.HashPassword(It.IsAny<string>())).Returns("hash");
-        _mockTokenGen.Setup(t => t.GenerateAccessToken(It.IsAny<User>(), It.IsAny<bool>())).Returns("t");
+        _mockTokenGen.Setup(t => t.GenerateAccessToken(It.IsAny<User>())).Returns("t");
         _mockTokenGen.Setup(t => t.GenerateRefreshToken()).Returns("r");
         _mockEmail.Setup(e => e.SendWelcomeEmailAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new Exception("SMTP down"));
@@ -198,7 +198,7 @@ public class AuthServiceTests
         _mockContext.Setup(c => c.Users).Returns(MockDbSetFactory.Create(new List<User> { user }).Object);
         _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _mockHasher.Setup(h => h.VerifyPassword("correct", user.PasswordHash)).Returns(true);
-        _mockTokenGen.Setup(t => t.GenerateAccessToken(user, It.IsAny<bool>())).Returns("t");
+        _mockTokenGen.Setup(t => t.GenerateAccessToken(user)).Returns("t");
         _mockTokenGen.Setup(t => t.GenerateRefreshToken()).Returns("r");
 
         var result = await _sut.LoginAsync(new LoginDto { Email = "user@test.com", Password = "correct" });

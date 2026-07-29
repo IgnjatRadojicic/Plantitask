@@ -38,12 +38,6 @@
                                   Disabled="_loading"
                                   Immediate="true" />
 
-                    <MudCheckBox @bind-Value="_rememberMe"
-                                 Label="Remember me"
-                                 Color="Color.Primary"
-                                 Class="mb-4"
-                                 Dense="true" />
-
                     <MudButton ButtonType="ButtonType.Submit"
                                Variant="Variant.Filled"
                                Color="Color.Primary"
@@ -308,7 +302,6 @@
 
     private AuthStep _step = AuthStep.Email;
     private bool _loading;
-    private bool _rememberMe;
     private bool _showPassword;
 
     private CheckEmailDto _emailModel = new();
@@ -377,7 +370,6 @@
     private async Task HandleLogin()
     {
         _loading = true;
-        _loginModel.RememberMe = _rememberMe;
         var result = await AuthService.LoginAsync(_loginModel);
         _loading = false;
 

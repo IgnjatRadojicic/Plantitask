@@ -22,7 +22,7 @@ namespace Plantitask.Infrastructure.Services
             _jwtSettings = jwtSettings.Value;
         }
 
-        public string GenerateAccessToken(User user, bool rememberMe = false)
+        public string GenerateAccessToken(User user)
         {
             var claims = new[]
             {
@@ -35,9 +35,7 @@ namespace Plantitask.Infrastructure.Services
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var expiry = rememberMe
-                ? DateTime.UtcNow.AddDays(30)
-                : DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpiryInMinutes);
+            var expiry = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpiryInMinutes);
 
             var token = new JwtSecurityToken(
                 issuer: _jwtSettings.Issuer,
