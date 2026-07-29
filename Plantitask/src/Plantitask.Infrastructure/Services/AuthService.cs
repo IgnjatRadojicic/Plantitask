@@ -113,8 +113,11 @@ namespace Plantitask.Infrastructure.Services
             if (!user.IsEmailConfirmed)
                 return Error.Unauthorized("Invalid email or password");
 
+            if (_passwordHasher.NeedsRehash(user.PasswordHash))
+                user.PasswordHash = _passwordHasher.HashPassword(loginDto.Password);
+
             user.LastLoginAt = DateTime.UtcNow;
-            
+
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("User logged in successfully: {Email}", user.Email);
