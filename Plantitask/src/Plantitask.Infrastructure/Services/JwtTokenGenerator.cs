@@ -30,7 +30,6 @@ namespace Plantitask.Infrastructure.Services
         new Claim(JwtRegisteredClaimNames.Email, user.Email),
         new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
         new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        new Claim("userId", user.Id.ToString())
     };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
@@ -53,10 +52,9 @@ namespace Plantitask.Infrastructure.Services
 
         public string GenerateRefreshToken()
         {
-            var randomNumber = new byte[64];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(randomNumber);
-            return Convert.ToBase64String(randomNumber);
+            var bytes = new byte[64];
+            RandomNumberGenerator.Fill(bytes);
+            return Convert.ToBase64String(bytes);
         }
     }
 }
