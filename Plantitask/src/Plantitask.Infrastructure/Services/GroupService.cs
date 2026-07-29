@@ -95,8 +95,13 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<GroupDto>> JoinGroupAsync(JoinGroupDto joinGroupDto, Guid userId)
         {
+            var code = joinGroupDto.GroupCode?.Trim().ToUpperInvariant() ?? string.Empty;
+
+            if (!_codeGenerator.IsValid(code))
+                return Error.NotFound("Invalid group code");
+
             var groupData = await _context.Groups
-                .Where(g => g.GroupCode == joinGroupDto.GroupCode)
+                .Where(g => g.GroupCode == code)
                 .Select(g => new
                 {
                     g.Id,
