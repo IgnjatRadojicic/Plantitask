@@ -8,7 +8,7 @@ namespace Plantitask.Core.Interfaces
 {
     public interface IGroupCodeGenerator
     {
-        string Generate(string groupName);
+        string Generate();
         bool IsValid(string code);
     }
 }

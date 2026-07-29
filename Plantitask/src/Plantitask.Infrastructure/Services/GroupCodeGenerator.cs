@@ -13,16 +13,9 @@ namespace Plantitask.Infrastructure.Services
         private const string ValidChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         private const int CodeLength = 8;
 
-        public string Generate(string groupName)
+        public string Generate()
         {
-            var input = $"{groupName}{DateTime.UtcNow.Ticks}";
-            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-            var code = new StringBuilder(CodeLength);
-            for (int i = 0; i < CodeLength; i++)
-            {
-                code.Append(ValidChars[hash[i] % ValidChars.Length]);
-            }
-            return code.ToString();
+            return RandomNumberGenerator.GetString(ValidChars, CodeLength);
         }
 
         public bool IsValid(string code)

@@ -49,7 +49,7 @@ namespace Plantitask.Infrastructure.Services
             if (limitError != null)
                 return limitError;
 
-            var groupCode = await GenerateUniqueGroupCode(createGroupDto.Name);
+            var groupCode = await GenerateUniqueGroupCode();
 
             string? passwordHash = null;
             if (!string.IsNullOrEmpty(createGroupDto.Password))
@@ -545,11 +545,11 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
-        private async Task<string> GenerateUniqueGroupCode(string groupName)
+        private async Task<string> GenerateUniqueGroupCode()
         {
             for (int attemp = 0; attemp < 5; attemp++)
             {
-                var code = _codeGenerator.Generate(groupName);
+                var code = _codeGenerator.Generate();
                 if (!await _context.Groups.AnyAsync(g => g.GroupCode == code))
                     return code;
             }
