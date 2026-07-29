@@ -23,7 +23,18 @@ namespace Plantitask.Infrastructure.Services
 
         public bool VerifyPassword(string password, string hashedPassword)
         {
-            return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
+            if (string.IsNullOrWhiteSpace(hashedPassword))
+                return false;
+
+            try
+            {
+                return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
+            }
+            catch (BCrypt.Net.SaltParseException)
+            {
+                return false;
+            }
         }
+
     }
 }
