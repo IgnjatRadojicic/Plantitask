@@ -17,9 +17,7 @@ namespace Plantitask.Web.Interfaces
 
         Task<ServiceResult<MessageResponse>> ForgotPasswordAsync(string email);
         Task<ServiceResult<MessageResponse>> ResetPasswordAsync(ResetPasswordDto request);
-        Task<ServiceResult<AuthResponseDto>> RefreshTokenAsync(string refreshToken);
         Task LogoutAsync();
-        Task<string?> GetTokenAsync();
 
     }
 }

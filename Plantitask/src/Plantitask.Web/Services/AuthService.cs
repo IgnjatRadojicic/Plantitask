@@ -1,29 +1,16 @@
-﻿using Blazored.LocalStorage;
-using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using Plantitask.Core.DTO.Auth;
 namespace Plantitask.Web.Services
 {
     public class AuthService : BaseApiService, IAuthService
     {
+        private readonly ISessionService _session;
 
-        private readonly ILocalStorageService _localStorage;
-        private readonly CustomAuthStateProvider _authStateProvider;
-
-        private const string TokenKey = "authToken";
-        private const string RefreshTokenKey = "refreshToken";
-
-        public AuthService(
-            HttpClient http,
-            ILocalStorageService localStorage,
-            CustomAuthStateProvider authStateProvider) : base(http)
+        public AuthService(HttpClient http, ISessionService session) : base(http)
         {
-            _localStorage = localStorage;
-            _authStateProvider = authStateProvider;
+            _session = session;
         }
         public async Task<ServiceResult<CheckEmailResponseDto>> CheckEmailAsync(string email)
         {
@@ -47,7 +34,7 @@ namespace Plantitask.Web.Services
                 new GoogleLoginDto { IdToken = idToken });
 
             if (result.Success && result.Data != null)
-                await StoreTokensAndNotify(result.Data);
+                await _session.SetTokensAsync(result.Data);
 
             return result;
         }
@@ -57,14 +44,14 @@ namespace Plantitask.Web.Services
             var result = await PostAsync<AuthResponseDto>("api/auth/login", request);
 
             if (result.Success && result.Data != null)
-                await StoreTokensAndNotify(result.Data);
+                await _session.SetTokensAsync(result.Data);
 
             return result;
         }
 
         public async Task LogoutAsync()
         {
-            var refreshToken = await _localStorage.GetItemAsStringAsync(RefreshTokenKey);
+            var refreshToken = await _session.GetRefreshTokenAsync();
 
             if (!string.IsNullOrEmpty(refreshToken))
             {
@@ -76,21 +63,7 @@ namespace Plantitask.Web.Services
                 catch { }
             }
 
-            await _localStorage.RemoveItemAsync(TokenKey);
-            await _localStorage.RemoveItemAsync(RefreshTokenKey);
-            _authStateProvider.NotifyUserLogout();
-        }
-
-        public async Task<ServiceResult<AuthResponseDto>> RefreshTokenAsync(string refreshToken)
-        {
-            var result = await PostAsync<AuthResponseDto>(
-                "api/auth/refresh",
-                new RefreshTokenDto { RefreshToken = refreshToken });
-
-            if (result.Success && result.Data != null)
-                await StoreTokensAndNotify(result.Data);
-
-            return result;
+            await _session.ClearAsync();
         }
 
         public async Task<ServiceResult<AuthResponseDto>> RegisterAsync(RegisterDto request)
@@ -98,7 +71,7 @@ namespace Plantitask.Web.Services
             var result = await PostAsync<AuthResponseDto>("api/auth/register", request);
 
             if (result.Success && result.Data != null)
-                await StoreTokensAndNotify(result.Data);
+                await _session.SetTokensAsync(result.Data);
 
             return result;
         }
@@ -122,18 +95,6 @@ namespace Plantitask.Web.Services
                 new VerifyEmailDto { Email = email, Code = code });
         }
 
-        public async Task<string?> GetTokenAsync()
-        {
-            return await _localStorage.GetItemAsStringAsync(TokenKey);
-        }
-
-        public Task AdoptSessionAsync(AuthResponseDto auth) => StoreTokensAndNotify(auth);
-
-        private async Task StoreTokensAndNotify(AuthResponseDto auth)
-        {
-            await _localStorage.SetItemAsStringAsync(TokenKey, auth.AccessToken);
-            await _localStorage.SetItemAsStringAsync(RefreshTokenKey, auth.RefreshToken);
-            _authStateProvider.NotifyUserAuthentication(auth.AccessToken);
-        }
+        public Task AdoptSessionAsync(AuthResponseDto auth) => _session.SetTokensAsync(auth);
     }
 }
