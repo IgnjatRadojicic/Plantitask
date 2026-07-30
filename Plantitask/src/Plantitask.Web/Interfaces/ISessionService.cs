@@ -10,6 +10,6 @@ namespace Plantitask.Web.Interfaces
         Task<string?> GetRefreshTokenAsync();
         Task SetTokensAsync(AuthResponseDto auth);
         Task ClearAsync();
-        Task<string?> TryRereshAsync();
+        Task<string?> TryRefreshAsync();
     }
 }

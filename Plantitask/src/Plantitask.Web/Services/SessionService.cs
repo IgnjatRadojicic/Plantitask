@@ -6,7 +6,7 @@ using Plantitask.Web.Interfaces;
 
 namespace Plantitask.Web.Services
 {
-    public class SessionService
+    public class SessionService : ISessionService
     {
         public const string AuthClientName = "PlantitaskAuth";
 

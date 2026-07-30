@@ -45,6 +45,13 @@ builder.Services.AddMudServices(config =>
     config.SnackbarConfiguration.SnackbarVariant = MudBlazor.Variant.Filled;
 });
 
+builder.Services.AddHttpClient(SessionService.AuthClientName, client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+});
+
+builder.Services.AddScoped<ISessionService, SessionService>();
+
 // Local storage
 builder.Services.AddBlazoredLocalStorage();
 
