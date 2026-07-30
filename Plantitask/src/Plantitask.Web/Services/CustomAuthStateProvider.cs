@@ -1,52 +1,40 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using Blazored.LocalStorage;
+﻿using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
-
 using Plantitask.Core.DTO.Auth;
+using Plantitask.Web.Interfaces;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 namespace Plantitask.Web.Services
 {
     public class CustomAuthStateProvider : AuthenticationStateProvider
     {
 
-        private readonly ILocalStorageService _localStorage;
+        private readonly ISessionService _session;
 
         private static readonly AuthenticationState AnonymousState =
             new(new ClaimsPrincipal(new ClaimsIdentity()));
 
-        public CustomAuthStateProvider(ILocalStorageService localStorage)
+        public CustomAuthStateProvider(ISessionService session)
         {
-            _localStorage = localStorage;
+            _session = session;
+            _session.OnTokensChanged += HandleTokensChanged;
         }
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
             try
             {
-                var token = await _localStorage.GetItemAsStringAsync("authToken");
+                var token = await _session.GetAccessTokenAsync();
 
                 if (string.IsNullOrWhiteSpace(token))
                     return AnonymousState;
 
-                var claims = ParseClaimsFromJwt(token);
+                if (!IsExpiredOrExpiring(token))
+                    return BuildState(token);
 
-                var expClaim = claims.FirstOrDefault(c =>
-                c.Type == "exp" || c.Type == JwtRegisteredClaimNames.Exp);
+                var newToken = await _session.TryRefreshAsync();
 
-                if (expClaim != null &&
-                    long.TryParse(expClaim.Value, out var expSeconds))
-                {
-                    var expiry = DateTimeOffset.FromUnixTimeSeconds(expSeconds);
-                    if (expiry <= DateTimeOffset.UtcNow)
-                    {
-                        await _localStorage.RemoveItemAsync("authToken");
-                        await _localStorage.RemoveItemAsync("refreshToken");
-                        return AnonymousState;
-                    }
-                }
-
-                var identity = new ClaimsIdentity(claims, "Bearer");
-                return new AuthenticationState(new ClaimsPrincipal(identity));
+                return newToken is not null ? BuildState(newToken) : AnonymousState;
             }
             catch
             {
@@ -54,21 +42,25 @@ namespace Plantitask.Web.Services
             }
         }
 
-        public void NotifyUserAuthentication(string token)
+        private void HandleTokensChanged(string? accessToken)
         {
-            var claims = ParseClaimsFromJwt(token);
-            var identity = new ClaimsIdentity(claims, "Bearer");
-            var state = Task.FromResult(
-                new AuthenticationState(new ClaimsPrincipal(identity)));
-
-            NotifyAuthenticationStateChanged(state);
+            var state = accessToken is null ? AnonymousState : BuildState(accessToken);
+            NotifyAuthenticationStateChanged(Task.FromResult(state));
         }
+        private static AuthenticationState BuildState(string token) =>
+            new(new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "Bearer")));
 
-
-        public void NotifyUserLogout()
+        private static bool IsExpiredOrExpiring(string token)
         {
-            NotifyAuthenticationStateChanged(
-                Task.FromResult(AnonymousState));
+            var expClaim = ParseClaimsFromJwt(token).FirstOrDefault(c =>
+                c.Type == "exp" || c.Type == JwtRegisteredClaimNames.Exp);
+
+            if (expClaim is null || !long.TryParse(expClaim.Value, out var expSeconds))
+                return false;   
+
+            // 30s margin: a token expiring mid-flight would just 401 on arrival anyway.
+            return DateTimeOffset.FromUnixTimeSeconds(expSeconds)
+                   <= DateTimeOffset.UtcNow.AddSeconds(30);
         }
 
         private static IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
