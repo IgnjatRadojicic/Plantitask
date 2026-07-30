@@ -51,7 +51,7 @@ public class KanbanSignalRService : IKanbanSignalRService
             _hub = new HubConnectionBuilder()
                 .WithUrl(hubUrl, options =>
                 {
-                    options.AccessTokenProvider = () => Task.FromResult(token)!;
+                    options.AccessTokenProvider = async () => await _authService.GetTokenAsync();
                 })
                 .WithAutomaticReconnect()
                 .Build();
