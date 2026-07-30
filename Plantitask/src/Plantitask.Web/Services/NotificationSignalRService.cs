@@ -10,16 +10,16 @@ namespace Plantitask.Web.Services
     {
 
         private HubConnection? _hub;
-        private readonly IAuthService _authService;
+        private readonly ISessionService _session;
         private readonly IConfiguration _configuration;
         private readonly SemaphoreSlim _connectionLock = new(1, 1);
         private readonly HashSet<string> _joinedGroupIds = new();
 
         public event Func<NotificationDto, Task>? OnNotificationReceived;
 
-        public NotificationSignalRService(IAuthService authService, IConfiguration configuration)
+        public NotificationSignalRService(ISessionService session, IConfiguration configuration)
         {
-            _authService = authService;
+            _session = session;
             _configuration = configuration;
         }
 
@@ -34,7 +34,7 @@ namespace Plantitask.Web.Services
                 if (_hub is not null)
                     await DisposeHub();
 
-                var token = await _authService.GetTokenAsync();
+                var token = await _session.GetAccessTokenAsync();
                 if (string.IsNullOrEmpty(token)) return;
 
                 var hubUrl = (_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5212")
@@ -43,7 +43,7 @@ namespace Plantitask.Web.Services
                 _hub = new HubConnectionBuilder()
                     .WithUrl(hubUrl, options =>
                     {
-                        options.AccessTokenProvider = async () => await _authService.GetTokenAsync();
+                        options.AccessTokenProvider = async () => await _session.GetAccessTokenAsync();
                     })
                     .WithAutomaticReconnect()
                     .Build();

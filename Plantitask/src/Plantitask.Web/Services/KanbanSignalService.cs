@@ -10,7 +10,7 @@ public class KanbanSignalRService : IKanbanSignalRService
 {
     private HubConnection? _hub;
     private Guid _currentGroupId;
-    private readonly IAuthService _authService;
+    private readonly ISessionService _session;
     private readonly IConfiguration _configuration;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
 
@@ -20,9 +20,9 @@ public class KanbanSignalRService : IKanbanSignalRService
     public event Func<KanbanTaskDeletedEvent, Task>? OnTaskDeleted;
     public event Func<KanbanTaskUpdatedEvent, Task>? OnTaskUpdated;
 
-    public KanbanSignalRService(IAuthService authService, IConfiguration configuration)
+    public KanbanSignalRService(ISessionService session, IConfiguration configuration)
     {
-        _authService = authService;
+        _session = session;
         _configuration = configuration;
     }
 
@@ -41,7 +41,7 @@ public class KanbanSignalRService : IKanbanSignalRService
 
             _currentGroupId = groupId;
 
-            var token = await _authService.GetTokenAsync();
+            var token = await _session.GetAccessTokenAsync();
             if (string.IsNullOrEmpty(token))
                 return;
 
@@ -51,7 +51,7 @@ public class KanbanSignalRService : IKanbanSignalRService
             _hub = new HubConnectionBuilder()
                 .WithUrl(hubUrl, options =>
                 {
-                    options.AccessTokenProvider = async () => await _authService.GetTokenAsync();
+                    options.AccessTokenProvider = async () => await _session.GetAccessTokenAsync();
                 })
                 .WithAutomaticReconnect()
                 .Build();

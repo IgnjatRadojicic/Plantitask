@@ -9,7 +9,7 @@ namespace Plantitask.Web.Services;
 public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
 {
     private HubConnection? _hub;
-    private readonly IAuthService _authService;
+    private readonly ISessionService _session;
     private readonly IConfiguration _configuration;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
     private HashSet<string> _joinedGroupIds = new();
@@ -17,9 +17,9 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
     public event Func<string, int, double, Task>? OnTreeUpdated;
     public event Func<FieldTreeDto, Task>? OnTreeAdded;
 
-    public FieldSignalRService(IAuthService authService, IConfiguration configuration)
+    public FieldSignalRService(ISessionService session, IConfiguration configuration)
     {
-        _authService = authService;
+        _session = session;
         _configuration = configuration;
     }
 
@@ -34,7 +34,7 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
             if (_hub is not null)
                 await DisposeHub();
 
-            var token = await _authService.GetTokenAsync();
+            var token = await _session.GetAccessTokenAsync();
             if (string.IsNullOrEmpty(token)) return;
 
             var hubUrl = (_configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5212")
@@ -43,7 +43,7 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
             _hub = new HubConnectionBuilder()
                 .WithUrl(hubUrl, options =>
                 {
-                    options.AccessTokenProvider = async () => await _authService.GetTokenAsync();
+                    options.AccessTokenProvider = async () => await _session.GetAccessTokenAsync();
                 })
                 .WithAutomaticReconnect()
                 .Build();
