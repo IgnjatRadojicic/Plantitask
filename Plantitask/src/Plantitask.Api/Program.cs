@@ -55,13 +55,15 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddOptions<JwtSettings>()
     .Bind(builder.Configuration.GetSection("JwtSettings"))
     .Validate(s => !string.IsNullOrEmpty(s.Secret) && s.Secret.Length >= 32, "JWT secret must be at least 32 characters")
+    .Validate(s => !string.IsNullOrWhiteSpace(s.Issuer), "JwtSettings:Issuer must be set")
+    .Validate(s => !string.IsNullOrWhiteSpace(s.Audience), "JwtSettings:Audience must be set")
     .Validate(s => s.RefreshTokenExpiryInDays > 0, "RefreshTokenExpiryInDays must be set")
     .Validate(s => s.AccessTokenExpiryInMinutes > 0, "AccessTokenExpiryInMinutes must be set")
     .ValidateOnStart();
+
 // JWT Authentication
-var jwtKey = builder.Configuration["JwtSettings:Secret"]!;
-var jwtIssuer = builder.Configuration["JwtSettings:Issuer"]!;
-var jwtAudience = builder.Configuration["JwtSettings:Audience"]!;
+var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
+    ?? throw new InvalidOperationException("JwtSettings section is missing");
 
 
 // Email
@@ -103,9 +105,9 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtIssuer,
-        ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ValidIssuer = jwtSettings.Issuer,
+        ValidAudience = jwtSettings.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
         ClockSkew = TimeSpan.Zero // Remove default 5 minute clock skew
     };
 
