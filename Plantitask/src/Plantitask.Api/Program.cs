@@ -93,6 +93,10 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    // Without this the legacy handler rewrites inbound claim names, so "sub" arrives as
+    // ClaimTypes.NameIdentifier and any lookup for the real name silently finds nothing.
+    options.MapInboundClaims = false;
+
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,

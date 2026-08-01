@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Plantitask.Api.Hubs;
 
@@ -15,8 +16,7 @@ public class NotificationHub : Hub
 
     public override async Task OnConnectedAsync()
     {
-        var userId = Context.User?.FindFirst("sub")?.Value
-                     ?? Context.User?.FindFirst("userId")?.Value;
+        var userId = Context.User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
 
         if (!string.IsNullOrEmpty(userId))
         {
@@ -29,8 +29,7 @@ public class NotificationHub : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var userId = Context.User?.FindFirst("sub")?.Value
-                     ?? Context.User?.FindFirst("userId")?.Value;
+        var userId = Context.User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
 
         if (!string.IsNullOrEmpty(userId))
         {
