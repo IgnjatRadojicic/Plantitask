@@ -70,9 +70,9 @@ namespace Plantitask.Api.Controllers
             {
                 EntityType = "User",
                 EntityId = response.UserId,
-                Action = "Registered",                   
+                Action = "Login",
                 UserId = response.UserId,
-                UserName = response.UserName,             
+                UserName = response.UserName,
                 UserEmail = response.Email,
                 IpAddress = GetClientIpAddress(),
                 UserAgent = GetUserAgent(),
@@ -137,9 +137,9 @@ namespace Plantitask.Api.Controllers
             {
                 EntityType = "User",
                 EntityId = userId,
-                Action = "Registered",                    // "Login" in the login endpoint
+                Action = "PasswordReset",
                 UserId = userId,
-                UserName = "ünknown",             // AuthResponseDto has both — no DB read
+                UserName = "unknown",
                 UserEmail = resetPasswordDto.Email,
                 IpAddress = GetClientIpAddress(),
                 UserAgent = GetUserAgent(),
