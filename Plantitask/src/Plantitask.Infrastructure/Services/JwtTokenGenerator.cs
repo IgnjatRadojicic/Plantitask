@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Plantitask.Core.Common;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;

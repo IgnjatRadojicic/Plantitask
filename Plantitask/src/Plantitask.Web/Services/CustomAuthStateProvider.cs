@@ -1,6 +1,4 @@
-﻿using Blazored.LocalStorage;
-using Microsoft.AspNetCore.Components.Authorization;
-using Plantitask.Core.DTO.Auth;
+﻿using Microsoft.AspNetCore.Components.Authorization;
 using Plantitask.Web.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;

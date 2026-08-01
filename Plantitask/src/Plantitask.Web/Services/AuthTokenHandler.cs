@@ -1,9 +1,6 @@
-﻿using Blazored.LocalStorage;
-using Plantitask.Core.DTO.Auth;
-using Plantitask.Web.Interfaces;
+﻿using Plantitask.Web.Interfaces;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 namespace Plantitask.Web.Services;
 
 public class AuthTokenHandler : DelegatingHandler
