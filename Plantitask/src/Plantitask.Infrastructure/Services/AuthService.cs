@@ -164,10 +164,21 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
-        public async Task<Result> LogoutAsync(string refreshToken)
+        public async Task<Result> LogoutAsync(Guid userId, string refreshToken)
         {
-            _logger.LogInformation("User logging out");
-            await _redisService.DeleteRefreshTokenAsync(TokenHasher.Sha256(refreshToken));
+            _logger.LogInformation("User {UserId} logging out", userId);
+
+            var tokenHash = TokenHasher.Sha256(refreshToken);
+            var tokenModel = await _redisService.GetRefreshTokenAsync(tokenHash);
+
+            if (tokenModel is not null && tokenModel.UserId != userId)
+            {
+                _logger.LogWarning("User {UserId} tried to log out a token owned by {OwnerId}",
+                    userId, tokenModel.UserId);
+                return Result.Success();
+            }
+
+            await _redisService.DeleteRefreshTokenAsync(tokenHash);
             return Result.Success();
         }
 

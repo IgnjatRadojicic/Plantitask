@@ -9,7 +9,7 @@ namespace Plantitask.Core.Interfaces
         Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto, string ipAddress);
         Task<Result<AuthResponseDto>> LoginAsync(LoginDto loginDto, string ipAddress);
         Task<Result<AuthResponseDto>> RefreshTokenAsync(string refreshToken);
-        Task<Result> LogoutAsync(string refreshToken);
+        Task<Result> LogoutAsync(Guid userId, string refreshToken);
         Task<Result<CheckEmailResponseDto>> CheckEmailAsync(string email);
 
         Task<Result<AuthResponseDto>> ChangePasswordAsync(Guid userId, ChangePasswordDto dto, string ipAddress);

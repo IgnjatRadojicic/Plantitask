@@ -97,7 +97,7 @@ namespace Plantitask.Api.Controllers
         {
             var userId = GetUserId();
 
-            var result = await _authService.LogoutAsync(refreshTokenDto.RefreshToken);
+            var result = await _authService.LogoutAsync(userId, refreshTokenDto.RefreshToken);
             if (result.IsFailure)
                 return result.ToActionResult();
 
