@@ -10,7 +10,7 @@
 
     <!-- LCP is the landing hero. Blazor only paints it after the WASM runtime boots,
          so preload it here where the parser finds it immediately. The media queries
-         mirror the breakpoint in css/landing.css — keep the two in sync. -->
+         mirror the breakpoint in css/landing.css keep the two in sync. -->
     <link rel="preload" as="image" href="images/landing.webp" type="image/webp"
           media="(min-width: 901px)" fetchpriority="high" />
     <link rel="preload" as="image" href="images/landing-960.webp" type="image/webp"
@@ -180,17 +180,11 @@
             <p class="loading-text">Loading<span class="loading-dots"></span></p>
         </div>
     </div>
-    <!-- Everything below is deferred: none of it is touched until a component calls
-         into it via JS interop, which cannot happen before the WASM runtime boots.
-         Deferring keeps them off the parser's path and out of the `load` event.
-         Pixi (~450 KB) and Chart.js (~200 KB) are still downloaded on every page
-         including this one, which needs neither — see docs/rewrite/frontend/05-js-interop.md. -->
     <script defer src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.6.6/pixi.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script defer src="js/googleAuth.js?v=2"></script>
-
     <script defer src="js/darkmode.js?v=2"></script>
     <script defer src="js/dom-helpers.js?v=2"></script>
     <script defer src="js/file-download.js?v=2"></script>
@@ -199,6 +193,7 @@
     <script defer src="js/dashboard-chart.js?v=2"></script>
     <script defer src="js/group-stats.js?v=2"></script>
     <script defer src="js/kanban-drag.js?v=2"></script>
+    <script src="js/session-lock.js"></script>
 
     <script src="_framework/blazor.webassembly.js"></script>
 
