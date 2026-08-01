@@ -140,11 +140,11 @@ namespace Plantitask.Infrastructure.Services
                 return Error.Unauthorized("Invalid refresh token");
             }
             if (tokenModel.ExpiresAt < DateTime.UtcNow)
-                return Error.Forbidden("Token has expired");
+                return Error.Unauthorized("Invalid refresh token");
 
             var user = await _context.Users.FindAsync(tokenModel.UserId);
             if (user == null)
-                return Error.Forbidden("User not found");
+                return Error.Unauthorized("Invalid refresh token");
 
             var newAccessToken = _tokenGenerator.GenerateAccessToken(user);
             var newRefreshToken = _tokenGenerator.GenerateRefreshToken();
