@@ -56,7 +56,7 @@ services:
       JwtSettings__Secret: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JwtSettings__Issuer: PlantitaskApi
       JwtSettings__Audience: PlantitaskClient
-      JwtSettings__AccessTokenExpiryInMinutes: 60
+      JwtSettings__AccessTokenExpiryInMinutes: 15
       JwtSettings__RefreshTokenExpiryInDays: 7
       App__FrontendUrl: "https://plantitask.com"
       ASPNETCORE_ENVIRONMENT: Production
