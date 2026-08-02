@@ -261,8 +261,8 @@ namespace Plantitask.Infrastructure.Services
                 return Result.Success();
             }
 
-            var resetToken = Guid.NewGuid().ToString("N");
-            var tokenHash = _passwordHasher.HashPassword(resetToken);
+            var resetToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+            var tokenHash = TokenHasher.Sha256(resetToken);
 
             var passwordResetToken = new PasswordResetToken
             {
@@ -297,31 +297,19 @@ namespace Plantitask.Infrastructure.Services
         {
             _logger.LogInformation("Attempting password reset");
 
-            var email = NormalizeEmail(resetPasswordDto.Email);
+            var tokenHash = TokenHasher.Sha256(resetPasswordDto.Token);
 
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == email);
-
-            if (user == null)
-                return Error.BadRequest("Invalid or expired reset token");
-
-            var userTokens = await _context.PasswordResetTokens
-                .Where(rt => rt.UserId == user.Id && !rt.IsUsed && rt.ExpiresAt > DateTime.UtcNow)
-                .OrderByDescending(rt => rt.CreatedAt)
-                .Take(10)
-                .ToListAsync();
-
-            PasswordResetToken? resetToken = null;
-            foreach (var token in userTokens)
-            {
-                if (_passwordHasher.VerifyPassword(resetPasswordDto.Token, token.TokenHash))
-                {
-                    resetToken = token;
-                    break;
-                }
-            }
+            var resetToken = await _context.PasswordResetTokens
+                .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash
+                                        && !rt.IsUsed
+                                        && rt.ExpiresAt > DateTime.UtcNow);
 
             if (resetToken == null)
+                return Error.BadRequest("Invalid or expired reset token");
+
+            var user = await _context.Users.FindAsync(resetToken.UserId);
+
+            if (user == null)
                 return Error.BadRequest("Invalid or expired reset token");
 
             user.PasswordHash = _passwordHasher.HashPassword(resetPasswordDto.NewPassword);
