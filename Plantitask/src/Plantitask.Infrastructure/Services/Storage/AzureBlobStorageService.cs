@@ -38,12 +38,12 @@ public class AzureBlobStorageService : IFileStorageService
             "Azure Blob Storage initialized with container '{Container}'", containerName);
     }
 
-    public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType)
+    public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, string folder)
     {
         // Size/extension/content validation is the caller's job (FileUploadRules) so failures
         // surface as Result errors, not exceptions.
         var extension = Path.GetExtension(Path.GetFileName(fileName)).ToLowerInvariant();
-        var storedName = $"{Guid.NewGuid()}{extension}";
+        var storedName = $"{folder}/{Guid.NewGuid()}{extension}";
 
         var blobClient = _containerClient.GetBlobClient(storedName);
 
