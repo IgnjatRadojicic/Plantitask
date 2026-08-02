@@ -7,6 +7,8 @@ using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Controllers
 {
+    // Routes closed 2026-08-02. GetEntityHistoryAsync default-allows unknown and soft-deleted
+    // entities, and GetUserHistoryAsync returns any user's login trail with IPs. Closed until admin panel work
     [Authorize]
     [Route("api/[controller]")]
     [EnableRateLimiting("general")]
@@ -22,6 +24,7 @@ namespace Plantitask.Api.Controllers
             _logger = logger;
         }
 
+        [NonAction]
         [HttpGet("groups/{groupId}")]
         [ProducesResponseType(typeof(List<AuditLogDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -34,6 +37,7 @@ namespace Plantitask.Api.Controllers
             return result.ToActionResult();
         }
 
+        [NonAction]
         [HttpGet("tasks/{taskId}")]
         [ProducesResponseType(typeof(List<AuditLogDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -44,6 +48,7 @@ namespace Plantitask.Api.Controllers
             return result.ToActionResult();
         }
 
+        [NonAction]
         [HttpGet("users/{userId}")]
         [ProducesResponseType(typeof(List<AuditLogDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetUserHistory(Guid userId,
