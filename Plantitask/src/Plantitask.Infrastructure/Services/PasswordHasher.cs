@@ -13,7 +13,7 @@ namespace Plantitask.Infrastructure.Services
         private const int WorkFactor = 12;
         public string HashPassword(string password)
         {
-            return BCrypt.Net.BCrypt.HashPassword(password);
+            return BCrypt.Net.BCrypt.HashPassword(password, WorkFactor);
         }
 
         public bool NeedsRehash(string hashedPassword)
