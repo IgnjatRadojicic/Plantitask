@@ -107,7 +107,13 @@ namespace Plantitask.Infrastructure.Services
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == email);
 
-            if (user == null || !_passwordHasher.VerifyPassword(loginDto.Password, user.PasswordHash))
+            if (user == null)
+            {
+                _passwordHasher.VerifyPassword(loginDto.Password, _passwordHasher.DummyHash);
+                return Error.Unauthorized("Invalid email or password");
+            }
+
+            if (!_passwordHasher.VerifyPassword(loginDto.Password, user.PasswordHash))
                 return Error.Unauthorized("Invalid email or password");
 
             if (!user.IsEmailConfirmed)

@@ -12,5 +12,7 @@ namespace Plantitask.Core.Interfaces
         bool VerifyPassword(string password, string hashedPassword);
 
         bool NeedsRehash(string hashedPassword);
+
+        string DummyHash { get; }
     }
 }
