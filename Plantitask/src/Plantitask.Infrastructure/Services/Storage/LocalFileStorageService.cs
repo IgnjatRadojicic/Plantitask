@@ -29,12 +29,13 @@ namespace Plantitask.Infrastructure.Services.Storage
             }
         }
 
-        public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType)
+        public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, string folder)
         {
             var extension = Path.GetExtension(Path.GetFileName(fileName)).ToLowerInvariant();
-            var storedName = $"{Guid.NewGuid()}{extension}";
+            var storedName = $"{folder}/{Guid.NewGuid()}{extension}";
 
             var fullPath = ResolveStoredPath(storedName);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
 
             await using (var output = new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write))
             {

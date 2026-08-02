@@ -60,7 +60,7 @@ namespace Plantitask.Infrastructure.Services
                     return validation.Error!;
 
                 contentType = FileUploadRules.ContentTypeFor(validation.Value!);
-                storagePath = await _fileStorage.UploadFileAsync(stream, file.FileName, contentType);
+                storagePath = await _fileStorage.UploadFileAsync(stream, file.FileName, contentType, "attachments");
             }
 
             var attachment = new TaskAttachment

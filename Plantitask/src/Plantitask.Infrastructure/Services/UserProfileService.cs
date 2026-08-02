@@ -100,7 +100,7 @@ public class UserProfileService : IUserProfileService
 
         // The storage layer picks the stored name; the original is metadata only.
         user.ProfilePicturePath = await _fileStorage.UploadFileAsync(
-            fileStream, fileName, FileUploadRules.ContentTypeFor(validation.Value!));
+            fileStream, fileName, FileUploadRules.ContentTypeFor(validation.Value!), "avatars");
 
         await _context.SaveChangesAsync();
 

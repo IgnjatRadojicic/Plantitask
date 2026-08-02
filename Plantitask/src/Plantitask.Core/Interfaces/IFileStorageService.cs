@@ -8,7 +8,7 @@ namespace Plantitask.Core.Interfaces
 {
     public interface IFileStorageService
     {
-        Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType);
+        Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, string folder);
 
         Task<Stream> DownloadFileAsync(string storagePath);
         Task<bool> FileExistsAsync(string storagePath);
