@@ -184,6 +184,14 @@
     overflow: hidden;
 }
 
+.field-notification-item-when {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--c-text-mid);
+    margin-top: 2px;
+}
+
 .field-notification-item-time {
     font-family: var(--font-body);
     font-size: 0.7rem;

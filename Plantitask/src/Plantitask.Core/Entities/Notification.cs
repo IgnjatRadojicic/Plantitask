@@ -16,6 +16,7 @@ namespace Plantitask.Core.Entities
         public string Message { get; set; } = string.Empty;
         public Guid? RelatedEntityId { get; set; }
         public string? RelatedEntityType { get; set; }
+        public DateTime? RelatedDate { get; set; }
         public bool IsRead { get; set; }
         public DateTime? ReadAt { get; set; }
 

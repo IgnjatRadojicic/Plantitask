@@ -250,6 +250,7 @@ public class NotificationService : INotificationService
                 Message = n.Message,
                 RelatedEntityId = n.RelatedEntityId,
                 RelatedEntityType = n.RelatedEntityType,
+                RelatedDate = n.RelatedDate,
                 IsRead = n.IsRead,
                 ReadAt = n.ReadAt,
                 CreatedAt = n.CreatedAt
@@ -486,6 +487,7 @@ public class NotificationService : INotificationService
             Message = notification.Message,
             RelatedEntityId = notification.RelatedEntityId,
             RelatedEntityType = notification.RelatedEntityType,
+            RelatedDate = notification.RelatedDate,
             IsRead = notification.IsRead,
             ReadAt = notification.ReadAt,
             CreatedAt = notification.CreatedAt

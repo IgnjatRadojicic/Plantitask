@@ -70,9 +70,10 @@ namespace Plantitask.Infrastructure.Services
                     UserId = userId,
                     Type = NotificationType.TaskDueSoon,
                     Title = "Task Due Soon",
-                    Message = $"Task '{task.Title}' is due on {task.DueDate!.Value:MMMM dd, yyyy 'at' h:mm tt} UTC",
+                    Message = $"Task '{task.Title}' is due soon",
                     RelatedEntityId = task.Id,
                     RelatedEntityType = "Task",
+                    RelatedDate = task.DueDate!.Value,
                 });
 
                 await _context.SaveChangesAsync();
