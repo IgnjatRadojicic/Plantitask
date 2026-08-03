@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.Projections;
 using System.Linq;
 
 namespace Plantitask.Infrastructure.Services
@@ -33,9 +34,9 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("Processing due soon notification for task {TaskId}", taskId);
 
             var task = await _context.Tasks
-                .Include(t => t.AssignedTo)
-                .Include(t => t.Status)
-                .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted);
+                .Where(t => t.Id == taskId)
+                .Select(TaskProjections.ToReminder)
+                .FirstOrDefaultAsync();
 
             if (task == null)
             {
@@ -78,8 +79,8 @@ namespace Plantitask.Infrastructure.Services
                 if (await _notificationService.ShouldEmailAsync(userId, NotificationType.TaskDueSoon))
                 {
                     await _emailService.SendTaskDueSoonEmailAsync(
-                        task.AssignedTo!.Email,
-                        task.AssignedTo.UserName,
+                        task.AssigneeEmail!,
+                        task.AssigneeName!,
                         task.Title,
                         task.DueDate!.Value);
                 }
@@ -99,12 +100,11 @@ namespace Plantitask.Infrastructure.Services
             var now = DateTime.UtcNow;
 
             var overdueTasks = await _context.Tasks
-                .Include(t => t.AssignedTo)
-                .Where(t => !t.IsDeleted
-                 && t.StatusId != (int)TaskStatusItem.Completed
+                .Where(t => t.StatusId != (int)TaskStatusItem.Completed
                  && t.DueDate.HasValue
                  && t.DueDate.Value < now
                  && t.AssignedToId != null)
+                .Select(TaskProjections.ToReminder)
                 .ToListAsync();
             _logger.LogInformation("Found {Count} overdue tasks", overdueTasks.Count);
 
@@ -154,8 +154,8 @@ namespace Plantitask.Infrastructure.Services
                     if (await _notificationService.ShouldEmailAsync(task.AssignedToId!.Value, NotificationType.TaskOverdue))
                     {
                         await _emailService.SendTaskOverdueEmailAsync(
-                            task.AssignedTo!.Email,
-                            task.AssignedTo.UserName,
+                            task.AssigneeEmail!,
+                            task.AssigneeName!,
                             task.Title,
                             daysSinceOverdue);
                     }

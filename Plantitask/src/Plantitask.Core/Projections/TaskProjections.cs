@@ -30,5 +30,16 @@ namespace Plantitask.Core.Projections
             CreatedByUserName = t.Creator.UserName,
             AttachmentCount = t.Attachments.Count
         };
+
+        public static Expression<Func<TaskItem, TaskReminder>> ToReminder => t => new TaskReminder
+        {
+            Id = t.Id,
+            Title = t.Title,
+            StatusId = t.StatusId,
+            DueDate = t.DueDate,
+            AssignedToId = t.AssignedToId,
+            AssigneeEmail = t.AssignedTo != null ? t.AssignedTo.Email : null,
+            AssigneeName = t.AssignedTo != null ? t.AssignedTo.UserName : null
+        };
     }
 }
