@@ -1,4 +1,5 @@
-﻿
+﻿using Plantitask.Core.DTO.Tasks;
+
 namespace Plantitask.Core.Interfaces
 {
     public interface IEmailService
@@ -10,6 +11,6 @@ namespace Plantitask.Core.Interfaces
         Task SendWelcomeEmailAsync(string email, string displayName);
         Task SendEmailVerificationCodeAsync(string email, string userName, string code);
         Task SendTaskDueSoonEmailAsync(string email, string userName, string taskTitle, DateTime dueDate);
-        Task SendTaskOverdueEmailAsync(string email, string userName, string taskTitle, int daysOverdue);
+        Task SendTaskOverdueDigestEmailAsync(string email, string userName, int overdueCount, IReadOnlyList<OverdueTaskLine> worstTasks);
     }
 }

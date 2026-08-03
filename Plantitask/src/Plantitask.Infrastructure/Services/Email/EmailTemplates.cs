@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Plantitask.Core.DTO.Tasks;
 
 namespace Plantitask.Infrastructure.Services.Email
 {
@@ -213,20 +214,35 @@ namespace Plantitask.Infrastructure.Services.Email
                 <p>Log in to check the details and make sure it's on track.</p>");
         }
 
-        public static string TaskOverdue(string userName, string taskTitle, int daysOverdue)
+        public static string TaskOverdueDigest(string userName, int overdueCount, IReadOnlyList<OverdueTaskLine> worstTasks)
         {
-            var overdueText = daysOverdue == 0
-                ? "is now overdue"
-                : $"is overdue by {daysOverdue} day(s)";
+            var lines = string.Join("", worstTasks.Select(t =>
+                $@"<div style='margin-bottom:8px;'>
+                    <strong>{WebUtility.HtmlEncode(t.Title)}</strong>
+                    <span style='color:#6b6b6b;'>{OverdueText(t.DaysOverdue)}</span>
+                   </div>"));
+
+            var remaining = overdueCount - worstTasks.Count;
+            var remainingText = remaining > 0
+                ? $"<p>and {remaining} more.</p>"
+                : string.Empty;
 
             return BaseTemplate($@"
-                <h2 style='color:#4a7c2e; margin-top:0;'>Task Overdue</h2>
+                <h2 style='color:#4a7c2e; margin-top:0;'>Tasks Overdue</h2>
                 <p>Hello {WebUtility.HtmlEncode(userName)},</p>
-                <p>Your task {overdueText}:</p>
+                <p>You have <strong>{overdueCount}</strong> overdue {(overdueCount == 1 ? "task" : "tasks")}:</p>
                 <div class='highlight' style='background-color:#f2f7e9; padding:16px; border-radius:6px; border-left:4px solid #7cb342; margin:12px 0;'>
-                    {WebUtility.HtmlEncode(taskTitle)}
+                    {lines}
                 </div>
-                <p>Log in to update the status or reach out to your team.</p>");
+                {remainingText}
+                <p>Log in to update their status or reach out to your team.</p>");
+        }
+
+        private static string OverdueText(int daysOverdue)
+        {
+            return daysOverdue == 0
+                ? "overdue today"
+                : $"{daysOverdue} day(s) overdue";
         }
 
         public static string EmailVerification(string userName, string code)

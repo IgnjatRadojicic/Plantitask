@@ -1,3 +1,4 @@
+using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Models;
 using Plantitask.Infrastructure.Services.Email;
@@ -67,13 +68,17 @@ namespace Plantitask.Infrastructure.Services
                 "task due soon"));
         }
 
-        public Task SendTaskOverdueEmailAsync(string email, string userName, string taskTitle, int daysOverdue)
+        public Task SendTaskOverdueDigestEmailAsync(string email, string userName, int overdueCount, IReadOnlyList<OverdueTaskLine> worstTasks)
         {
+            var subject = overdueCount == 1
+                ? "You have 1 overdue task"
+                : $"You have {overdueCount} overdue tasks";
+
             return _sender.SendAsync(new EmailMessage(
                 email,
-                $"Task Overdue: {taskTitle}",
-                EmailTemplates.TaskOverdue(userName, taskTitle, daysOverdue),
-                "task overdue"));
+                subject,
+                EmailTemplates.TaskOverdueDigest(userName, overdueCount, worstTasks),
+                "task overdue digest"));
         }
 
         public Task SendEmailVerificationCodeAsync(string email, string userName, string code)

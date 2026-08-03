@@ -1,6 +1,7 @@
 ﻿using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
@@ -11,6 +12,8 @@ namespace Plantitask.Infrastructure.Services
 {
     public class NotificationBackgroundJob
     {
+        private const int WorstTasksInDigestEmail = 2;
+
         private readonly IApplicationDbContext _context;
         private readonly ILogger<NotificationBackgroundJob> _logger;
         private readonly IEmailService _emailService;
@@ -111,70 +114,92 @@ namespace Plantitask.Infrastructure.Services
             if (overdueTasks.Count == 0)
                 return;
 
-            var overdueTaskIds = overdueTasks.Select(t => t.Id).ToList();
+            var userIds = overdueTasks.Select(t => t.AssignedToId!.Value).Distinct().ToList();
 
-            var alreadyNotifiedTaskIds = (await _context.Notifications
-            .Where(n => overdueTaskIds.Contains(n.RelatedEntityId!.Value)
-                && n.Type == NotificationType.TaskOverdue
-                && n.CreatedAt >= now.Date
-                && !n.IsDeleted)
-            .Select(n => n.RelatedEntityId!.Value)
-            .ToListAsync()
-            ).ToHashSet();
+            var alreadyDigestedUserIds = (await _context.Notifications
+                .Where(n => userIds.Contains(n.UserId)
+                    && n.Type == NotificationType.TaskOverdue
+                    && n.CreatedAt >= now.Date)
+                .Select(n => n.UserId)
+                .ToListAsync())
+                .ToHashSet();
 
-            var notificationsCreated = 0;
+            var preferences = await _context.NotificationPreferences
+                .Where(np => userIds.Contains(np.UserId) && np.Type == NotificationType.TaskOverdue)
+                .Select(np => new { np.UserId, np.IsEnabled, np.IsEmailEnabled })
+                .ToListAsync();
 
-            foreach (var task in overdueTasks)
+            var inAppDisabled = preferences.Where(p => !p.IsEnabled).Select(p => p.UserId).ToHashSet();
+            var emailDisabled = preferences.Where(p => !p.IsEmailEnabled).Select(p => p.UserId).ToHashSet();
+
+            var digests = overdueTasks
+                .GroupBy(t => t.AssignedToId!.Value)
+                .Where(g => !alreadyDigestedUserIds.Contains(g.Key))
+                .Select(g => new
+                {
+                    UserId = g.Key,
+                    Email = g.First().AssigneeEmail,
+                    UserName = g.First().AssigneeName,
+                    Tasks = g.OrderBy(t => t.DueDate!.Value)
+                             .Select(t => new OverdueTaskLine(t.Title, (now - t.DueDate!.Value).Days))
+                             .ToList()
+                })
+                .ToList();
+
+            if (digests.Count == 0)
             {
-                if (alreadyNotifiedTaskIds.Contains(task.Id))
-                {
-                    _logger.LogDebug("Overdue notification already sent today for task {TaskId}", task.Id);
-                    continue;
-                }
+                _logger.LogInformation("Every user with overdue tasks was already digested today");
+                return;
+            }
 
-                var daysSinceOverdue = (now - task.DueDate!.Value).Days;
-
-                var notification = new Notification
+            foreach (var digest in digests.Where(d => !inAppDisabled.Contains(d.UserId)))
+            {
+                _context.Notifications.Add(new Notification
                 {
-                    UserId = task.AssignedToId!.Value,
+                    UserId = digest.UserId,
                     Type = NotificationType.TaskOverdue,
-                    Title = "Task Overdue",
-                    Message = daysSinceOverdue == 0
-                        ? $"Task '{task.Title}' is overdue"
-                        : $"Task '{task.Title}' is overdue by {daysSinceOverdue} day(s)",
-                    RelatedEntityId = task.Id,
+                    Title = "Tasks Overdue",
+                    Message = BuildDigestMessage(digest.Tasks),
                     RelatedEntityType = "Task",
-                };
+                });
+            }
 
-                _context.Notifications.Add(notification);
-                notificationsCreated++;
+            await _context.SaveChangesAsync();
+
+            foreach (var digest in digests)
+            {
+                if (emailDisabled.Contains(digest.UserId) || string.IsNullOrEmpty(digest.Email))
+                    continue;
 
                 try
                 {
-                    if (await _notificationService.ShouldEmailAsync(task.AssignedToId!.Value, NotificationType.TaskOverdue))
-                    {
-                        await _emailService.SendTaskOverdueEmailAsync(
-                            task.AssigneeEmail!,
-                            task.AssigneeName!,
-                            task.Title,
-                            daysSinceOverdue);
-                    }
+                    await _emailService.SendTaskOverdueDigestEmailAsync(
+                        digest.Email,
+                        digest.UserName ?? string.Empty,
+                        digest.Tasks.Count,
+                        digest.Tasks.Take(WorstTasksInDigestEmail).ToList());
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send overdue email for task {TaskId}", task.Id);
+                    _logger.LogError(ex, "Failed to send overdue digest email to user {UserId}", digest.UserId);
                 }
             }
 
-            if (notificationsCreated > 0)
+            _logger.LogInformation("Sent overdue digests to {Count} users", digests.Count);
+        }
+
+        private static string BuildDigestMessage(IReadOnlyList<OverdueTaskLine> tasks)
+        {
+            if (tasks.Count == 1)
             {
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Created {Count} overdue notifications", notificationsCreated);
+                var only = tasks[0];
+
+                return only.DaysOverdue == 0
+                    ? $"'{only.Title}' is overdue"
+                    : $"'{only.Title}' is overdue by {only.DaysOverdue} day(s)";
             }
-            else
-            {
-                _logger.LogInformation("No new overdue notifications needed");
-            }
+
+            return $"You have {tasks.Count} overdue tasks";
         }
 
 
