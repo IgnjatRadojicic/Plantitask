@@ -83,7 +83,7 @@
                         {
                             @foreach (var task in _data.OverdueTasks)
                             {
-                                <div class="dash-task-row" @onclick="() => GoToGroup(task.GroupId)">
+                                <div class="dash-task-row" @onclick="() => GoToGroup(task.GroupId, task.GroupName)">
                                     <div class="dash-task-main">
                                         <span class="dash-task-title">@task.Title</span>
                                         <span class="dash-task-group">@task.GroupName</span>
@@ -119,7 +119,7 @@
                         {
                             @foreach (var task in _data.DueToday)
                             {
-                                <div class="dash-task-row" @onclick="() => GoToGroup(task.GroupId)">
+                                <div class="dash-task-row" @onclick="() => GoToGroup(task.GroupId, task.GroupName)">
                                     <div class="dash-task-main">
                                         <span class="dash-task-title">@task.Title</span>
                                         <span class="dash-task-group">@task.GroupName</span>
@@ -175,7 +175,7 @@
                     {
                         @foreach (var task in mobileItems)
                         {
-                            <div class="dash-task-row" @onclick="() => GoToGroup(task.GroupId)">
+                            <div class="dash-task-row" @onclick="() => GoToGroup(task.GroupId, task.GroupName)">
                                 <div class="dash-task-main">
                                     <span class="dash-task-title">@task.Title</span>
                                     <span class="dash-task-group">@task.GroupName</span>
@@ -216,7 +216,7 @@
                         </div>
                         @foreach (var task in _data.DueThisWeek)
                         {
-                            <div class="dash-table-row" @onclick="() => GoToGroup(task.GroupId)">
+                            <div class="dash-table-row" @onclick="() => GoToGroup(task.GroupId, task.GroupName)">
                                 <span class="dash-table-title">@task.Title</span>
                                 <span class="dash-table-group">@task.GroupName</span>
                                 <span>
@@ -382,8 +382,8 @@
     }
 
 
-    private void GoToGroup(Guid groupId)
-        => Navigation.NavigateTo($"/groups/{groupId}");
+    private void GoToGroup(Guid groupId, string? groupName)
+        => Navigation.NavigateTo(GroupRoutes.Board(groupId, groupName));
 
 
     private static string GetGreeting()
