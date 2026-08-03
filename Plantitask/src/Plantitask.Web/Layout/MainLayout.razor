@@ -7,6 +7,7 @@
 @inject IFieldUIService FieldUI
 @inject INotificationService NotificationService
 @inject INotificationSignalRService NotificationSignalR
+@inject IDashboardService DashboardService
 
 <MudLayout>
 
@@ -100,7 +101,43 @@
                                     <div class="field-notification-item-title">@notification.Title</div>
                                     <div class="field-notification-item-message">@notification.Message</div>
                                     <div class="field-notification-item-time">@FormatTimeAgo(notification.CreatedAt)</div>
+
+                                    @if (IsOverdueDigest(notification) && _expandedOverdueId == notification.Id)
+                                    {
+                                        <div class="field-notification-overdue-list" @onclick:stopPropagation="true">
+                                            @if (_overdueLoading)
+                                            {
+                                                <div class="field-notification-overdue-loading">
+                                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Primary" />
+                                                </div>
+                                            }
+                                            else if (_overdueTasks is null || _overdueTasks.Count == 0)
+                                            {
+                                                <p class="field-notification-overdue-empty">Nothing overdue right now</p>
+                                            }
+                                            else
+                                            {
+                                                @foreach (var task in _overdueTasks)
+                                                {
+                                                    <div class="field-notification-overdue-row" @onclick="() => GoToTaskGroup(task.GroupId)">
+                                                        <span class="field-notification-overdue-title">@task.Title</span>
+                                                        <span class="field-notification-overdue-days">@FormatOverdue(task.DueDate)</span>
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+                                    }
                                 </div>
+                                @if (IsOverdueDigest(notification))
+                                {
+                                    <div class="field-notification-item-expand">
+                                        <button class="kanban-icon-btn-sm" @onclick:stopPropagation="true"
+                                                @onclick="() => ToggleOverdueDetails(notification)"
+                                                title="@(_expandedOverdueId == notification.Id ? "Hide tasks" : "Show tasks")">
+                                            <MudIcon Icon="@(_expandedOverdueId == notification.Id ? Icons.Material.Outlined.ExpandLess : Icons.Material.Outlined.ExpandMore)" Size="Size.Small" />
+                                        </button>
+                                    </div>
+                                }
                                 <div class="field-notification-item-actions">
                                     @if (!notification.IsRead)
                                     {
@@ -214,6 +251,9 @@
     private bool _hasMoreNotifications;
     private int _unreadCount = 0;
     private List<NotificationDto> _notifications = new();
+    private Guid? _expandedOverdueId;
+    private List<TaskSummaryDto>? _overdueTasks;
+    private bool _overdueLoading;
     private int _currentPage = 1;
     private const int PageSize = 15;
     private bool _initialLoadDone;
@@ -321,6 +361,56 @@
             _loadingMore = false;
             StateHasChanged();
         }
+    }
+
+    private static bool IsOverdueDigest(NotificationDto notification)
+        => notification.Type == NotificationType.TaskOverdue;
+
+    private async Task ToggleOverdueDetails(NotificationDto notification)
+    {
+        if (_expandedOverdueId == notification.Id)
+        {
+            _expandedOverdueId = null;
+            return;
+        }
+
+        _expandedOverdueId = notification.Id;
+        _overdueLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await DashboardService.GetPersonalDashboardAsync();
+            _overdueTasks = result.Success && result.Data is not null
+                ? result.Data.OverdueTasks
+                : new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load overdue tasks: {ex.Message}");
+            _overdueTasks = new();
+        }
+        finally
+        {
+            _overdueLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoToTaskGroup(Guid groupId)
+    {
+        CloseAllPanels();
+        Navigation.NavigateTo($"/groups/{groupId}");
+    }
+
+    private static string FormatOverdue(DateTime? dueDate)
+    {
+        if (dueDate is null)
+            return string.Empty;
+
+        var days = (int)(DateTime.UtcNow - dueDate.Value).TotalDays;
+
+        return days <= 0 ? "overdue today" : $"{days} day(s) overdue";
     }
 
     private async Task MarkAsRead(NotificationDto notification)

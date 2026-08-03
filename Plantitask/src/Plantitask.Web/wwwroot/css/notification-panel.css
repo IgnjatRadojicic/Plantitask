@@ -204,6 +204,65 @@
     opacity: 1;
 }
 
+/* ---- Overdue Digest Dropdown ---- */
+
+.field-notification-item-expand {
+    display: flex;
+    align-items: flex-start;
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--c-text-muted);
+}
+
+.field-notification-overdue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--c-border-light);
+}
+
+.field-notification-overdue-loading,
+.field-notification-overdue-empty {
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    color: var(--c-text-faint);
+    padding: 6px 0;
+    margin: 0;
+}
+
+.field-notification-overdue-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background var(--t-fast);
+}
+
+.field-notification-overdue-row:hover {
+    background: var(--c-primary-a06);
+}
+
+.field-notification-overdue-title {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    color: var(--c-text-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.field-notification-overdue-days {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    color: var(--c-text-faint);
+    flex-shrink: 0;
+}
+
 /* ---- Load More ---- */
 
 .field-notification-load-more {
