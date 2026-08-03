@@ -13,6 +13,8 @@ namespace Plantitask.Infrastructure.Services
     public class NotificationBackgroundJob
     {
         private const int WorstTasksInDigestEmail = 2;
+        private const int ReadNotificationRetentionDays = 30;
+        private const int DigestLogRetentionDays = 30;
 
         private readonly IApplicationDbContext _context;
         private readonly ILogger<NotificationBackgroundJob> _logger;
@@ -96,6 +98,7 @@ namespace Plantitask.Infrastructure.Services
 
 
             [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 3600 })]
+        [DisableConcurrentExecution(timeoutInSeconds: 300)]
         public async Task CheckOverdueTasksAndNotify()
         {
             _logger.LogInformation("Starting overdue tasks check");
@@ -116,11 +119,13 @@ namespace Plantitask.Infrastructure.Services
 
             var userIds = overdueTasks.Select(t => t.AssignedToId!.Value).Distinct().ToList();
 
-            var alreadyDigestedUserIds = (await _context.Notifications
-                .Where(n => userIds.Contains(n.UserId)
-                    && n.Type == NotificationType.TaskOverdue
-                    && n.CreatedAt >= now.Date)
-                .Select(n => n.UserId)
+            var today = DateOnly.FromDateTime(now);
+
+            var alreadyDigestedUserIds = (await _context.NotificationDigestLogs
+                .Where(l => userIds.Contains(l.UserId)
+                    && l.Type == NotificationType.TaskOverdue
+                    && l.SentOn == today)
+                .Select(l => l.UserId)
                 .ToListAsync())
                 .ToHashSet();
 
@@ -152,15 +157,25 @@ namespace Plantitask.Infrastructure.Services
                 return;
             }
 
-            foreach (var digest in digests.Where(d => !inAppDisabled.Contains(d.UserId)))
+            foreach (var digest in digests)
             {
-                _context.Notifications.Add(new Notification
+                if (!inAppDisabled.Contains(digest.UserId))
+                {
+                    _context.Notifications.Add(new Notification
+                    {
+                        UserId = digest.UserId,
+                        Type = NotificationType.TaskOverdue,
+                        Title = "Tasks Overdue",
+                        Message = BuildDigestMessage(digest.Tasks),
+                        RelatedEntityType = "Task",
+                    });
+                }
+
+                _context.NotificationDigestLogs.Add(new NotificationDigestLog
                 {
                     UserId = digest.UserId,
                     Type = NotificationType.TaskOverdue,
-                    Title = "Tasks Overdue",
-                    Message = BuildDigestMessage(digest.Tasks),
-                    RelatedEntityType = "Task",
+                    SentOn = today,
                 });
             }
 
@@ -208,21 +223,29 @@ namespace Plantitask.Infrastructure.Services
         {
             _logger.LogInformation("Starting notification cleanup");
 
-            int daysofreadnotfications = 30;
+            var now = DateTime.UtcNow;
+            var cutoffDate = now.AddDays(-ReadNotificationRetentionDays);
 
-            var cutoffDate = DateTime.UtcNow.AddDays(-daysofreadnotfications);
-
-            var deletedCount = await _context.Notifications
+            var softDeletedCount = await _context.Notifications
                 .Where(n => n.IsRead
                     && n.ReadAt.HasValue
-                    && n.ReadAt.Value < cutoffDate
-                    && !n.IsDeleted)
+                    && n.ReadAt.Value < cutoffDate)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(n => n.IsDeleted, true)
-                    .SetProperty(n => n.DeletedAt, DateTime.UtcNow));
+                    .SetProperty(n => n.DeletedAt, now)
+                    .SetProperty(n => n.UpdatedAt, now));
 
-            _logger.LogInformation("Found {Count} old notifications to soft delete", deletedCount);
+            _logger.LogInformation("Soft-deleted {Count} read notifications older than {Days} days",
+                softDeletedCount, ReadNotificationRetentionDays);
 
+            var digestLogCutoff = DateOnly.FromDateTime(now.AddDays(-DigestLogRetentionDays));
+
+            var prunedLogCount = await _context.NotificationDigestLogs
+                .Where(l => l.SentOn < digestLogCutoff)
+                .ExecuteDeleteAsync();
+
+            _logger.LogInformation("Deleted {Count} digest log rows older than {Days} days",
+                prunedLogCount, DigestLogRetentionDays);
         }
     }
 }

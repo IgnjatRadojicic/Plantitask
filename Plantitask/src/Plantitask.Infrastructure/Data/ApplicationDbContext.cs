@@ -30,6 +30,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Notification> Notifications { get; set; }
 
     public DbSet<NotificationPreference> NotificationPreferences { get; set; }
+    public DbSet<NotificationDigestLog> NotificationDigestLogs { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
@@ -382,7 +383,20 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             entity.HasIndex(np => new { np.UserId, np.Type }).IsUnique();
 
-        }); 
+        });
+
+        modelBuilder.Entity<NotificationDigestLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.UserId, e.Type, e.SentOn }).IsUnique();
+            entity.HasIndex(e => e.SentOn);
+        });
     }
 
     
