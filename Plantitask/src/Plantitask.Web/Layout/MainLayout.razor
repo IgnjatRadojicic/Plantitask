@@ -115,6 +115,10 @@
                                                     <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Primary" />
                                                 </div>
                                             }
+                                            else if (_overdueLoadFailed)
+                                            {
+                                                <p class="field-notification-overdue-empty">Couldn't load your overdue tasks</p>
+                                            }
                                             else if (_overdueTasks is null || _overdueTasks.Count == 0)
                                             {
                                                 <p class="field-notification-overdue-empty">Nothing overdue right now</p>
@@ -258,6 +262,7 @@
     private Guid? _expandedOverdueId;
     private List<TaskSummaryDto>? _overdueTasks;
     private bool _overdueLoading;
+    private bool _overdueLoadFailed;
     private int _currentPage = 1;
     private const int PageSize = 15;
     private bool _initialLoadDone;
@@ -380,24 +385,35 @@
 
         _expandedOverdueId = notification.Id;
         _overdueLoading = true;
+        _overdueLoadFailed = false;
+        _overdueTasks = null;
         StateHasChanged();
 
         try
         {
             var result = await DashboardService.GetPersonalDashboardAsync();
-            _overdueTasks = result.Success && result.Data is not null
-                ? result.Data.OverdueTasks
-                : new();
+
+            if (result.Success && result.Data is not null)
+                _overdueTasks = result.Data.OverdueTasks;
+            else
+                _overdueLoadFailed = true;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to load overdue tasks: {ex.Message}");
-            _overdueTasks = new();
+            _overdueLoadFailed = true;
         }
         finally
         {
             _overdueLoading = false;
             StateHasChanged();
+        }
+
+        if (_overdueTasks is { Count: 0 })
+        {
+            _expandedOverdueId = null;
+            await DeleteNotification(notification);
+            Snackbar.Add("All caught up. That overdue reminder has been cleared.", Severity.Success);
         }
     }
 
