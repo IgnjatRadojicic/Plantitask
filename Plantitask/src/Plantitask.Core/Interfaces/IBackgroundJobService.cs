@@ -9,7 +9,7 @@ namespace Plantitask.Core.Interfaces
     public interface IBackgroundJobService
     {
 
-        Task<string> ScheduleTaskDueSoonNotification(Guid taskId, Guid userId, DateTime dueDate);
+        Task<string?> ScheduleTaskDueSoonNotification(Guid taskId, Guid userId, DateTime dueDate);
 
         void CancelScheduledJob(string jobId);
 

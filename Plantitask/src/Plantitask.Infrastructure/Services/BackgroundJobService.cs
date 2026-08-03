@@ -26,7 +26,7 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("Cancelled scheduled job {JobId}", jobId);
         }
 
-        public async Task<string> ScheduleTaskDueSoonNotification(Guid taskId, Guid userId, DateTime dueDate)
+        public async Task<string?> ScheduleTaskDueSoonNotification(Guid taskId, Guid userId, DateTime dueDate)
         {
             int hours = await _notificationService.GetReminderHoursBeforeAsync(userId);
 
@@ -42,7 +42,7 @@ namespace Plantitask.Infrastructure.Services
             {
                 _logger.LogWarning("Cannot schedule due soon notification for task {TaskId} - reminder time {ReminderTime} is in the past",
                     taskId, reminderTime);
-                return string.Empty;
+                return null;
             }
 
             var jobId = BackgroundJob.Schedule<NotificationBackgroundJob>(

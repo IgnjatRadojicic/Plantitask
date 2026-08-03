@@ -207,7 +207,7 @@ namespace Plantitask.Infrastructure.Services
             task.UpdatedBy = userId;
 
 
-            if (task.DueSoonJobId != null)
+            if (!string.IsNullOrEmpty(task.DueSoonJobId))
             {
                 _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
             }
@@ -262,9 +262,24 @@ namespace Plantitask.Infrastructure.Services
             task.StatusId = statusDto.NewStatusId;          
 
             if (statusDto.NewStatusId == (int)TaskStatusItem.Completed)
+            {
                 task.CompletedAt ??= DateTime.UtcNow;
+
+                if (!string.IsNullOrEmpty(task.DueSoonJobId))
+                {
+                    _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
+                    task.DueSoonJobId = null;
+                }
+            }
             else if (oldStatusId == (int)TaskStatusItem.Completed)
+            {
                 task.CompletedAt = null;
+
+                task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
+                    ? await _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value)
+                    : null;
+            }
+
             task.UpdatedBy = userId;
 
             task.DisplayOrder = await NextDisplayOrderAsync(task.GroupId, statusDto.NewStatusId);
@@ -362,7 +377,7 @@ namespace Plantitask.Infrastructure.Services
             task.AssignedToId = assignDto.UserId;
             task.UpdatedBy = userId;
 
-            if (task.DueSoonJobId != null)
+            if (!string.IsNullOrEmpty(task.DueSoonJobId))
             {
                 _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
             }
@@ -404,6 +419,12 @@ namespace Plantitask.Infrastructure.Services
 
             task.AssignedToId = null;
             task.UpdatedBy = userId;
+
+            if (!string.IsNullOrEmpty(task.DueSoonJobId))
+            {
+                _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
+                task.DueSoonJobId = null;
+            }
             
 
             await _context.SaveChangesAsync();
@@ -462,12 +483,20 @@ namespace Plantitask.Infrastructure.Services
                     .SetProperty(a => a.DeletedBy, userId)
                     .SetProperty(c => c.UpdatedAt, now));
 
+            var dueSoonJobId = task.DueSoonJobId;
+
             task.IsDeleted = true;
             task.DeletedAt = now;
             task.DeletedBy = userId;
+            task.DueSoonJobId = null;
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            if (!string.IsNullOrEmpty(dueSoonJobId))
+            {
+                _backgroundJobService.CancelScheduledJob(dueSoonJobId);
+            }
 
             _logger.LogInformation("Task {TaskId} deleted by user {UserId}", taskId, userId);
 
