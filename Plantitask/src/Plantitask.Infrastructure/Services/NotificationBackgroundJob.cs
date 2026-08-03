@@ -55,36 +55,27 @@ namespace Plantitask.Infrastructure.Services
                 return;
             }
 
-            var existingNotification = await _context.Notifications
-                .Where(n => n.RelatedEntityId == task.Id
-                && n.Type == NotificationType.TaskDueSoon
-                && !n.IsDeleted)
-                .AnyAsync();
+            var userId = task.AssignedToId.Value;
 
-            if (existingNotification)
+            if (await _notificationService.ShouldNotifyAsync(userId, NotificationType.TaskDueSoon))
             {
-                _logger.LogInformation("Due soon notification already exists for task {TaskId}", taskId);
-                return;
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = userId,
+                    Type = NotificationType.TaskDueSoon,
+                    Title = "Task Due Soon",
+                    Message = $"Task '{task.Title}' is due on {task.DueDate!.Value:MMMM dd, yyyy 'at' h:mm tt} UTC",
+                    RelatedEntityId = task.Id,
+                    RelatedEntityType = "Task",
+                });
+
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Due soon notification created for task {TaskId}", taskId);
             }
-
-
-            var notification = new Notification
-            {
-                UserId = task.AssignedToId.Value,
-                Type = NotificationType.TaskDueSoon,
-                Title = "Task Due Soon",
-                Message = $"Task '{task.Title}' is due in 24 hours",
-                RelatedEntityId = task.Id,
-                RelatedEntityType = "Task",
-            };
-
-            _context.Notifications.Add(notification);
-            await _context.SaveChangesAsync();
-
 
             try
             {
-                if (await _notificationService.ShouldEmailAsync(task.AssignedToId.Value, NotificationType.TaskDueSoon))
+                if (await _notificationService.ShouldEmailAsync(userId, NotificationType.TaskDueSoon))
                 {
                     await _emailService.SendTaskDueSoonEmailAsync(
                         task.AssignedTo!.Email,
@@ -97,12 +88,10 @@ namespace Plantitask.Infrastructure.Services
             {
                 _logger.LogError(ex, "Failed to send due soon email for task {TaskId}", taskId);
             }
-
-            _logger.LogInformation("Due soon notification created for task {TaskId}", taskId);
         }
 
 
-        [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 3600 })]
+            [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 3600 })]
         public async Task CheckOverdueTasksAndNotify()
         {
             _logger.LogInformation("Starting overdue tasks check");
