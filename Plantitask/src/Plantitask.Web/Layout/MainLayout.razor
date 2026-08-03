@@ -119,7 +119,7 @@
                                             {
                                                 @foreach (var task in _overdueTasks)
                                                 {
-                                                    <div class="field-notification-overdue-row" @onclick="() => GoToTaskGroup(task.GroupId)">
+                                                    <div class="field-notification-overdue-row" @onclick="() => GoToTaskGroup(task.GroupId, task.GroupName)">
                                                         <span class="field-notification-overdue-title">@task.Title</span>
                                                         <span class="field-notification-overdue-days">@FormatOverdue(task.DueDate)</span>
                                                     </div>
@@ -397,10 +397,10 @@
         }
     }
 
-    private void GoToTaskGroup(Guid groupId)
+    private void GoToTaskGroup(Guid groupId, string? groupName)
     {
         CloseAllPanels();
-        Navigation.NavigateTo($"/groups/{groupId}");
+        Navigation.NavigateTo(GroupRoutes.Board(groupId, groupName));
     }
 
     private static string FormatOverdue(DateTime? dueDate)
