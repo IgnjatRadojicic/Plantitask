@@ -240,9 +240,10 @@ namespace Plantitask.Infrastructure.Services.Email
 
         private static string OverdueText(int daysOverdue)
         {
-            return daysOverdue == 0
-                ? "overdue today"
-                : $"{daysOverdue} day(s) overdue";
+            if (daysOverdue == 0)
+                return "overdue today";
+
+            return daysOverdue == 1 ? "1 day overdue" : $"{daysOverdue} days overdue";
         }
 
         public static string EmailVerification(string userName, string code)

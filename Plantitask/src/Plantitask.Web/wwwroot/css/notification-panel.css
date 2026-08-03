@@ -217,7 +217,7 @@
 .field-notification-overdue-list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 6px;
     margin-top: 8px;
     padding-top: 8px;
     border-top: 1px solid var(--c-border-light);
@@ -234,9 +234,9 @@
 
 .field-notification-overdue-row {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
     padding: 6px 8px;
     border-radius: 6px;
     cursor: pointer;
@@ -259,8 +259,7 @@
 .field-notification-overdue-days {
     font-family: var(--font-body);
     font-size: 0.7rem;
-    color: var(--c-text-faint);
-    flex-shrink: 0;
+    color: var(--c-text-muted);
 }
 
 /* ---- Load More ---- */

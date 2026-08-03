@@ -209,9 +209,12 @@ namespace Plantitask.Infrastructure.Services
             {
                 var only = tasks[0];
 
-                return only.DaysOverdue == 0
-                    ? $"'{only.Title}' is overdue"
-                    : $"'{only.Title}' is overdue by {only.DaysOverdue} day(s)";
+                if (only.DaysOverdue == 0)
+                    return $"'{only.Title}' is overdue";
+
+                return only.DaysOverdue == 1
+                    ? $"'{only.Title}' is overdue by 1 day"
+                    : $"'{only.Title}' is overdue by {only.DaysOverdue} days";
             }
 
             return $"You have {tasks.Count} overdue tasks";
