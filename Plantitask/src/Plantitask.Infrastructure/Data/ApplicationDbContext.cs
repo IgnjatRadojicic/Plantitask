@@ -368,7 +368,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
                 .HasForeignKey(n => n.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasIndex(n => new { n.UserId, n.IsRead }); 
+            entity.HasOne(n => n.Actor)
+                .WithMany()
+                .HasForeignKey(n => n.ActorId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(n => new { n.UserId, n.IsRead });
             entity.HasIndex(n => n.CreatedAt);
             entity.HasIndex(n => n.Type);
         });

@@ -11,6 +11,7 @@ namespace Plantitask.Core.Entities
     public class Notification : SelfManagedEntity
     {
         public Guid UserId { get; set; }
+        public Guid? ActorId { get; set; }
         public NotificationType Type { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
@@ -22,5 +23,6 @@ namespace Plantitask.Core.Entities
 
         // Navigation properties
         public User User { get; set; } = null!;
+        public User? Actor { get; set; }
     }
 }

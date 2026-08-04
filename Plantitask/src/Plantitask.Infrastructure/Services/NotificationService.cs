@@ -41,6 +41,7 @@ public class NotificationService : INotificationService
         var notification = new Notification
         {
             UserId = assigneeId,
+            ActorId = actorId,
             Type = NotificationType.TaskAssigned,
             Title = "Task Assigned",
             Message = $"You have been assigned to task: {task.Title}",
@@ -77,6 +78,7 @@ public class NotificationService : INotificationService
             .Select(recipientId => new Notification
             {
                 UserId = recipientId,
+                ActorId = actorId,
                 Type = NotificationType.TaskStatusChanged,
                 Title = "Task Status Changed",
                 Message = $"Task '{task.Title}' status changed from {oldStatus} to {newStatus}",
@@ -124,6 +126,7 @@ public class NotificationService : INotificationService
             .Select(userId => new Notification
             {
                 UserId = userId,
+                ActorId = comment.UserId,
                 Type = NotificationType.TaskCommentAdded,
                 Title = "New Comment",
                 Message = $"{comment.UserName} commented on task '{task.Title}'",
@@ -226,6 +229,7 @@ public class NotificationService : INotificationService
             {
                 Id = n.Id,
                 UserId = n.UserId,
+                ActorId = n.ActorId,
                 Type = n.Type,
                 TypeName = n.Type.ToString(),
                 Title = n.Title,
@@ -465,6 +469,7 @@ public class NotificationService : INotificationService
     {
         Id = n.Id,
         UserId = n.UserId,
+        ActorId = n.ActorId,
         Type = n.Type,
         TypeName = n.Type.ToString(),
         Title = n.Title,
