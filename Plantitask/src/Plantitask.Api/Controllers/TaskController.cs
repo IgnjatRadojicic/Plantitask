@@ -64,12 +64,9 @@ namespace Plantitask.Api.Controllers
                 action: "Created",
                 groupId: groupId);
 
-            if (task.AssignedToId.HasValue)
-            {
-                var notification = await _notificationService.NotifyTaskCreatedAsync(task.AssignedToId.Value, task);
-                if (notification != null)
-                    await _notificationBroadcaster.BroadcastNotificationAsync(notification);
-            }
+            var notification = await _notificationService.NotifyAssignmentAsync(userId, task);
+            if (notification != null)
+                await _notificationBroadcaster.BroadcastNotificationAsync(notification);
 
             await _kanbanBroadcaster.BroadcastTaskCreatedAsync(groupId, task.Id, task.StatusId, userId);
             return CreatedAtAction(
@@ -248,15 +245,10 @@ namespace Plantitask.Api.Controllers
                 propertyName: "AssignedTo",
                 newValue: task.AssignedToUserName);
 
-            var notification = await _notificationService.NotifyTaskAssignedAsync(assignDto.UserId, task);
-
-            _logger.LogInformation("NotifyTaskAssignedAsync returned: {NotificationId}", notification?.Id);
+            var notification = await _notificationService.NotifyAssignmentAsync(userId, task);
 
             if (notification != null)
-            {
                 await _notificationBroadcaster.BroadcastNotificationAsync(notification);
-                _logger.LogInformation("Broadcast complete");
-            }
 
             await _notificationService.TrySendTaskAssignmentEmailAsync(
                 assignDto.UserId, task.Title, task.GroupName, task.CreatedByUserName);

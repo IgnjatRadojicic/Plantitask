@@ -8,8 +8,7 @@ namespace Plantitask.Core.Interfaces;
 
 public interface INotificationService
 {
-    Task<NotificationDto?> NotifyTaskCreatedAsync(Guid createdByUserId, TaskDto task);
-    Task<NotificationDto?> NotifyTaskAssignedAsync(Guid userId, TaskDto task);
+    Task<NotificationDto?> NotifyAssignmentAsync(Guid actorId, TaskDto task);
     Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskDto task, string oldStatus, string newStatus);
     Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment);
     Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid groupId, TaskDto task, string oldPriority, string newPriority);

@@ -27,50 +27,25 @@ public class NotificationService : INotificationService
         _logger = logger;
     }
 
-    public async Task<NotificationDto?> NotifyTaskCreatedAsync(Guid createdByUserId, TaskDto task)
+    public async Task<NotificationDto?> NotifyAssignmentAsync(Guid actorId, TaskDto task)
     {
-        if (!task.AssignedToId.HasValue)
-            return null;
-        if (task.AssignedToId.Value == createdByUserId)
+        if (task.AssignedToId is not Guid assigneeId || assigneeId == actorId)
             return null;
 
-        if (!await ShouldNotifyAsync(task.AssignedToId.Value, NotificationType.TaskAssigned))
+        if (!await ShouldNotifyAsync(assigneeId, NotificationType.TaskAssigned))
         {
-            _logger.LogInformation("User {UserId} has disabled TaskAssigned notifications", task.AssignedToId.Value);
+            _logger.LogInformation("User {UserId} has disabled TaskAssigned notifications", assigneeId);
             return null;
         }
 
         var notification = new Notification
         {
-            UserId = task.AssignedToId.Value,
+            UserId = assigneeId,
             Type = NotificationType.TaskAssigned,
             Title = "Task Assigned",
             Message = $"You have been assigned to task: {task.Title}",
             RelatedEntityId = task.Id,
             RelatedEntityType = "Task",
-            
-        };
-
-        return await CreateNotificationAsync(notification);
-    }
-
-    public async Task<NotificationDto?> NotifyTaskAssignedAsync(Guid userId, TaskDto task)
-    {
-        if (!await ShouldNotifyAsync(userId, NotificationType.TaskAssigned))
-        {
-            _logger.LogInformation("User {UserId} has disabled TaskAssigned notifications", userId);
-            return null;
-        }
-
-        var notification = new Notification
-        {
-            UserId = userId,
-            Type = NotificationType.TaskAssigned,
-            Title = "Task Assigned",
-            Message = $"You have been assigned to task: {task.Title}",
-            RelatedEntityId = task.Id,
-            RelatedEntityType = "Task",
-            
         };
 
         return await CreateNotificationAsync(notification);
