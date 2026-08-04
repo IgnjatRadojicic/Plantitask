@@ -12,6 +12,7 @@ namespace Plantitask.Core.DTO.Notifications
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
         public Guid? ActorId { get; set; }
+        public string? ActorName { get; set; }
         public NotificationType Type { get; set; }
         public string TypeName { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;

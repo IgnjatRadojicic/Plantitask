@@ -49,7 +49,7 @@ public class NotificationService : INotificationService
             RelatedEntityType = "Task",
         };
 
-        return await CreateNotificationAsync(notification);
+        return await CreateNotificationAsync(notification, await GetUserNameAsync(actorId));
     }
 
     public async Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskDto task, string oldStatus, string newStatus)
@@ -93,7 +93,9 @@ public class NotificationService : INotificationService
         _context.Notifications.AddRange(notifications);
         await _context.SaveChangesAsync();
 
-        return notifications.Select(ToDto).ToList();
+        var actorName = await GetUserNameAsync(actorId);
+
+        return notifications.Select(n => ToDto(n, actorName)).ToList();
     }
 
     public async Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment)
@@ -129,7 +131,7 @@ public class NotificationService : INotificationService
                 ActorId = comment.UserId,
                 Type = NotificationType.TaskCommentAdded,
                 Title = "New Comment",
-                Message = $"{comment.UserName} commented on task '{task.Title}'",
+                Message = $"New comment on task '{task.Title}'",
                 RelatedEntityId = task.Id,
                 RelatedEntityType = "Task",
             })
@@ -141,7 +143,7 @@ public class NotificationService : INotificationService
         _context.Notifications.AddRange(notifications);
         await _context.SaveChangesAsync();
 
-        return notifications.Select(ToDto).ToList();
+        return notifications.Select(n => ToDto(n, comment.UserName)).ToList();
     }
 
     public async Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid actorId, TaskDto task, string oldPriority, string newPriority)
@@ -167,7 +169,7 @@ public class NotificationService : INotificationService
             
         };
 
-        return await CreateNotificationAsync(notification);
+        return await CreateNotificationAsync(notification, await GetUserNameAsync(actorId));
     }
 
     public async Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid actorId, TaskDto task)
@@ -193,7 +195,7 @@ public class NotificationService : INotificationService
             
         };
 
-        return await CreateNotificationAsync(notification);
+        return await CreateNotificationAsync(notification, await GetUserNameAsync(actorId));
     }
 
     public async Task<NotificationDto?> NotifyGroupInvitationAsync(Guid userId, string groupName)
@@ -211,10 +213,9 @@ public class NotificationService : INotificationService
             Title = "Group Joined",
             Message = $"You have joined the group: {groupName}",
             RelatedEntityType = "Group",
-            
         };
 
-        return await CreateNotificationAsync(notification);
+        return await CreateNotificationAsync(notification, null);
     }
 
     public async Task<Result<PaginatedList<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false, int pageNumber = 1, int pageSize = 20)
@@ -232,6 +233,7 @@ public class NotificationService : INotificationService
                 Id = n.Id,
                 UserId = n.UserId,
                 ActorId = n.ActorId,
+                ActorName = n.Actor != null ? n.Actor.UserName : null,
                 Type = n.Type,
                 TypeName = n.Type.ToString(),
                 Title = n.Title,
@@ -459,19 +461,26 @@ public class NotificationService : INotificationService
         }
     }
 
-    private async Task<NotificationDto> CreateNotificationAsync(Notification notification)
+    private async Task<NotificationDto> CreateNotificationAsync(Notification notification, string? actorName)
     {
         _context.Notifications.Add(notification);
         await _context.SaveChangesAsync();
 
-        return ToDto(notification);
+        return ToDto(notification, actorName);
     }
 
-    private static NotificationDto ToDto(Notification n) => new()
+    private Task<string?> GetUserNameAsync(Guid userId) =>
+        _context.Users
+            .Where(u => u.Id == userId)
+            .Select(u => (string?)u.UserName)
+            .FirstOrDefaultAsync();
+
+    private static NotificationDto ToDto(Notification n, string? actorName) => new()
     {
         Id = n.Id,
         UserId = n.UserId,
         ActorId = n.ActorId,
+        ActorName = actorName,
         Type = n.Type,
         TypeName = n.Type.ToString(),
         Title = n.Title,
