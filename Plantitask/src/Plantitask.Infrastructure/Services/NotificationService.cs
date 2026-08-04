@@ -144,20 +144,21 @@ public class NotificationService : INotificationService
         return notifications.Select(ToDto).ToList();
     }
 
-    public async Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid groupId, TaskDto task, string oldPriority, string newPriority)
+    public async Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid actorId, TaskDto task, string oldPriority, string newPriority)
     {
-        if (!task.AssignedToId.HasValue)
+        if (task.AssignedToId is not Guid assigneeId || assigneeId == actorId)
             return null;
 
-        if (!await ShouldNotifyAsync(task.AssignedToId.Value, NotificationType.TaskPriorityChanged))
+        if (!await ShouldNotifyAsync(assigneeId, NotificationType.TaskPriorityChanged))
         {
-            _logger.LogInformation("User {UserId} has disabled TaskPriorityChanged notifications", task.AssignedToId.Value);
+            _logger.LogInformation("User {UserId} has disabled TaskPriorityChanged notifications", assigneeId);
             return null;
         }
 
         var notification = new Notification
         {
-            UserId = task.AssignedToId.Value,
+            UserId = assigneeId,
+            ActorId = actorId,
             Type = NotificationType.TaskPriorityChanged,
             Title = "Task Priority Changed",
             Message = $"Task '{task.Title}' priority changed from {oldPriority} to {newPriority}",
@@ -169,20 +170,21 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification);
     }
 
-    public async Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid groupId, TaskDto task)
+    public async Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid actorId, TaskDto task)
     {
-        if (!task.AssignedToId.HasValue || task.AssignedToId.Value == task.CreatedBy)
+        if (task.AssignedToId is not Guid assigneeId || assigneeId == actorId)
             return null;
 
-        if (!await ShouldNotifyAsync(task.AssignedToId.Value, NotificationType.TaskUpdated))
+        if (!await ShouldNotifyAsync(assigneeId, NotificationType.TaskUpdated))
         {
-            _logger.LogInformation("User {UserId} has disabled TaskUpdated notifications", task.AssignedToId.Value);
+            _logger.LogInformation("User {UserId} has disabled TaskUpdated notifications", assigneeId);
             return null;
         }
 
         var notification = new Notification
         {
-            UserId = task.AssignedToId.Value,
+            UserId = assigneeId,
+            ActorId = actorId,
             Type = NotificationType.TaskUpdated,
             Title = "Task Updated",
             Message = $"Task '{task.Title}' has been updated",

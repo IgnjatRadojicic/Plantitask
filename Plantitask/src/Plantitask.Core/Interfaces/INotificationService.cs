@@ -11,8 +11,8 @@ public interface INotificationService
     Task<NotificationDto?> NotifyAssignmentAsync(Guid actorId, TaskDto task);
     Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskDto task, string oldStatus, string newStatus);
     Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment);
-    Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid groupId, TaskDto task, string oldPriority, string newPriority);
-    Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid groupId, TaskDto task);
+    Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid actorId, TaskDto task, string oldPriority, string newPriority);
+    Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid actorId, TaskDto task);
     Task<NotificationDto?> NotifyGroupInvitationAsync(Guid userId, string groupName);
 
     Task<Result<PaginatedList<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false, int pageNumber = 1, int pageSize = 20);

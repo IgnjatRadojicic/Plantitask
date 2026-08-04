@@ -134,7 +134,7 @@ namespace Plantitask.Api.Controllers
                 action: "Updated",
                 groupId: task.GroupId);
 
-            var notification = await _notificationService.NotifyTaskUpdatedAsync(task.GroupId, task);
+            var notification = await _notificationService.NotifyTaskUpdatedAsync(userId, task);
             if (notification != null)
                 await _notificationBroadcaster.BroadcastNotificationAsync(notification);
 
@@ -209,7 +209,7 @@ namespace Plantitask.Api.Controllers
             if (priorityChange.Task.AssignedToId.HasValue)
             {
                 var notification = await _notificationService.NotifyTaskPriorityChangedAsync(
-                    priorityChange.Task.GroupId,
+                    userId,
                     priorityChange.Task,
                     priorityChange.OldPriority,
                     priorityChange.NewPriority);
