@@ -193,10 +193,25 @@
 }
 
 .field-notification-item-time {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-family: var(--font-body);
     font-size: 0.7rem;
     color: var(--c-text-faint);
     margin-top: 2px;
+}
+
+.field-notification-item-actor {
+    font-weight: 600;
+    color: var(--c-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.field-notification-item-sep {
+    color: var(--c-text-faint);
 }
 
 .field-notification-item-actions {

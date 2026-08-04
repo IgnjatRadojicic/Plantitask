@@ -104,7 +104,14 @@
                                     {
                                         <div class="field-notification-item-when">@FormatLocal(notification.RelatedDate.Value)</div>
                                     }
-                                    <div class="field-notification-item-time">@FormatTimeAgo(notification.CreatedAt)</div>
+                                    <div class="field-notification-item-time">
+                                        @if (!string.IsNullOrWhiteSpace(notification.ActorName))
+                                        {
+                                            <span class="field-notification-item-actor">@notification.ActorName</span>
+                                            <span class="field-notification-item-sep">·</span>
+                                        }
+                                        <span>@FormatTimeAgo(notification.CreatedAt)</span>
+                                    </div>
 
                                     @if (IsOverdueDigest(notification) && _expandedOverdueId == notification.Id)
                                     {
