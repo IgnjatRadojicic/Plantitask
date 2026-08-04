@@ -259,11 +259,14 @@ public class NotificationService : INotificationService
 
     public async Task<Result> MarkAsReadAsync(Guid notificationId, Guid userId)
     {
+        var now = DateTime.UtcNow;
+
         var updatedCount = await _context.Notifications
             .Where(n => n.Id == notificationId && n.UserId == userId && !n.IsRead)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(n => n.IsRead, true)
-                .SetProperty(n => n.ReadAt, DateTime.UtcNow));
+                .SetProperty(n => n.ReadAt, now)
+                .SetProperty(n => n.UpdatedAt, now));
 
         _logger.LogInformation("{Count} notifications marked as read for user {UserId}", updatedCount, userId);
 
@@ -272,17 +275,14 @@ public class NotificationService : INotificationService
 
     public async Task<Result> MarkAllAsReadAsync(Guid userId)
     {
-        var unreadNotifications = await _context.Notifications
+        var now = DateTime.UtcNow;
+
+        var updatedCount = await _context.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
-            .ToListAsync();
-
-        foreach (var notification in unreadNotifications)
-        {
-            notification.IsRead = true;
-            notification.ReadAt = DateTime.UtcNow;
-        }
-
-        await _context.SaveChangesAsync();
+            .ExecuteUpdateAsync(setters => setters
+            .SetProperty(n => n.IsRead, true)
+            .SetProperty(n => n.ReadAt, now)
+            .SetProperty(n => n.UpdatedAt, now));
 
         _logger.LogInformation("All notifications marked as read for user {UserId}", userId);
 
