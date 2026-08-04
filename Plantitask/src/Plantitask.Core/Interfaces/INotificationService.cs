@@ -10,7 +10,7 @@ public interface INotificationService
 {
     Task<NotificationDto?> NotifyTaskCreatedAsync(Guid createdByUserId, TaskDto task);
     Task<NotificationDto?> NotifyTaskAssignedAsync(Guid userId, TaskDto task);
-    Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid groupId, TaskDto task, string oldStatus, string newStatus);
+    Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskDto task, string oldStatus, string newStatus);
     Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment);
     Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid groupId, TaskDto task, string oldPriority, string newPriority);
     Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid groupId, TaskDto task);

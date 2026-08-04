@@ -171,7 +171,7 @@ namespace Plantitask.Api.Controllers
                 newValue: statusChange.NewStatus);
 
             var notifications = await _notificationService.NotifyTaskStatusChangedAsync(
-                statusChange.Task.GroupId,
+                userId,
                 statusChange.Task,
                 statusChange.OldStatus,
                 statusChange.NewStatus);

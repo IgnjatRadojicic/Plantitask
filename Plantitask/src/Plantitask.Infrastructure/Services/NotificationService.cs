@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Comments;
@@ -75,46 +76,47 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification);
     }
 
-    public async Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid groupId, TaskDto task, string oldStatus, string newStatus)
+    public async Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskDto task, string oldStatus, string newStatus)
     {
-        var members = await _context.GroupMembers
-            .Where(gm => gm.GroupId == groupId && gm.UserId != task.CreatedBy)
-            .Select(gm => gm.UserId)
-            .ToListAsync();
+        var recipients = new List<Guid>();
 
-        var disabledMembers = await _context.NotificationPreferences
-            .Where(np => members.Contains(np.UserId)
+        if (task.AssignedToId.HasValue && task.AssignedToId.Value != actorId)
+            recipients.Add(task.AssignedToId.Value);
+
+        if (task.CreatedBy != actorId && task.CreatedBy != task.AssignedToId)
+            recipients.Add(task.CreatedBy);
+
+        if (recipients.Count == 0)
+            return new();
+
+        var disabledMembers = (await _context.NotificationPreferences
+            .Where(np => recipients.Contains(np.UserId)
                 && np.Type == NotificationType.TaskStatusChanged
                 && !np.IsEnabled)
             .Select(np => np.UserId)
-            .ToListAsync();
+            .ToListAsync())
+            .ToHashSet();
 
-        var createdNotifications = new List<NotificationDto>();
-
-        foreach (var memberId in members)
-        {
-            if (disabledMembers.Contains(memberId))
+        var notifications = recipients
+            .Where(recipientId => !disabledMembers.Contains(recipientId))
+            .Select(recipientId => new Notification
             {
-                _logger.LogInformation("User {UserId} has disabled TaskStatusChanged notifications", memberId);
-                continue;
-            }
-
-            var notification = new Notification
-            {
-                UserId = memberId,
+                UserId = recipientId,
                 Type = NotificationType.TaskStatusChanged,
                 Title = "Task Status Changed",
                 Message = $"Task '{task.Title}' status changed from {oldStatus} to {newStatus}",
                 RelatedEntityId = task.Id,
                 RelatedEntityType = "Task",
-                
-            };
+            })
+            .ToList();
 
-            var dto = await CreateNotificationAsync(notification);
-            createdNotifications.Add(dto);
-        }
+        if (notifications.Count == 0)
+            return new();
 
-        return createdNotifications;
+        _context.Notifications.AddRange(notifications);
+        await _context.SaveChangesAsync();
+
+        return notifications.Select(ToDto).ToList();
     }
 
     public async Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment)
@@ -131,17 +133,20 @@ public class NotificationService : INotificationService
             usersToNotify.Add(task.AssignedToId.Value);
         }
 
-        var createdNotifications = new List<NotificationDto>();
+        if (usersToNotify.Count == 0)
+            return new();
 
-        foreach (var userId in usersToNotify)
-        {
-            if (!await ShouldNotifyAsync(userId, NotificationType.TaskCommentAdded))
-            {
-                _logger.LogInformation("User {UserId} has disabled TaskCommentAdded notifications", userId);
-                continue;
-            }
+        var disabled = (await _context.NotificationPreferences
+            .Where(np => usersToNotify.Contains(np.UserId)
+                && np.Type == NotificationType.TaskCommentAdded
+                && !np.IsEnabled)
+            .Select(np => np.UserId)
+            .ToListAsync())
+            .ToHashSet();
 
-            var notification = new Notification
+        var notifications = usersToNotify
+            .Where(userId => !disabled.Contains(userId))
+            .Select(userId => new Notification
             {
                 UserId = userId,
                 Type = NotificationType.TaskCommentAdded,
@@ -149,14 +154,16 @@ public class NotificationService : INotificationService
                 Message = $"{comment.UserName} commented on task '{task.Title}'",
                 RelatedEntityId = task.Id,
                 RelatedEntityType = "Task",
-                
-            };
+            })
+            .ToList();
 
-            var dto = await CreateNotificationAsync(notification);
-            createdNotifications.Add(dto);
-        }
+        if (notifications.Count == 0)
+            return new();
 
-        return createdNotifications;
+        _context.Notifications.AddRange(notifications);
+        await _context.SaveChangesAsync();
+
+        return notifications.Select(ToDto).ToList();
     }
 
     public async Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid groupId, TaskDto task, string oldPriority, string newPriority)
@@ -384,26 +391,26 @@ public class NotificationService : INotificationService
     }
     public async Task<bool> ShouldNotifyAsync(Guid userId, NotificationType type)
     {
-        var preference = await _context.NotificationPreferences
-            .FirstOrDefaultAsync(np => np.UserId == userId && np.Type == type);
-
-        return preference?.IsEnabled ?? true;
+        return await _context.NotificationPreferences
+            .Where(np => np.UserId == userId && np.Type == type)
+            .Select(np => (bool?)np.IsEnabled)
+            .FirstOrDefaultAsync() ?? true;
     }
 
     public async Task<bool> ShouldEmailAsync(Guid userId, NotificationType type)
     {
-        var preference = await _context.NotificationPreferences
-            .FirstOrDefaultAsync(np => np.UserId == userId && np.Type == type);
-
-        return preference?.IsEmailEnabled ?? true;
+        return await _context.NotificationPreferences
+            .Where(np => np.UserId == userId && np.Type == type)
+            .Select(np => (bool?)np.IsEmailEnabled)
+            .FirstOrDefaultAsync() ?? true;
     }
 
     public async Task<int> GetReminderHoursBeforeAsync(Guid userId)
     {
-        var preference = await _context.NotificationPreferences
-            .FirstOrDefaultAsync(np => np.UserId == userId && np.Type == NotificationType.TaskDueSoon);
-
-        return preference?.ReminderHoursBefore ?? 24;
+        return await _context.NotificationPreferences
+            .Where(np => np.UserId == userId && np.Type == NotificationType.TaskDueSoon)
+            .Select(np => np.ReminderHoursBefore)
+            .FirstOrDefaultAsync() ?? 24;
     }
 
     public async Task<(string Email, string UserName)?> GetUserContactAsync(Guid userId)
@@ -446,7 +453,7 @@ public class NotificationService : INotificationService
     {
         try
         {
-            if (taskAssignedToUserId == commenterId)
+            if (taskAssignedToUserId == Guid.Empty || taskAssignedToUserId == commenterId)
                 return;
 
             if (!await ShouldEmailAsync(taskAssignedToUserId, NotificationType.TaskCommentAdded))
@@ -474,25 +481,26 @@ public class NotificationService : INotificationService
     private async Task<NotificationDto> CreateNotificationAsync(Notification notification)
     {
         _context.Notifications.Add(notification);
-        var rows = await _context.SaveChangesAsync();
-        _logger.LogInformation("SaveChanges result: {Rows} rows affected", rows);
+        await _context.SaveChangesAsync();
 
-        return new NotificationDto
-        {
-            Id = notification.Id,
-            UserId = notification.UserId,
-            Type = notification.Type,
-            TypeName = notification.Type.ToString(),
-            Title = notification.Title,
-            Message = notification.Message,
-            RelatedEntityId = notification.RelatedEntityId,
-            RelatedEntityType = notification.RelatedEntityType,
-            RelatedDate = notification.RelatedDate,
-            IsRead = notification.IsRead,
-            ReadAt = notification.ReadAt,
-            CreatedAt = notification.CreatedAt
-        };
+        return ToDto(notification);
     }
+
+    private static NotificationDto ToDto(Notification n) => new()
+    {
+        Id = n.Id,
+        UserId = n.UserId,
+        Type = n.Type,
+        TypeName = n.Type.ToString(),
+        Title = n.Title,
+        Message = n.Message,
+        RelatedEntityId = n.RelatedEntityId,
+        RelatedEntityType = n.RelatedEntityType,
+        RelatedDate = n.RelatedDate,
+        IsRead = n.IsRead,
+        ReadAt = n.ReadAt,
+        CreatedAt = n.CreatedAt
+    };
 
     private string GetNotificationTypeDescription(NotificationType type)
     {
