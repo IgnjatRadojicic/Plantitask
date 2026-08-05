@@ -301,7 +301,7 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("User {UserId} changing role for member {MemberId} in group {GroupId}",
                 userId, memberId, groupId);
 
-            var callerRole =  await GetUserRoleAsync(groupId, userId);
+            var callerRole = await GetUserRoleAsync(groupId, userId);
 
             if (callerRole == null)
                 return Error.Forbidden("You are not a member of this group");
@@ -318,12 +318,21 @@ namespace Plantitask.Infrastructure.Services
             if (!Enum.IsDefined(changeRoleDto.NewRole))
                 return Error.BadRequest("Invalid role");
 
-            var targetMembership = await _context.GroupMembers
-                .Include(gm => gm.User)
-                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == memberId);
+            var row = await _context.GroupMembers
+                .Where(gm => gm.GroupId == groupId && gm.UserId == memberId)
+                .Select(gm => new
+                {
+                    Membership = gm,
+                    gm.User.UserName,
+                    gm.User.Email,
+                    gm.User.ProfilePicturePath
+                })
+                .FirstOrDefaultAsync();
 
-            if (targetMembership == null)
+            if (row == null)
                 return Error.NotFound("Member not found in this group");
+
+            var targetMembership = row.Membership;
 
             var targetRole = (GroupRole)targetMembership.RoleId;
             if (targetRole >= callerRole)
@@ -343,9 +352,9 @@ namespace Plantitask.Infrastructure.Services
             return new GroupMemberDto
             {
                 UserId = targetMembership.UserId,
-                UserName = targetMembership.User.UserName,
-                Email = targetMembership.User.Email,
-                ProfilePicturePath = targetMembership.User.ProfilePicturePath,
+                UserName = row.UserName,
+                Email = row.Email,
+                ProfilePicturePath = row.ProfilePicturePath,
                 Role = changeRoleDto.NewRole
             };
         }
