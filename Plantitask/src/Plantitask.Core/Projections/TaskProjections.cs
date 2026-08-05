@@ -20,7 +20,7 @@ namespace Plantitask.Core.Projections
             StatusDisplayName = t.Status.DisplayName,
             StatusColor = t.Status.Color,
             PriorityId = t.PriorityId,
-            PriorityName = t.Priority.Name,
+            PriorityName = t.Priority.DisplayName,
             PriorityColor = t.Priority.Color,
             AssignedToId = t.AssignedToId,
             AssignedToUserName = t.AssignedTo != null ? t.AssignedTo.UserName : null,
@@ -40,7 +40,7 @@ namespace Plantitask.Core.Projections
             GroupName = t.Group.Name,
             StatusName = t.Status.DisplayName,
             StatusColor = t.Status.Color,
-            PriorityName = t.Priority.Name,
+            PriorityName = t.Priority.DisplayName,
             PriorityColor = t.Priority.Color,
             DueDate = t.DueDate,
             CompletedAt = t.CompletedAt

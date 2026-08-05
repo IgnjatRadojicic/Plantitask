@@ -299,7 +299,7 @@ namespace Plantitask.Infrastructure.Services
         {
             var row = await _context.Tasks
                 .Where(t => t.Id == taskId)
-                .Select(t => new { Task = t, OldPriority = t.Priority.Name })
+                .Select(t => new { Task = t, OldPriority = t.Priority.DisplayName })
                 .FirstOrDefaultAsync();
 
             if (row == null)
@@ -320,7 +320,7 @@ namespace Plantitask.Infrastructure.Services
 
             var newPriority = await _context.TaskPriorities
                 .Where(p => p.Id == newPriorityId && p.IsActive)
-                .Select(p => p.Name)
+                .Select(p => p.DisplayName)
                 .FirstOrDefaultAsync();
 
             if (newPriority == null)
@@ -538,7 +538,7 @@ namespace Plantitask.Infrastructure.Services
                     Description = t.Description,
                     StatusId = t.StatusId,
                     PriorityId = t.PriorityId,
-                    PriorityName = t.Priority.Name,
+                    PriorityName = t.Priority.DisplayName,
                     PriorityColor = t.Priority.Color,
                     AssignedToProfilePicturePath = t.AssignedTo != null ? t.AssignedTo.ProfilePicturePath : null,
                     AssignedToId = t.AssignedToId,

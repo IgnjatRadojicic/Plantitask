@@ -206,7 +206,7 @@ namespace Plantitask.Infrastructure.Services
                     t.StatusId,
                     StatusName = t.Status.DisplayName,
                     StatusColor = t.Status.Color,
-                    PriorityName = t.Priority.Name,
+                    PriorityName = t.Priority.DisplayName,
                     PriorityColor = t.Priority.Color,
                     t.AssignedToId,
                     AssigneeName = t.AssignedTo != null ? t.AssignedTo.UserName : null,
