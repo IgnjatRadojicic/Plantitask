@@ -4,6 +4,7 @@ using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Users;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.Projections;
 using Plantitask.Core.Validation;
 
 namespace Plantitask.Infrastructure.Services;
@@ -29,12 +30,15 @@ public class UserProfileService : IUserProfileService
 
     public async Task<Result<UserProfileDto>> GetProfileAsync(Guid userId)
     {
-        var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+        var profile = await _context.Users
+            .Where(u => u.Id == userId)
+            .Select(UserProjections.ToProfileDto)
+            .FirstOrDefaultAsync();
 
-        if (user is null)
+        if (profile is null)
             return Error.NotFound("User not found");
 
-        return MapToDto(user);
+        return profile;
     }
 
     public async Task<Result<UserProfileDto>> UpdateProfileAsync(Guid userId, UpdateUserProfileDto dto)
