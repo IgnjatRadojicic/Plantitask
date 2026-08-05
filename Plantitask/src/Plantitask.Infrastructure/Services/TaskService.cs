@@ -10,6 +10,7 @@ using Plantitask.Core.Projections;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 
 namespace Plantitask.Infrastructure.Services
@@ -207,7 +208,7 @@ namespace Plantitask.Infrastructure.Services
             task.UpdatedBy = userId;
 
 
-            if (!string.IsNullOrEmpty(task.DueSoonJobId))
+            if (task.DueSoonJobId != null)
             {
                 _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
             }
@@ -227,12 +228,15 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<TaskStatusChangeResult>> ChangeTaskStatusAsync(Guid taskId, ChangeTaskStatusDto statusDto, Guid userId)
         {
-            var task = await _context.Tasks
-                .Include(t => t.Status)
-                .FirstOrDefaultAsync(t => t.Id == taskId);
+            var row = await _context.Tasks
+                .Where(t => t.Id == taskId)
+                .Select(t => new { Task = t, OldStatus = t.Status.DisplayName })
+                .FirstOrDefaultAsync();
 
-            if (task == null)
+            if (row == null)
                 return Error.NotFound("Task not found");
+
+            var task = row.Task;
 
             var callerRole = await _groupService.GetUserRoleAsync(task.GroupId, userId);
 
@@ -246,10 +250,12 @@ namespace Plantitask.Infrastructure.Services
             if (!canChangeStatus)
                 return Error.Forbidden("You don't have permission to change this task's status");
 
-            var oldStatus = task.Status.DisplayName;
+            var oldStatus = row.OldStatus;
 
             var newStatus = await _context.TaskStatuses
-                .FirstOrDefaultAsync(s => s.Id == statusDto.NewStatusId && s.IsActive);
+                .Where(s => s.Id == statusDto.NewStatusId && s.IsActive)
+                .Select(s => s.DisplayName)
+                .FirstOrDefaultAsync();
 
             if (newStatus == null)
                 return Error.BadRequest("Invalid status selected");
@@ -262,24 +268,9 @@ namespace Plantitask.Infrastructure.Services
             task.StatusId = statusDto.NewStatusId;          
 
             if (statusDto.NewStatusId == (int)TaskStatusItem.Completed)
-            {
                 task.CompletedAt ??= DateTime.UtcNow;
-
-                if (!string.IsNullOrEmpty(task.DueSoonJobId))
-                {
-                    _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
-                    task.DueSoonJobId = null;
-                }
-            }
             else if (oldStatusId == (int)TaskStatusItem.Completed)
-            {
                 task.CompletedAt = null;
-
-                task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
-                    ? await _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value)
-                    : null;
-            }
-
             task.UpdatedBy = userId;
 
             task.DisplayOrder = await NextDisplayOrderAsync(task.GroupId, statusDto.NewStatusId);
@@ -300,18 +291,21 @@ namespace Plantitask.Infrastructure.Services
             {
                 Task = taskDtoResult.Value!,
                 OldStatus = oldStatus,
-                NewStatus = newStatus.DisplayName
+                NewStatus = newStatus
             };
         }
 
         public async Task<Result<TaskPriorityChangeResult>> ChangeTaskPriorityAsync(Guid taskId, int newPriorityId, Guid userId)
         {
-            var task = await _context.Tasks
-                .Include(t => t.Priority)
-                .FirstOrDefaultAsync(t => t.Id == taskId);
+            var row = await _context.Tasks
+                .Where(t => t.Id == taskId)
+                .Select(t => new { Task = t, OldPriority = t.Priority.Name })
+                .FirstOrDefaultAsync();
 
-            if (task == null)
+            if (row == null)
                 return Error.NotFound("Task not found");
+
+            var task = row.Task;
 
             var callerRole = await _groupService.GetUserRoleAsync(task.GroupId, userId);
 
@@ -322,10 +316,12 @@ namespace Plantitask.Infrastructure.Services
             if (callerRole < GroupRole.TeamLead)
                 return Error.Forbidden("Only Team Leads and above can change task priority");
 
-            var oldPriority = task.Priority.Name;
+            var oldPriority = row.OldPriority;
 
             var newPriority = await _context.TaskPriorities
-                .FirstOrDefaultAsync(p => p.Id == newPriorityId && p.IsActive);
+                .Where(p => p.Id == newPriorityId && p.IsActive)
+                .Select(p => p.Name)
+                .FirstOrDefaultAsync();
 
             if (newPriority == null)
                 return Error.BadRequest("Invalid priority selected");
@@ -347,7 +343,7 @@ namespace Plantitask.Infrastructure.Services
             {
                 Task = taskDtoResult.Value!,
                 OldPriority = oldPriority,
-                NewPriority = newPriority.Name
+                NewPriority = newPriority
             };
         }
 
@@ -377,7 +373,7 @@ namespace Plantitask.Infrastructure.Services
             task.AssignedToId = assignDto.UserId;
             task.UpdatedBy = userId;
 
-            if (!string.IsNullOrEmpty(task.DueSoonJobId))
+            if (task.DueSoonJobId != null)
             {
                 _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
             }
@@ -419,12 +415,6 @@ namespace Plantitask.Infrastructure.Services
 
             task.AssignedToId = null;
             task.UpdatedBy = userId;
-
-            if (!string.IsNullOrEmpty(task.DueSoonJobId))
-            {
-                _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
-                task.DueSoonJobId = null;
-            }
             
 
             await _context.SaveChangesAsync();
@@ -483,20 +473,12 @@ namespace Plantitask.Infrastructure.Services
                     .SetProperty(a => a.DeletedBy, userId)
                     .SetProperty(c => c.UpdatedAt, now));
 
-            var dueSoonJobId = task.DueSoonJobId;
-
             task.IsDeleted = true;
             task.DeletedAt = now;
             task.DeletedBy = userId;
-            task.DueSoonJobId = null;
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
-
-            if (!string.IsNullOrEmpty(dueSoonJobId))
-            {
-                _backgroundJobService.CancelScheduledJob(dueSoonJobId);
-            }
 
             _logger.LogInformation("Task {TaskId} deleted by user {UserId}", taskId, userId);
 
