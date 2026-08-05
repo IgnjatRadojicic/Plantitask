@@ -1,5 +1,6 @@
 using System;
 using System.Linq.Expressions;
+using Plantitask.Core.DTO.Dashboard;
 using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
 
@@ -29,6 +30,20 @@ namespace Plantitask.Core.Projections
             CreatedBy = t.CreatedBy,
             CreatedByUserName = t.Creator.UserName,
             AttachmentCount = t.Attachments.Count
+        };
+
+        public static Expression<Func<TaskItem, TaskSummaryDto>> ToTaskSummary => t => new TaskSummaryDto
+        {
+            Id = t.Id,
+            Title = t.Title,
+            GroupId = t.GroupId,
+            GroupName = t.Group.Name,
+            StatusName = t.Status.DisplayName,
+            StatusColor = t.Status.Color,
+            PriorityName = t.Priority.Name,
+            PriorityColor = t.Priority.Color,
+            DueDate = t.DueDate,
+            CompletedAt = t.CompletedAt
         };
 
         public static Expression<Func<TaskItem, TaskReminder>> ToReminder => t => new TaskReminder

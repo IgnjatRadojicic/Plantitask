@@ -6,6 +6,7 @@ using Plantitask.Core.DTO.Dashboard;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Domain;
+using Plantitask.Core.Projections;
 
 namespace Plantitask.Infrastructure.Services
 {
@@ -32,46 +33,57 @@ namespace Plantitask.Infrastructure.Services
                 .Select(gm => gm.GroupId)
                 .ToListAsync();
 
-            var myTasks = await _context.Tasks
-                .Include(t => t.Group)
-                .Include(t => t.Status)
-                .Include(t => t.Priority)
-                .Where(t => t.AssignedToId == userId)
+            const int TrendWindowDays = 30;
+            var trendStart = now.Date.AddDays(-(TrendWindowDays - 1));
+
+            // One bounded slice instead of every task ever assigned: the open tasks that can
+            // land in a due bucket, plus the completions the trend window can reach
+            var relevantTasks = await _context.Tasks
+                .Where(t => t.AssignedToId == userId
+                    && ((t.StatusId != (int)TaskStatusItem.Completed
+                            && t.DueDate.HasValue
+                            && t.DueDate.Value < weekEnd)
+                        || (t.StatusId == (int)TaskStatusItem.Completed
+                            && t.CompletedAt.HasValue
+                            && t.CompletedAt.Value >= trendStart)))
+                .Select(TaskProjections.ToTaskSummary)
                 .ToListAsync();
 
-            var overdueTasks = myTasks
-                .Where(t => t.DueDate.HasValue
-                    && t.DueDate.Value < now
-                    && t.StatusId != (int)TaskStatusItem.Completed)
+            var openWithDueDate = relevantTasks
+                .Where(t => t.CompletedAt == null)
                 .OrderBy(t => t.DueDate)
-                .Select(t => ToTaskSummary(t))
                 .ToList();
 
-            var dueToday = myTasks
-                .Where(t => t.DueDate.HasValue
-                    && t.DueDate.Value >= now
-                    && t.DueDate.Value < todayEnd
-                    && t.StatusId != (int)TaskStatusItem.Completed)
-                .OrderBy(t => t.DueDate)
-                .Select(t => ToTaskSummary(t))
+            var overdueTasks = openWithDueDate
+                .Where(t => t.DueDate!.Value < now)
                 .ToList();
 
-            var dueThisWeek = myTasks
-                .Where(t => t.DueDate.HasValue
-                    && t.DueDate.Value >= todayEnd
-                    && t.DueDate.Value < weekEnd
-                    && t.StatusId != (int)TaskStatusItem.Completed)
-                .OrderBy(t => t.DueDate)
-                .Select(t => ToTaskSummary(t))
+            var dueToday = openWithDueDate
+                .Where(t => t.DueDate!.Value >= now && t.DueDate.Value < todayEnd)
                 .ToList();
 
-            var recentlyCompleted = myTasks
-                .Where(t => t.StatusId == (int)TaskStatusItem.Completed
-                    && t.CompletedAt.HasValue
-                    && t.CompletedAt >= sevenDaysAgo)
+            var dueThisWeek = openWithDueDate
+                .Where(t => t.DueDate!.Value >= todayEnd)
+                .ToList();
+
+            var completedInTrendWindow = relevantTasks
+                .Where(t => t.CompletedAt != null)
                 .OrderByDescending(t => t.CompletedAt)
-                .Select(t => ToTaskSummary(t))
                 .ToList();
+
+            var recentlyCompleted = completedInTrendWindow
+                .Where(t => t.CompletedAt!.Value >= sevenDaysAgo)
+                .ToList();
+
+            var counts = await _context.Tasks
+                .Where(t => t.AssignedToId == userId)
+                .GroupBy(t => 1)
+                .Select(g => new
+                {
+                    Open = g.Count(t => t.StatusId != (int)TaskStatusItem.Completed),
+                    Completed = g.Count(t => t.StatusId == (int)TaskStatusItem.Completed)
+                })
+                .FirstOrDefaultAsync();
 
             var recentActivity = userGroupIds.Count == 0
                 ? new List<ActivityDto>()
@@ -89,13 +101,7 @@ namespace Plantitask.Infrastructure.Services
                 .ToListAsync();
 
 
-            const int TrendWindowDays = 30;
-            var trendStart = DateTime.UtcNow.Date.AddDays(-(TrendWindowDays - 1));
-
-            var completedByDate = myTasks
-                .Where(t => t.StatusId == (int)TaskStatusItem.Completed
-                         && t.CompletedAt.HasValue
-                         && t.CompletedAt.Value >= trendStart)
+            var completedByDate = completedInTrendWindow
                 .GroupBy(t => t.CompletedAt!.Value.Date)
                 .ToDictionary(g => g.Key, g => g.Count());
 
@@ -116,8 +122,8 @@ namespace Plantitask.Infrastructure.Services
                 RecentlyCompleted = recentlyCompleted,
                 RecentActivity = recentActivity,
                 CompletionTrend = completionTrend,
-                TotalAssignedTasks = myTasks.Count(t => t.StatusId != (int)TaskStatusItem.Completed),
-                TotalCompletedTasks = myTasks.Count(t => t.StatusId == (int)TaskStatusItem.Completed),
+                TotalAssignedTasks = counts?.Open ?? 0,
+                TotalCompletedTasks = counts?.Completed ?? 0,
                 GroupCount = userGroupIds.Count
             };
         }
