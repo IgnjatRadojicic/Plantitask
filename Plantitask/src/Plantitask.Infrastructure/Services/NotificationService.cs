@@ -284,7 +284,7 @@ public class NotificationService : INotificationService
             .SetProperty(n => n.ReadAt, now)
             .SetProperty(n => n.UpdatedAt, now));
 
-        _logger.LogInformation("All notifications marked as read for user {UserId}", userId);
+        _logger.LogInformation("Marked {Count} notifications as read for user {UserId}", updatedCount, userId);
 
         return Result.Success();
     }

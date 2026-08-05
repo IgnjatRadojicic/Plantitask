@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc.Diagnostics;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
 using Plantitask.Core.Enums;
 using Plantitask.Core.DTO.Comments;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.Projections;
 
 namespace Plantitask.Infrastructure.Services;
 
@@ -13,11 +13,14 @@ public class CommentService : ICommentService
 {
     private readonly IApplicationDbContext _context;
     private readonly ILogger<CommentService> _logger;
+    private readonly IGroupService _groupService;
 
     public CommentService(
         IApplicationDbContext context,
-        ILogger<CommentService> logger)
+        ILogger<CommentService> logger,
+        IGroupService groupService)
     {
+        _groupService = groupService;
         _context = context;
         _logger = logger;
     }
@@ -26,15 +29,15 @@ public class CommentService : ICommentService
     {
         _logger.LogInformation("User {UserId} adding comment to task {TaskId}", userId, taskId);
 
-        var task = await _context.Tasks
-            .Include(t => t.Group)
-            .FirstOrDefaultAsync(t => t.Id == taskId);
+        var groupId = await _context.Tasks
+             .Where(t => t.Id == taskId)
+             .Select(t => (Guid?)t.GroupId)
+             .FirstOrDefaultAsync();
 
-        if (task == null)
+        if (groupId == null)
             return Error.NotFound("Task not found");
 
-        var isMember = await _context.GroupMembers
-            .AnyAsync(gm => gm.GroupId == task.GroupId && gm.UserId == userId);
+        var isMember = await _groupService.IsUserMemberAsync(groupId.Value, userId);
 
         if (!isMember)
             return Error.Forbidden("You must be a member of the group to comment on tasks");
@@ -57,48 +60,45 @@ public class CommentService : ICommentService
 
     public async Task<Result<PaginatedList<CommentDto>>> GetTaskCommentsAsync(Guid taskId, Guid userId, int pageNumber = 1, int pageSize = 20)
     {
-        var task = await _context.Tasks
-            .Include(t => t.Group)
-            .FirstOrDefaultAsync(t => t.Id == taskId);
+        var groupId = await _context.Tasks
+            .Where(t => t.Id == taskId)
+            .Select(t => (Guid?)t.GroupId)
+            .FirstOrDefaultAsync();
 
-        if (task == null)
+        if (groupId == null)
             return Error.NotFound("Task not found");
 
-        var isMember = await _context.GroupMembers
-            .AnyAsync(gm => gm.GroupId == task.GroupId && gm.UserId == userId);
+        var isMember = await _groupService.IsUserMemberAsync(groupId.Value, userId);
 
         if (!isMember)
             return Error.Forbidden("You must be a member of the group to view task comments");
 
         var query = _context.TaskComments
             .Where(tc => tc.TaskId == taskId)
-            .OrderBy(tc => tc.CreatedAt);
+            .OrderByDescending(tc => tc.CreatedAt);
 
-        return await query.Select(tc => new CommentDto
-        {
-            Id = tc.Id,
-            TaskId = tc.TaskId,
-            Content = tc.Content,
-            UserId = tc.CreatedBy,
-            ProfilePicturePath = tc.Author.ProfilePicturePath,
-            UserName = tc.Author.UserName,
-            CreatedAt = tc.CreatedAt,
-            UpdatedAt = tc.UpdatedAt
-        }).ToPaginatedListAsync(pageNumber, pageSize);
+        return await query
+            .Select(CommentProjections.ToDto)
+            .ToPaginatedListAsync(pageNumber, pageSize);
     }
 
     public async Task<Result<CommentDto>> UpdateCommentAsync(Guid commentId, UpdateCommentDto updateCommentDto, Guid userId)
     {
-        var comment = await _context.TaskComments
-            .Include(tc => tc.Task)
-            .ThenInclude(t => t.Group)
-            .FirstOrDefaultAsync(tc => tc.Id == commentId);
+        var row = await _context.TaskComments
+            .Where(tc => tc.Id == commentId)
+            .Select(tc => new { Comment = tc, groupId = tc.Task.GroupId })
+            .FirstOrDefaultAsync();
 
-        if (comment == null)
+        if (row == null)
             return Error.NotFound("Comment not found");
+
+        var comment = row.Comment;
 
         if (comment.CreatedBy != userId)
             return Error.Forbidden("You can only edit your own comments");
+
+        if (!await _groupService.IsUserMemberAsync(row.groupId, userId))
+            return Error.Forbidden("You must be a member of the group");
 
         comment.Content = updateCommentDto.Content;
         comment.UpdatedBy = userId;
@@ -112,21 +112,22 @@ public class CommentService : ICommentService
 
     public async Task<Result> DeleteCommentAsync(Guid commentId, Guid userId)
     {
-        var comment = await _context.TaskComments
-            .Include(tc => tc.Task)
-            .ThenInclude(t => t.Group)
-            .FirstOrDefaultAsync(tc => tc.Id == commentId);
+        var row = await _context.TaskComments
+            .Where(tc => tc.Id == commentId)
+            .Select(tc => new { Comment = tc, groupId = tc.Task.GroupId })
+            .FirstOrDefaultAsync();
 
-        if (comment == null)
+        if (row == null)
             return Error.NotFound("Comment not found");
 
-        var membership = await _context.GroupMembers
-            .FirstOrDefaultAsync(gm => gm.GroupId == comment.Task.GroupId && gm.UserId == userId);
+        var comment = row.Comment;
 
-        if (membership == null)
+        var callerRole = await _groupService.GetUserRoleAsync(row.groupId, userId);
+
+        if (callerRole == null)
             return Error.Forbidden("You must be a member of the group");
 
-        var canDelete = comment.CreatedBy == userId || (GroupRole)membership.RoleId >= GroupRole.Manager;
+        var canDelete = comment.CreatedBy == userId || callerRole >= GroupRole.Manager;
 
         if (!canDelete)
             return Error.Forbidden("You can only delete your own comments or you must be a Manager or Owner");
@@ -144,23 +145,11 @@ public class CommentService : ICommentService
 
     private async Task<Result<CommentDto>> GetCommentByIdInternalAsync(Guid commentId)
     {
-        var comment = await _context.TaskComments
-            .Include(tc => tc.Author)
-            .FirstOrDefaultAsync(tc => tc.Id == commentId);
+        var dto = await _context.TaskComments
+            .Where(tc => tc.Id == commentId)
+            .Select(CommentProjections.ToDto)
+            .FirstOrDefaultAsync();
 
-        if (comment == null)
-            return Error.NotFound("Comment not found");
-
-        return new CommentDto
-        {
-            Id = comment.Id,
-            TaskId = comment.TaskId,
-            Content = comment.Content,
-            ProfilePicturePath = comment.Author.ProfilePicturePath,
-            UserId = comment.CreatedBy,
-            UserName = comment.Author.UserName,
-            CreatedAt = comment.CreatedAt,
-            UpdatedAt = comment.UpdatedAt
-        };
+        return dto is null ? Error.NotFound("Comment not found") : dto;
     }
 }
