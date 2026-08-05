@@ -186,18 +186,34 @@ namespace Plantitask.Infrastructure.Services
             if (membership == null)
                 return Error.Forbidden("You must be a member of this group");
 
-            var group = await _context.Groups.FindAsync(groupId);
-            if (group == null)
+            var groupName = await _context.Groups
+                .Where(g => g.Id == groupId)
+                .Select(g => g.Name)
+                .FirstOrDefaultAsync();
+
+            if (groupName == null)
                 return Error.NotFound("Group not found");
 
             var now = DateTime.UtcNow;
-            var thirtyDaysAgo = now.AddDays(-29);
 
+            // Every output of this method is an aggregate, so nothing here is ever returned to
+            // the client as a row. Project the columns the aggregates read rather than
+            // materialising and tracking whole tasks with three joined entities
             var tasks = await _context.Tasks
-                .Include(t => t.Status)
-                .Include(t => t.Priority)
-                .Include(t => t.AssignedTo)
                 .Where(t => t.GroupId == groupId)
+                .Select(t => new
+                {
+                    t.StatusId,
+                    StatusName = t.Status.DisplayName,
+                    StatusColor = t.Status.Color,
+                    PriorityName = t.Priority.Name,
+                    PriorityColor = t.Priority.Color,
+                    t.AssignedToId,
+                    AssigneeName = t.AssignedTo != null ? t.AssignedTo.UserName : null,
+                    t.DueDate,
+                    t.CompletedAt,
+                    t.CreatedAt
+                })
                 .ToListAsync();
 
             var totalTasks = tasks.Count;
@@ -224,20 +240,20 @@ namespace Plantitask.Infrastructure.Services
                 .CountAsync(gm => gm.GroupId == groupId);
 
             var tasksByStatus = tasks
-                .GroupBy(t => new { t.Status.DisplayName, t.Status.Color })
+                .GroupBy(t => new { t.StatusName, Color = t.StatusColor })
                 .Select(g => new StatusCountDto
                 {
-                    StatusName = g.Key.DisplayName,
+                    StatusName = g.Key.StatusName,
                     Color = g.Key.Color,
                     Count = g.Count()
                 })
                 .ToList();
 
             var tasksByPriority = tasks
-                .GroupBy(t => new { t.Priority.Name, t.Priority.Color })
+                .GroupBy(t => new { t.PriorityName, Color = t.PriorityColor })
                 .Select(g => new PriorityCountDto
                 {
-                    PriorityName = g.Key.Name,
+                    PriorityName = g.Key.PriorityName,
                     Color = g.Key.Color,
                     Count = g.Count()
                 })
@@ -245,7 +261,7 @@ namespace Plantitask.Infrastructure.Services
 
             var memberWorkload = tasks
                 .Where(t => t.AssignedToId.HasValue)
-                .GroupBy(t => new { t.AssignedToId, UserName = t.AssignedTo?.UserName ?? "Unassigned" })
+                .GroupBy(t => new { t.AssignedToId, UserName = t.AssigneeName ?? "Unassigned" })
                 .Select(g => new MemberWorkloadDto
                 {
                     UserName = g.Key.UserName,
@@ -267,8 +283,8 @@ namespace Plantitask.Infrastructure.Services
                 .GroupBy(t => t.CompletedAt!.Value.Date)
                 .ToDictionary(g => g.Key, g => g.Count());
 
-            var completionTrend = Enumerable.Range(0, 30)
-                .Select(i => thirtyDaysAgo.AddDays(i))
+            var completionTrend = Enumerable.Range(0, trendWindowDays)
+                .Select(i => trendStart.AddDays(i))
                 .Select(date => new TrendPointDto
                 {
                     Date = date,
@@ -278,8 +294,8 @@ namespace Plantitask.Infrastructure.Services
 
             return new GroupStatisticsDto
             {
-                GroupId = group.Id,
-                GroupName = group.Name,
+                GroupId = groupId,
+                GroupName = groupName,
                 CompletionPercentage = completionPercentage,
                 CurrentTreeStage = TreeProgressCalculator.CalculateStage(completionPercentage),
                 TotalTasks = totalTasks,
@@ -300,8 +316,12 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<FieldTreeDto>> GetGroupTreeProgressAsync(Guid groupId)
         {
-            var group = await _context.Groups.FindAsync(groupId);
-            if (group is null)
+            var groupName = await _context.Groups
+                .Where(g => g.Id == groupId)
+                .Select(g => g.Name)
+                .FirstOrDefaultAsync();
+
+            if (groupName is null)
                 return Error.NotFound("Group not found");
 
             var stats = await _context.Tasks
@@ -325,7 +345,7 @@ namespace Plantitask.Infrastructure.Services
             return new FieldTreeDto
             {
                 GroupId = groupId,
-                GroupName = group.Name,
+                GroupName = groupName,
                 CompletionPercentage = pct,
                 CurrentTreeStage = stage,
                 MemberCount = memberCount,
@@ -334,21 +354,5 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
-        private static TaskSummaryDto ToTaskSummary(Core.Entities.TaskItem task)
-        {
-            return new TaskSummaryDto
-            {
-                Id = task.Id,
-                Title = task.Title,
-                GroupId = task.GroupId,
-                GroupName = task.Group.Name,
-                StatusName = task.Status.DisplayName,
-                StatusColor = task.Status.Color,
-                PriorityName = task.Priority.Name,
-                PriorityColor = task.Priority.Color,
-                DueDate = task.DueDate,
-                CompletedAt = task.CompletedAt
-            };
-        }
     }
 }
