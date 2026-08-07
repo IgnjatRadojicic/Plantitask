@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Plantitask.Core.Common;
@@ -14,9 +15,12 @@ namespace Plantitask.Infrastructure.Services
 {
     public class PayPalService : IPayPalService
     {
+        private const string AccessTokenCacheKey = "paypal-access-token";
+
         private readonly IApplicationDbContext _db;
         private readonly HttpClient _http;
-        private readonly IOptions<PayPalSettings> _settings;
+        private readonly PayPalSettings _settings;
+        private readonly IMemoryCache _cache;
         private readonly ILogger<PayPalService> _logger;
 
         private static readonly JsonSerializerOptions _jsonOpts = new()
@@ -29,21 +33,34 @@ namespace Plantitask.Infrastructure.Services
             IApplicationDbContext db,
             HttpClient http,
             IOptions<PayPalSettings> settings,
+            IMemoryCache cache,
             ILogger<PayPalService> logger)
         {
             _db = db;
             _http = http;
-            _settings = settings;
+            _settings = settings.Value;
+            _cache = cache;
             _logger = logger;
         }
 
+        /// <summary>
+        /// PayPal access tokens live about nine hours but every call was fetching a fresh one,
+        /// so a single checkout paid for several extra round trips to PayPal.
+        ///
+        /// The cache has to be IMemoryCache and not a field. AddHttpClient registers this
+        /// service as transient so a field cache would be born and die inside one request and
+        /// never serve a second call.
+        /// </summary>
         private async Task<string> GetAccessTokenAsync()
         {
+            if (_cache.TryGetValue<string>(AccessTokenCacheKey, out var cached) && cached is not null)
+                return cached;
+
             var credentials = Convert.ToBase64String(
-                Encoding.UTF8.GetBytes($"{_settings.Value.ClientId}:{_settings.Value.ClientSecret}"));
+                Encoding.UTF8.GetBytes($"{_settings.ClientId}:{_settings.ClientSecret}"));
 
             var request = new HttpRequestMessage(HttpMethod.Post,
-                $"{_settings.Value.BaseUrl}/v1/oauth2/token");
+                $"{_settings.BaseUrl}/v1/oauth2/token");
             request.Headers.Authorization = new AuthenticationHeaderValue("Basic", credentials);
             request.Content = new FormUrlEncodedContent(new[]
             {
@@ -55,7 +72,15 @@ namespace Plantitask.Infrastructure.Services
 
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.GetProperty("access_token").GetString()!;
+
+            var token = doc.RootElement.GetProperty("access_token").GetString()!;
+            var expiresIn = doc.RootElement.GetProperty("expires_in").GetInt32();
+
+            // Expire our copy five minutes early so a token is never used in the window where
+            // PayPal considers it dead but we do not.
+            _cache.Set(AccessTokenCacheKey, token, TimeSpan.FromSeconds(Math.Max(expiresIn - 300, 60)));
+
+            return token;
         }
 
         public async Task<Result<CreateSubscriptionResponse>> CreateSubscriptionAsync(
@@ -65,7 +90,7 @@ namespace Plantitask.Infrastructure.Services
 
             var body = new
             {
-                plan_id = _settings.Value.RecurringPlanId,
+                plan_id = _settings.RecurringPlanId,
                 custom_id = userId.ToString(),
                 application_context = new
                 {
@@ -78,7 +103,7 @@ namespace Plantitask.Infrastructure.Services
             };
 
             var httpReq = new HttpRequestMessage(HttpMethod.Post,
-                $"{_settings.Value.BaseUrl}/v1/billing/subscriptions");
+                $"{_settings.BaseUrl}/v1/billing/subscriptions");
             httpReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             httpReq.Content = new StringContent(
                 JsonSerializer.Serialize(body, _jsonOpts), Encoding.UTF8, "application/json");
@@ -119,7 +144,7 @@ namespace Plantitask.Infrastructure.Services
 
             var token = await GetAccessTokenAsync();
             var httpReq = new HttpRequestMessage(HttpMethod.Get,
-                $"{_settings.Value.BaseUrl}/v1/billing/subscriptions/{subscriptionId}");
+                $"{_settings.BaseUrl}/v1/billing/subscriptions/{subscriptionId}");
             httpReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var httpResp = await _http.SendAsync(httpReq);
@@ -161,7 +186,7 @@ namespace Plantitask.Infrastructure.Services
             {
                 var token = await GetAccessTokenAsync();
                 var httpReq = new HttpRequestMessage(HttpMethod.Post,
-                    $"{_settings.Value.BaseUrl}/v1/billing/subscriptions/{user.PayPalSubscriptionId}/cancel");
+                    $"{_settings.BaseUrl}/v1/billing/subscriptions/{user.PayPalSubscriptionId}/cancel");
                 httpReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpReq.Content = new StringContent(
                     JsonSerializer.Serialize(new { reason = "User requested cancellation" }, _jsonOpts),
@@ -197,8 +222,8 @@ namespace Plantitask.Infrastructure.Services
                         description = "Plantitask Premium - 30 Days",
                         amount = new
                         {
-                            currency_code = _settings.Value.Currency,
-                            value = _settings.Value.OneTimePrice.ToString("F2")
+                            currency_code = _settings.Currency,
+                            value = _settings.OneTimePrice.ToString("F2")
                         }
                     }
                 },
@@ -212,7 +237,7 @@ namespace Plantitask.Infrastructure.Services
             };
 
             var httpReq = new HttpRequestMessage(HttpMethod.Post,
-                $"{_settings.Value.BaseUrl}/v2/checkout/orders");
+                $"{_settings.BaseUrl}/v2/checkout/orders");
             httpReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             httpReq.Content = new StringContent(
                 JsonSerializer.Serialize(body, _jsonOpts), Encoding.UTF8, "application/json");
@@ -261,7 +286,7 @@ namespace Plantitask.Infrastructure.Services
             var token = await GetAccessTokenAsync();
 
             var httpReq = new HttpRequestMessage(HttpMethod.Post,
-                $"{_settings.Value.BaseUrl}/v2/checkout/orders/{orderId}/capture");
+                $"{_settings.BaseUrl}/v2/checkout/orders/{orderId}/capture");
             httpReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             httpReq.Content = new StringContent("{}", Encoding.UTF8, "application/json");
 
@@ -451,12 +476,12 @@ namespace Plantitask.Infrastructure.Services
                     transmission_id = transmissionId ?? "",
                     transmission_sig = transmissionSig ?? "",
                     transmission_time = transmissionTime ?? "",
-                    webhook_id = _settings.Value.WebhookId,
+                    webhook_id = _settings.WebhookId,
                     webhook_event = JsonSerializer.Deserialize<JsonElement>(body)
                 };
 
                 var httpReq = new HttpRequestMessage(HttpMethod.Post,
-                    $"{_settings.Value.BaseUrl}/v1/notifications/verify-webhook-signature");
+                    $"{_settings.BaseUrl}/v1/notifications/verify-webhook-signature");
                 httpReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpReq.Content = new StringContent(
                     JsonSerializer.Serialize(verifyBody, _jsonOpts),
