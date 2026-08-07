@@ -158,12 +158,8 @@ namespace Plantitask.Infrastructure.Services
             if (status != "ACTIVE")
                 return Error.BadRequest("Subscription is not active on PayPal");
 
-            user.IsPremium = true;
+            GrantPremium(user, "recurring", expiresAt: null);
             user.PayPalSubscriptionId = subscriptionId;
-            user.SubscriptionType = "recurring";
-            user.PremiumStartedAt = DateTime.UtcNow;
-            user.PremiumExpiresAt = null;
-            user.MaxGroups = 10;
 
             await _db.SaveChangesAsync();
 
@@ -312,12 +308,8 @@ namespace Plantitask.Infrastructure.Services
                 };
             }
 
-            user.IsPremium = true;
+            GrantPremium(user, "onetime", expiresAt: DateTime.UtcNow.AddDays(OneTimePremiumDays));
             user.PayPalOrderId = orderId;
-            user.SubscriptionType = "onetime";
-            user.PremiumStartedAt = DateTime.UtcNow;
-            user.PremiumExpiresAt = DateTime.UtcNow.AddDays(30);
-            user.MaxGroups = 10;
 
             await _db.SaveChangesAsync();
 
@@ -346,7 +338,7 @@ namespace Plantitask.Infrastructure.Services
                 RevokePremium(user);
                 await _db.SaveChangesAsync();
 
-                return new PremiumStatusDto { IsPremium = false, MaxGroups = 5 };
+                return new PremiumStatusDto { IsPremium = false, MaxGroups = FreeMaxGroups };
             }
 
             return new PremiumStatusDto
@@ -356,23 +348,52 @@ namespace Plantitask.Infrastructure.Services
                 ExpiresAt = user.PremiumExpiresAt,
                 StartedAt = user.PremiumStartedAt,
                 CanUseDarkMode = user.HasActivePremium,
-                MaxGroups = user.HasActivePremium ? 10 : 5
+                MaxGroups = user.HasActivePremium ? PremiumMaxGroups : FreeMaxGroups
             };
         }
 
-        public async Task HandleWebhookAsync(string body, Dictionary<string, string> headers)
+        /// <summary>
+        /// The status code this produces is a protocol with PayPal's retry system and not
+        /// politeness. 2xx means never send this again, 4xx means do not retry because the
+        /// request itself is bad, 5xx means please retry.
+        ///
+        /// Processing failures are deliberately left to throw. The middleware turns them into
+        /// a 500 and PayPal redelivers, which is what we want when a real event could not be
+        /// applied. Swallowing them would return 200 and the event would be lost forever.
+        /// </summary>
+        public async Task<Result> HandleWebhookAsync(string body, Dictionary<string, string> headers)
         {
             if (!await VerifyWebhookSignatureAsync(body, headers))
             {
                 _logger.LogWarning("PayPal webhook signature verification failed");
-                return;
+                return Error.Unauthorized("Invalid webhook signature");
             }
 
             var webhookEvent = JsonSerializer.Deserialize<PayPalWebhookEvent>(body, _jsonOpts);
-            if (webhookEvent is null) return;
+            if (webhookEvent is null)
+                return Error.BadRequest("Malformed webhook event");
+
+            if (string.IsNullOrEmpty(webhookEvent.Id))
+                return Error.BadRequest("Webhook event has no id");
 
             _logger.LogInformation("PayPal webhook: {EventType} for resource {ResourceId}",
                 webhookEvent.EventType, webhookEvent.Resource.Id);
+
+            // PayPal redelivers. Keying on the event id means a handler stays safe even if
+            // someone later writes one that is not naturally repeatable, which is the failure
+            // an absolute-update handler hides until the day it changes.
+            if (await _db.ProcessedWebhookEvents.AnyAsync(e => e.EventId == webhookEvent.Id))
+            {
+                _logger.LogInformation("PayPal webhook {EventId} already processed, ignoring duplicate",
+                    webhookEvent.Id);
+                return Result.Success();
+            }
+
+            _db.ProcessedWebhookEvents.Add(new ProcessedWebhookEvent
+            {
+                EventId = webhookEvent.Id,
+                EventType = webhookEvent.EventType
+            });
 
             switch (webhookEvent.EventType)
             {
@@ -394,6 +415,13 @@ namespace Plantitask.Infrastructure.Services
                     await HandlePaymentFailed(webhookEvent);
                     break;
             }
+
+            // Handlers stage their changes and this is the only save, so the processed marker
+            // and the premium change commit together or not at all. A handler that throws
+            // leaves no marker and PayPal redelivers.
+            await _db.SaveChangesAsync();
+
+            return Result.Success();
         }
 
         private async Task HandleSubscriptionActivated(PayPalWebhookEvent evt)
@@ -404,14 +432,8 @@ namespace Plantitask.Infrastructure.Services
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user is null) return;
 
-            user.IsPremium = true;
+            GrantPremium(user, "recurring", expiresAt: null);
             user.PayPalSubscriptionId = evt.Resource.Id;
-            user.SubscriptionType = "recurring";
-            user.PremiumStartedAt ??= DateTime.UtcNow;
-            user.PremiumExpiresAt = null;
-            user.MaxGroups = 10;
-
-            await _db.SaveChangesAsync();
         }
 
         private async Task HandlePaymentCompleted(PayPalWebhookEvent evt)
@@ -423,12 +445,7 @@ namespace Plantitask.Infrastructure.Services
                 u => u.PayPalSubscriptionId == billingAgreementId);
             if (user is null) return;
 
-            user.IsPremium = true;
-            user.PremiumStartedAt ??= DateTime.UtcNow;
-            user.PremiumExpiresAt = null;
-            user.MaxGroups = 10;
-
-            await _db.SaveChangesAsync();
+            GrantPremium(user, "recurring", expiresAt: null);
 
             _logger.LogInformation("Recurring payment completed for user {UserId}, agreement {AgreementId}",
                 user.Id, billingAgreementId);
@@ -441,20 +458,22 @@ namespace Plantitask.Infrastructure.Services
             if (user is null) return;
 
             RevokePremium(user);
-            await _db.SaveChangesAsync();
         }
 
+        /// <summary>
+        /// No revoke here. PayPal retries a failed subscription payment for several days and
+        /// only sends SUSPENDED or CANCELLED or EXPIRED once it gives up, and those already
+        /// revoke. Revoking on the first bounce takes premium away from anyone whose card
+        /// expired even though the retry two days later usually succeeds.
+        /// </summary>
         private async Task HandlePaymentFailed(PayPalWebhookEvent evt)
         {
             var user = await _db.Users.FirstOrDefaultAsync(
                 u => u.PayPalSubscriptionId == evt.Resource.Id);
             if (user is null) return;
 
-            _logger.LogWarning("Payment failed for user {UserId}, subscription {SubId}",
+            _logger.LogWarning("Payment failed for user {UserId} subscription {SubId}, awaiting PayPal dunning outcome",
                 user.Id, evt.Resource.Id);
-
-            RevokePremium(user);
-            await _db.SaveChangesAsync();
         }
 
         private async Task<bool> VerifyWebhookSignatureAsync(string body, Dictionary<string, string> headers)
@@ -501,6 +520,25 @@ namespace Plantitask.Infrastructure.Services
             }
         }
 
+        private const int PremiumMaxGroups = 10;
+        private const int FreeMaxGroups = 5;
+        private const int OneTimePremiumDays = 30;
+
+        /// <summary>
+        /// Premium was granted in four places that each set the same six fields by hand while
+        /// revoking had a single implementation. That asymmetry is where a drift bug comes from
+        /// so grant now has one definition too. Pass null for expiresAt on recurring, which is
+        /// what HasActivePremium reads as active until PayPal says otherwise.
+        /// </summary>
+        private static void GrantPremium(User user, string subscriptionType, DateTime? expiresAt)
+        {
+            user.IsPremium = true;
+            user.SubscriptionType = subscriptionType;
+            user.PremiumStartedAt ??= DateTime.UtcNow;
+            user.PremiumExpiresAt = expiresAt;
+            user.MaxGroups = PremiumMaxGroups;
+        }
+
         private static void RevokePremium(User user)
         {
             user.IsPremium = false;
@@ -509,7 +547,7 @@ namespace Plantitask.Infrastructure.Services
             user.PayPalSubscriptionId = null;
             user.PayPalOrderId = null;
             user.SubscriptionType = null;
-            user.MaxGroups = 5;
+            user.MaxGroups = FreeMaxGroups;
         }
     }
 }

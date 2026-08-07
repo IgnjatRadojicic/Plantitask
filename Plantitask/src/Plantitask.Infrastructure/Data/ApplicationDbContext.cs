@@ -31,6 +31,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<NotificationPreference> NotificationPreferences { get; set; }
     public DbSet<NotificationDigestLog> NotificationDigestLogs { get; set; }
+    public DbSet<ProcessedWebhookEvent> ProcessedWebhookEvents { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
@@ -401,6 +402,20 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             entity.HasIndex(e => new { e.UserId, e.Type, e.SentOn }).IsUnique();
             entity.HasIndex(e => e.SentOn);
+        });
+
+        modelBuilder.Entity<ProcessedWebhookEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.EventId).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.EventType).HasMaxLength(100).IsRequired();
+
+            // The uniqueness is the guarantee, not an optimisation. Two concurrent deliveries
+            // of the same event can both pass the read, so the constraint is what stops the
+            // second one committing.
+            entity.HasIndex(e => e.EventId).IsUnique();
+            entity.HasIndex(e => e.CreatedAt);
         });
     }
 

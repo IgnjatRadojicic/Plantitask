@@ -29,6 +29,7 @@ namespace Plantitask.Core.Interfaces
         DbSet<Notification> Notifications { get; set; }
         DbSet<NotificationPreference> NotificationPreferences { get; set; }
         DbSet<NotificationDigestLog> NotificationDigestLogs { get; set; }
+        DbSet<ProcessedWebhookEvent> ProcessedWebhookEvents { get; set; }
         DbSet<AuditLog> AuditLogs { get; set; }
         DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 

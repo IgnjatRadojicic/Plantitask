@@ -14,6 +14,6 @@ namespace Plantitask.Core.Interfaces
 
         Task<Result<PremiumStatusDto>> GetPremiumStatusAsync(Guid userId);
 
-        Task HandleWebhookAsync(string body, Dictionary<string, string> headers);
+        Task<Result> HandleWebhookAsync(string body, Dictionary<string, string> headers);
     }
 }

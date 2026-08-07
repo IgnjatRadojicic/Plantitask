@@ -144,7 +144,12 @@ namespace Plantitask.Api.Controllers
 
             return Ok(new { message = "Premium cancelled" });
         }
-        // test
+        /// <summary>
+        /// The status code returned here is a protocol with PayPal's retry system. A 2xx means
+        /// never send this again so it must only be returned once the event is committed. A
+        /// processing failure throws out of the service and the middleware turns it into a 500
+        /// which makes PayPal redeliver, and that is the behaviour we want.
+        /// </summary>
         [HttpPost("webhook")]
         [AllowAnonymous]
         public async Task<IActionResult> Webhook()
@@ -164,8 +169,9 @@ namespace Plantitask.Api.Controllers
                     headers[key] = val.ToString();
             }
 
-            await _paypal.HandleWebhookAsync(body, headers);
-            return Ok();
+            var result = await _paypal.HandleWebhookAsync(body, headers);
+
+            return result.ToActionResult();
         }
     }
 }
