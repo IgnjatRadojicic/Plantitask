@@ -435,6 +435,10 @@ namespace Plantitask.Infrastructure.Services
                 case "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
                     await HandlePaymentFailed(webhookEvent);
                     break;
+
+                case "PAYMENT.CAPTURE.COMPLETED":
+                    await HandleOneTimeCaptureCompleted(webhookEvent);
+                    break;
             }
 
             // Handlers stage their changes and this is the only save, so the processed marker
@@ -470,6 +474,40 @@ namespace Plantitask.Infrastructure.Services
 
             _logger.LogInformation("Recurring payment completed for user {UserId}, agreement {AgreementId}",
                 user.Id, billingAgreementId);
+        }
+
+        /// <summary>
+        /// The safety net for one time orders. Without it CaptureOrderAsync from the browser is
+        /// the only path to one time premium, so a user who pays and closes the tab before the
+        /// redirect gets nothing while PayPal has their money and nothing anywhere notices.
+        ///
+        /// Recurring already had four events covering it. This is the equivalent for orders.
+        /// Whichever of the two paths arrives first wins and the other is a no op, because the
+        /// capture path stamps PayPalOrderId and this checks it.
+        /// </summary>
+        private async Task HandleOneTimeCaptureCompleted(PayPalWebhookEvent evt)
+        {
+            var customId = evt.Resource.CustomId;
+            if (string.IsNullOrEmpty(customId) || !Guid.TryParse(customId, out var userId))
+            {
+                _logger.LogWarning("Capture completed webhook {EventId} had no usable custom_id", evt.Id);
+                return;
+            }
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user is null)
+                return;
+
+            // The browser capture already granted this exact order, nothing to do.
+            if (user.PayPalOrderId == evt.Resource.Id && user.HasActivePremium)
+                return;
+
+            GrantPremium(user, "onetime", expiresAt: DateTime.UtcNow.AddDays(OneTimePremiumDays));
+            user.PayPalOrderId = evt.Resource.Id;
+
+            _logger.LogInformation(
+                "One time premium granted to user {UserId} from capture webhook for order {OrderId}",
+                userId, evt.Resource.Id);
         }
 
         private async Task HandleSubscriptionCancelled(PayPalWebhookEvent evt)
