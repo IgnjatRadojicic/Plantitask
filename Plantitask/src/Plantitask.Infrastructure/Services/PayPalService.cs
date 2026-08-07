@@ -308,6 +308,27 @@ namespace Plantitask.Infrastructure.Services
                 };
             }
 
+            // The order was stamped with the buyer's id at creation. Without checking it here
+            // anyone holding someone else's approved orderId could capture that payment onto
+            // their own account.
+            var customId = TryReadCustomId(doc.RootElement);
+
+            if (customId is null)
+            {
+                _logger.LogError(
+                    "PayPal capture response for order {OrderId} carried no custom_id, refusing to grant premium",
+                    orderId);
+                return Error.BadRequest("Could not verify the order belongs to this user");
+            }
+
+            if (customId != userId.ToString())
+            {
+                _logger.LogWarning(
+                    "User {UserId} tried to capture order {OrderId} which belongs to {OwnerId}",
+                    userId, orderId, customId);
+                return Error.Forbidden("Order does not belong to this user");
+            }
+
             GrantPremium(user, "onetime", expiresAt: DateTime.UtcNow.AddDays(OneTimePremiumDays));
             user.PayPalOrderId = orderId;
 
@@ -523,6 +544,33 @@ namespace Plantitask.Infrastructure.Services
         private const int PremiumMaxGroups = 10;
         private const int FreeMaxGroups = 5;
         private const int OneTimePremiumDays = 30;
+
+        /// <summary>
+        /// custom_id is set on the purchase unit when the order is created and PayPal echoes it
+        /// back on capture, but which level it appears at has moved between API versions. Both
+        /// known positions are checked and a miss returns null so the caller can refuse rather
+        /// than assume the order belongs to whoever asked.
+        /// </summary>
+        private static string? TryReadCustomId(JsonElement root)
+        {
+            if (!root.TryGetProperty("purchase_units", out var units) || units.GetArrayLength() == 0)
+                return null;
+
+            var unit = units[0];
+
+            if (unit.TryGetProperty("custom_id", out var direct))
+                return direct.GetString();
+
+            if (unit.TryGetProperty("payments", out var payments)
+                && payments.TryGetProperty("captures", out var captures)
+                && captures.GetArrayLength() > 0
+                && captures[0].TryGetProperty("custom_id", out var onCapture))
+            {
+                return onCapture.GetString();
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// Premium was granted in four places that each set the same six fields by hand while
