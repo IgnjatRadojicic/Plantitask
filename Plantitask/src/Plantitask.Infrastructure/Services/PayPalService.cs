@@ -345,31 +345,39 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// A pure read. Expiring one time premium used to happen here, which meant a user who
+        /// never came back kept a stale row forever and two concurrent reads both wrote. The
+        /// expire-onetime-premium recurring job owns that now.
+        ///
+        /// The answer is still correct the moment premium lapses because HasActivePremium
+        /// computes it from PremiumExpiresAt rather than trusting the IsPremium column.
+        /// </summary>
         public async Task<Result<PremiumStatusDto>> GetPremiumStatusAsync(Guid userId)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _db.Users
+                .Where(u => u.Id == userId)
+                .Select(u => new
+                {
+                    IsActive = u.IsPremium
+                        && (!u.PremiumExpiresAt.HasValue || u.PremiumExpiresAt > DateTime.UtcNow),
+                    u.SubscriptionType,
+                    u.PremiumExpiresAt,
+                    u.PremiumStartedAt
+                })
+                .FirstOrDefaultAsync();
+
             if (user is null)
                 return Error.NotFound("User not found");
 
-            if (user.IsPremium
-                && user.SubscriptionType == "onetime"
-                && user.PremiumExpiresAt.HasValue
-                && user.PremiumExpiresAt.Value <= DateTime.UtcNow)
-            {
-                RevokePremium(user);
-                await _db.SaveChangesAsync();
-
-                return new PremiumStatusDto { IsPremium = false, MaxGroups = FreeMaxGroups };
-            }
-
             return new PremiumStatusDto
             {
-                IsPremium = user.HasActivePremium,
+                IsPremium = user.IsActive,
                 SubscriptionType = user.SubscriptionType,
                 ExpiresAt = user.PremiumExpiresAt,
                 StartedAt = user.PremiumStartedAt,
-                CanUseDarkMode = user.HasActivePremium,
-                MaxGroups = user.HasActivePremium ? PremiumMaxGroups : FreeMaxGroups
+                CanUseDarkMode = user.IsActive,
+                MaxGroups = user.IsActive ? PremiumMaxGroups : FreeMaxGroups
             };
         }
 

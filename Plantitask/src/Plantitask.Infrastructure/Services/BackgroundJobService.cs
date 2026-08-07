@@ -67,7 +67,13 @@ namespace Plantitask.Infrastructure.Services
             job => job.CleanupOldNotifications(),
             Cron.Weekly(DayOfWeek.Sunday, hour: 2, minute: 0));
 
-            _logger.LogInformation("Recurring jobs configured: check-overdue-tasks (daily), cleanup-old-notifications (weekly)");
+            RecurringJob.AddOrUpdate<PremiumBackgroundJob>(
+                "expire-onetime-premium",
+                job => job.ExpireOneTimePremiumAsync(),
+                Cron.Daily(hour: 1, minute: 0));
+
+            _logger.LogInformation(
+                "Recurring jobs configured: check-overdue-tasks (daily 00:00 UTC), expire-onetime-premium (daily 01:00 UTC), cleanup-old-notifications (weekly Sun 02:00 UTC)");
         }
 
         public void TriggerOverdueCheck()

@@ -187,6 +187,7 @@ builder.Services.AddScoped<ITreeProgressBroadcaster, TreeProgressBroadcaster>();
 builder.Services.AddScoped<IBackgroundJobService, BackgroundJobService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<NotificationBackgroundJob>();
+builder.Services.AddScoped<PremiumBackgroundJob>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
