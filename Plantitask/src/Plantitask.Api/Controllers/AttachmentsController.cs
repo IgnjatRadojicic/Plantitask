@@ -37,7 +37,7 @@ public class AttachmentsController : BaseApiController
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
-    public async Task<IActionResult> UploadAttachment(Guid taskId, [FromForm] IFormFile file)
+    public async Task<IActionResult> UploadAttachment(Guid taskId, IFormFile file)
     {
         var userId = GetUserId();
         var result = await _attachmentService.UploadAttachmentAsync(taskId, file, userId);
