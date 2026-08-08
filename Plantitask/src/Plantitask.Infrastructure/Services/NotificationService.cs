@@ -7,6 +7,7 @@ using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.Projections;
 
 namespace Plantitask.Infrastructure.Services;
 
@@ -225,23 +226,8 @@ public class NotificationService : INotificationService
 
 
         return await query.OrderByDescending(n => n.CreatedAt)
-            .Select(n => new NotificationDto
-            {
-                Id = n.Id,
-                UserId = n.UserId,
-                ActorId = n.ActorId,
-                ActorName = n.Actor != null ? n.Actor.UserName : null,
-                Type = n.Type,
-                TypeName = n.Type.ToString(),
-                Title = n.Title,
-                Message = n.Message,
-                RelatedEntityId = n.RelatedEntityId,
-                RelatedEntityType = n.RelatedEntityType,
-                RelatedDate = n.RelatedDate,
-                IsRead = n.IsRead,
-                ReadAt = n.ReadAt,
-                CreatedAt = n.CreatedAt
-            }).ToPaginatedListAsync(pageNumber, pageSize);
+            .Select(NotificationProjections.ToDto)
+            .ToPaginatedListAsync(pageNumber, pageSize);
 
     }
 
@@ -481,23 +467,17 @@ public class NotificationService : INotificationService
             .Select(u => (string?)u.UserName)
             .FirstOrDefaultAsync();
 
-    private static NotificationDto ToDto(Notification n, string? actorName) => new()
+    // Same property list as the query side. The create paths know the actor name already
+    // because the Actor navigation is not loaded on a freshly added entity.
+    private static readonly Func<Notification, NotificationDto> MapNotification =
+        NotificationProjections.ToDto.Compile();
+
+    private static NotificationDto ToDto(Notification n, string? actorName)
     {
-        Id = n.Id,
-        UserId = n.UserId,
-        ActorId = n.ActorId,
-        ActorName = actorName,
-        Type = n.Type,
-        TypeName = n.Type.ToString(),
-        Title = n.Title,
-        Message = n.Message,
-        RelatedEntityId = n.RelatedEntityId,
-        RelatedEntityType = n.RelatedEntityType,
-        RelatedDate = n.RelatedDate,
-        IsRead = n.IsRead,
-        ReadAt = n.ReadAt,
-        CreatedAt = n.CreatedAt
-    };
+        var dto = MapNotification(n);
+        dto.ActorName = actorName;
+        return dto;
+    }
 
     private string GetNotificationTypeDescription(NotificationType type)
     {
