@@ -215,20 +215,22 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result> DeleteAttachmentAsync(Guid attachmentId, Guid userId)
         {
-            var attachment = await _context.TaskAttachments
-                .FirstOrDefaultAsync(a => a.Id == attachmentId);
-
-            if (attachment == null)
-                return Error.NotFound("Attachment not found");
-
-            var groupId = await _context.Tasks
-                .Where(t => t.Id == attachment.TaskId)
-                .Select(t => t.GroupId)
+            var row = await _context.TaskAttachments
+                .Where(a => a.Id == attachmentId)
+                .Select(a => new { Attachment = a, a.Task.GroupId })
                 .FirstOrDefaultAsync();
 
-            var callerRole = await _groupService.GetUserRoleAsync(groupId, userId);
+            if (row == null)
+                return Error.NotFound("Attachment not found");
 
-            var canDelete = callerRole >= GroupRole.Manager || attachment.CreatedBy == userId;
+            var attachment = row.Attachment;
+
+            var callerRole = await _groupService.GetUserRoleAsync(row.GroupId, userId);
+
+            if (callerRole == null)
+                return Error.Forbidden("You must be a member of this group");
+
+            var canDelete = attachment.CreatedBy == userId || callerRole >= GroupRole.Manager;
 
             if (!canDelete)
                 return Error.Forbidden("Only Managers, Owners, or the uploader can delete attachments");
