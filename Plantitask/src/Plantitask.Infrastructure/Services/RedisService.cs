@@ -123,7 +123,7 @@ namespace Plantitask.Infrastructure.Services
         {
             var key = $"verification:{email.ToLower()}";
 
-            // Guard is load bearing: HAshSt on an xpired key recreates it WITHOUT A TLL
+            // Guard is load bearing: HashSet on an expired key recreates it WITHOUT A TTL
             if (!await _db.KeyExistsAsync(key))
                 return;
 

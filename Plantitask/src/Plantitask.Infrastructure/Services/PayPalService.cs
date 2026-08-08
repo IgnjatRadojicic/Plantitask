@@ -16,6 +16,9 @@ namespace Plantitask.Infrastructure.Services
     public class PayPalService : IPayPalService
     {
         private const string AccessTokenCacheKey = "paypal-access-token";
+        private const int PremiumMaxGroups = 10;
+        private const int FreeMaxGroups = 5;
+        private const int OneTimePremiumDays = 30;
 
         private readonly IApplicationDbContext _db;
         private readonly HttpClient _http;
@@ -586,10 +589,6 @@ namespace Plantitask.Infrastructure.Services
                 return false;
             }
         }
-
-        private const int PremiumMaxGroups = 10;
-        private const int FreeMaxGroups = 5;
-        private const int OneTimePremiumDays = 30;
 
         /// <summary>
         /// custom_id is set on the purchase unit when the order is created and PayPal echoes it

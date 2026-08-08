@@ -174,7 +174,7 @@ namespace Plantitask.Infrastructure.Services
                 return Error.Forbidden("You must be a member of this group");
 
             if (callerRole < GroupRole.TeamLead && task.CreatedBy != userId)
-                return Error.Forbidden("Only the task creator or Team Leads and above can change task priority");
+                return Error.Forbidden("Only the task creator or Team Leads and above can update this task");
 
             if (!string.IsNullOrWhiteSpace(updateTaskDto.Title))
                 task.Title = updateTaskDto.Title;
@@ -468,7 +468,7 @@ namespace Plantitask.Infrastructure.Services
                     .SetProperty(a => a.IsDeleted, true)
                     .SetProperty(a => a.DeletedAt, now)
                     .SetProperty(a => a.DeletedBy, userId)
-                    .SetProperty(c => c.UpdatedAt, now));
+                    .SetProperty(a => a.UpdatedAt, now));
 
             task.IsDeleted = true;
             task.DeletedAt = now;

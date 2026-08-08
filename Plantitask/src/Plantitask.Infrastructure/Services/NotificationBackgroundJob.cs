@@ -97,7 +97,7 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
-            [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 3600 })]
+        [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 3600 })]
         [DisableConcurrentExecution(timeoutInSeconds: 300)]
         public async Task CheckOverdueTasksAndNotify()
         {
@@ -220,7 +220,7 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
-            [AutomaticRetry(Attempts = 2)]
+        [AutomaticRetry(Attempts = 2)]
         public async Task CleanupOldNotifications()
         {
             _logger.LogInformation("Starting notification cleanup");

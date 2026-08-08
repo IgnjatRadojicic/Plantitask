@@ -124,7 +124,7 @@ namespace Plantitask.Infrastructure.Services
 
             if (existingMember != null && !existingMember.IsDeleted)
             {
-                return Error.Conflict("You already a member of this group");
+                return Error.Conflict("You are already a member of this group");
             }
 
             if (!string.IsNullOrEmpty(groupData.PasswordHash))
@@ -141,7 +141,7 @@ namespace Plantitask.Infrastructure.Services
             if (limitError != null)
                 return limitError;
 
-            var Rejoin = existingMember != null;
+            var rejoin = existingMember != null;
 
             if (existingMember != null)
 
@@ -169,7 +169,7 @@ namespace Plantitask.Infrastructure.Services
                 .CountAsync(gm => gm.GroupId == groupData.Id);
 
             _logger.LogInformation("User {UserId} {Action} group {GroupId}",
-                userId, Rejoin ? "rejoined" : "joined", groupData.Id);
+                userId, rejoin ? "rejoined" : "joined", groupData.Id);
 
             return new GroupDto
             {
@@ -560,7 +560,7 @@ namespace Plantitask.Infrastructure.Services
 
         private async Task<string> GenerateUniqueGroupCode()
         {
-            for (int attemp = 0; attemp < 5; attemp++)
+            for (int attemp = 0; attempt < 5; attempt++)
             {
                 var code = _codeGenerator.Generate();
                 if (!await _context.Groups.AnyAsync(g => g.GroupCode == code))
