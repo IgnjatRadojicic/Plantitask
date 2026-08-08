@@ -7,6 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Plantitask.Core.Common;
+using Plantitask.Core.Constants;
 using Plantitask.Core.DTO.Paypal;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
@@ -16,8 +17,6 @@ namespace Plantitask.Infrastructure.Services
     public class PayPalService : IPayPalService
     {
         private const string AccessTokenCacheKey = "paypal-access-token";
-        private const int PremiumMaxGroups = 10;
-        private const int FreeMaxGroups = 5;
         private const int OneTimePremiumDays = 30;
 
         private readonly IApplicationDbContext _db;
@@ -380,7 +379,7 @@ namespace Plantitask.Infrastructure.Services
                 ExpiresAt = user.PremiumExpiresAt,
                 StartedAt = user.PremiumStartedAt,
                 CanUseDarkMode = user.IsActive,
-                MaxGroups = user.IsActive ? PremiumMaxGroups : FreeMaxGroups
+                MaxGroups = user.IsActive ? PlanLimits.PremiumMaxGroups : PlanLimits.FreeMaxGroups
             };
         }
 
@@ -629,7 +628,7 @@ namespace Plantitask.Infrastructure.Services
             user.SubscriptionType = subscriptionType;
             user.PremiumStartedAt ??= DateTime.UtcNow;
             user.PremiumExpiresAt = expiresAt;
-            user.MaxGroups = PremiumMaxGroups;
+            user.MaxGroups = PlanLimits.PremiumMaxGroups;
         }
 
         private static void RevokePremium(User user)
@@ -640,7 +639,7 @@ namespace Plantitask.Infrastructure.Services
             user.PayPalSubscriptionId = null;
             user.PayPalOrderId = null;
             user.SubscriptionType = null;
-            user.MaxGroups = FreeMaxGroups;
+            user.MaxGroups = PlanLimits.FreeMaxGroups;
         }
     }
 }
