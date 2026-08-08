@@ -40,7 +40,8 @@ public class AttachmentsController : BaseApiController
     public async Task<IActionResult> UploadAttachment(Guid taskId, IFormFile file)
     {
         var userId = GetUserId();
-        var result = await _attachmentService.UploadAttachmentAsync(taskId, file, userId);
+        using var stream = file.OpenReadStream();
+        var result = await _attachmentService.UploadAttachmentAsync(taskId, stream, file.FileName, userId);
 
         if (result.IsFailure)
             return result.ToActionResult();

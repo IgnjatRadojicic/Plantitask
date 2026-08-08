@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Plantitask.Core.Common;
@@ -33,7 +32,7 @@ namespace Plantitask.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<Result<AttachmentDto>> UploadAttachmentAsync(Guid taskId, IFormFile file, Guid userId)
+        public async Task<Result<AttachmentDto>> UploadAttachmentAsync(Guid taskId, Stream content, string fileName, Guid userId)
         {
             _logger.LogInformation("User {UserId} uploading attachment to task {TaskId}", userId, taskId);
 
@@ -50,25 +49,20 @@ namespace Plantitask.Infrastructure.Services
             if (!isMember)
                 return Error.Forbidden("You must be a member of the group to upload attachments");
 
-            string storagePath;
-            string contentType;
-            using (var stream = file.OpenReadStream())
-            {
-                var validation = await FileUploadRules.ValidateAsync(
-                    stream, file.FileName, _settings.MaxFileSizeInMB, _settings.AllowedExtensions);
-                if (validation.IsFailure)
-                    return validation.Error!;
+            var validation = await FileUploadRules.ValidateAsync(
+                content, fileName, _settings.MaxFileSizeInMB, _settings.AllowedExtensions);
+            if (validation.IsFailure)
+                return validation.Error!;
 
-                contentType = FileUploadRules.ContentTypeFor(validation.Value!);
-                storagePath = await _fileStorage.UploadFileAsync(stream, file.FileName, contentType, "attachments");
-            }
+            var contentType = FileUploadRules.ContentTypeFor(validation.Value!);
+            var storagePath = await _fileStorage.UploadFileAsync(content, fileName, contentType, "attachments");
 
             var attachment = new TaskAttachment
             {
                 TaskId = taskId,
-                FileName = file.FileName,
+                FileName = fileName,
                 FilePath = storagePath,
-                FileSize = file.Length,
+                FileSize = content.Length,
                 ContentType = contentType,
                 CreatedBy = userId,
             };
