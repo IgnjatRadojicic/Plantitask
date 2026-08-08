@@ -122,13 +122,12 @@ namespace Plantitask.Infrastructure.Services
 
             var today = DateOnly.FromDateTime(now);
 
-            var alreadyDigestedUserIds = (await _context.NotificationDigestLogs
+            var alreadyDigestedUserIds = await _context.NotificationDigestLogs
                 .Where(l => userIds.Contains(l.UserId)
                     && l.Type == NotificationType.TaskOverdue
                     && l.SentOn == today)
                 .Select(l => l.UserId)
-                .ToListAsync())
-                .ToHashSet();
+                .ToHashSetAsync();
 
             var preferences = await _context.NotificationPreferences
                 .Where(np => userIds.Contains(np.UserId) && np.Type == NotificationType.TaskOverdue)
