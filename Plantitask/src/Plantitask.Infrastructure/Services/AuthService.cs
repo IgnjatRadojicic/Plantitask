@@ -1,6 +1,5 @@
 ﻿using Google.Apis.Auth;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Plantitask.Core.Common;
@@ -23,9 +22,9 @@ namespace Plantitask.Infrastructure.Services
         private readonly IEmailService _emailService;
         private readonly IRedisService _redisService;
         private readonly ILogger<AuthService> _logger;
-        private readonly IConfiguration _configuration;
         private readonly GoogleAuthSettings _googleSettings;
         private readonly JwtSettings _jwtSettings;
+        private readonly AppSettings _appSettings;
 
         public AuthService(
             IApplicationDbContext context,
@@ -33,20 +32,20 @@ namespace Plantitask.Infrastructure.Services
             IJwtTokenGenerator tokenGenerator,
             IEmailService emailService,
             ILogger<AuthService> logger,
-            IConfiguration configuration,
             IRedisService redisService,
             IOptions<GoogleAuthSettings> googleSettings,
-            IOptions<JwtSettings> jwtSettings)
+            IOptions<JwtSettings> jwtSettings,
+            IOptions<AppSettings> appSettings)
         {
             _context = context;
             _redisService = redisService;
             _passwordHasher = passwordHasher;
             _tokenGenerator = tokenGenerator;
-            _configuration = configuration;
             _emailService = emailService;
             _logger = logger;
             _googleSettings = googleSettings.Value;
             _jwtSettings = jwtSettings.Value;
+            _appSettings = appSettings.Value;
         }
 
         public async Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto, string ipAddress)
@@ -277,8 +276,7 @@ namespace Plantitask.Infrastructure.Services
             _context.PasswordResetTokens.Add(passwordResetToken);
             await _context.SaveChangesAsync();
 
-            var frontendUrl = _configuration["App:FrontendUrl"];
-            var resetLink = $"{frontendUrl}/reset-password?token={resetToken}&email={Uri.EscapeDataString(user.Email)}";
+            var resetLink = $"{_appSettings.FrontendUrl}/reset-password?token={resetToken}&email={Uri.EscapeDataString(user.Email)}";
 
             try
             {

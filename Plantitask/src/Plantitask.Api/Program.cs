@@ -61,6 +61,11 @@ builder.Services.AddOptions<JwtSettings>()
     .Validate(s => s.AccessTokenExpiryInMinutes > 0, "AccessTokenExpiryInMinutes must be set")
     .ValidateOnStart();
 
+builder.Services.AddOptions<AppSettings>()
+    .BindConfiguration(AppSettings.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
     ?? throw new InvalidOperationException("JwtSettings section is missing");
