@@ -65,13 +65,12 @@ public class NotificationService : INotificationService
         if (recipients.Count == 0)
             return new();
 
-        var disabledMembers = (await _context.NotificationPreferences
+        var disabledMembers = await _context.NotificationPreferences
             .Where(np => recipients.Contains(np.UserId)
                 && np.Type == NotificationType.TaskStatusChanged
                 && !np.IsEnabled)
             .Select(np => np.UserId)
-            .ToListAsync())
-            .ToHashSet();
+            .ToHashSetAsync();
 
         var notifications = recipients
             .Where(recipientId => !disabledMembers.Contains(recipientId))
@@ -115,13 +114,12 @@ public class NotificationService : INotificationService
         if (usersToNotify.Count == 0)
             return new();
 
-        var disabled = (await _context.NotificationPreferences
+        var disabled = await _context.NotificationPreferences
             .Where(np => usersToNotify.Contains(np.UserId)
                 && np.Type == NotificationType.TaskCommentAdded
                 && !np.IsEnabled)
             .Select(np => np.UserId)
-            .ToListAsync())
-            .ToHashSet();
+            .ToHashSetAsync();
 
         var notifications = usersToNotify
             .Where(userId => !disabled.Contains(userId))
