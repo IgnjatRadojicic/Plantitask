@@ -36,7 +36,7 @@ namespace Plantitask.Infrastructure.Services
                     return null;
                 }
 
-                return JsonSerializer.Deserialize<RefreshTokenModel>(json!);
+                return JsonSerializer.Deserialize<RefreshTokenModel>(json.ToString());
         }
 
         public async Task SetRefreshTokenAsync(string tokenHash, RefreshTokenModel model, TimeSpan expiration)
