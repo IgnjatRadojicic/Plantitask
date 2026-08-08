@@ -11,6 +11,11 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Issues the two token kinds: short-lived signed JWTs for requests and long random
+    /// strings for refresh. Access tokens are deliberately short because they cannot be
+    /// revoked - only the refresh token's lifetime is ever extended.
+    /// </summary>
     public class JwtTokenGenerator : IJwtTokenGenerator
     {
         private readonly JwtSettings _jwtSettings;
@@ -19,6 +24,10 @@ namespace Plantitask.Infrastructure.Services
             _jwtSettings = jwtSettings.Value;
         }
 
+        /// <summary>
+        /// A signed HMAC-SHA256 JWT carrying the user's id, email and username, expiring after
+        /// the configured minutes. The jti claim makes every token unique even inside one second.
+        /// </summary>
         public string GenerateAccessToken(User user)
         {
             var claims = new[]
@@ -45,6 +54,10 @@ namespace Plantitask.Infrastructure.Services
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        /// <summary>
+        /// 64 random bytes (512 bits) as Base64. High-entropy on purpose - that is what makes
+        /// plain SHA-256 the right storage hash for it.
+        /// </summary>
         public string GenerateRefreshToken()
         {
             var bytes = new byte[64];

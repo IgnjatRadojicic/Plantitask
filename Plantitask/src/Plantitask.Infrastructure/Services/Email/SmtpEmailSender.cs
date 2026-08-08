@@ -9,6 +9,10 @@ using Plantitask.Core.Models;
 
 namespace Plantitask.Infrastructure.Services.Email
 {
+    /// <summary>
+    /// Sends over plain SMTP via MailKit - the local-dev and self-hosted alternative to
+    /// SendGrid. Same exception contract: failures become EmailSendException.
+    /// </summary>
     public class SmtpEmailSender : IEmailSender
     {
         private readonly EmailSettings _emailSettings;
@@ -25,6 +29,11 @@ namespace Plantitask.Infrastructure.Services.Email
             _logger = logger;
         }
 
+        /// <summary>
+        /// Connects, authenticates, sends and disconnects per message. Cancellation passes
+        /// through untouched; every other failure is wrapped in EmailSendException with the
+        /// host named for the logs.
+        /// </summary>
         public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
         {
             var mimeMessage = new MimeMessage();

@@ -11,6 +11,11 @@ using Plantitask.Core.Validation;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Task attachments: upload, listing, download and deletion. Every operation resolves the
+    /// owning group first, because attachments are group scoped and the membership check is
+    /// what keeps one tenant out of another's files.
+    /// </summary>
     public class AttachmentService : IAttachmentService
     {
         private readonly IApplicationDbContext _context;
@@ -32,6 +37,12 @@ namespace Plantitask.Infrastructure.Services
             _logger = logger;
         }
 
+        /// <summary>
+        /// Validates and stores a file against a task, then records it in the database.
+        /// Membership is checked before any storage I/O happens. The content type comes from the
+        /// validated extension, never from the client, and the storage layer picks the stored
+        /// name so the original filename is metadata only.
+        /// </summary>
         public async Task<Result<AttachmentDto>> UploadAttachmentAsync(Guid taskId, Stream content, string fileName, Guid userId)
         {
             _logger.LogInformation("User {UserId} uploading attachment to task {TaskId}", userId, taskId);
@@ -90,11 +101,17 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
-        // The authorized endpoint, not the storage URL. Attachments are group scoped so they
-        // must go through membership checks rather than an anonymous static path.
+        /// <summary>
+        /// The authorized endpoint, not the storage URL. Attachments are group scoped so the
+        /// bytes must go through membership checks rather than an anonymous static path.
+        /// </summary>
         private static string BuildDownloadUrl(Guid taskId, Guid attachmentId) =>
             $"/api/tasks/{taskId}/attachments/{attachmentId}/download";
 
+        /// <summary>
+        /// Lists a task's attachments for a group member, newest first. Download links point at
+        /// the authorized endpoint built by <see cref="BuildDownloadUrl"/>.
+        /// </summary>
         public async Task<Result<List<AttachmentDto>>> GetTaskAttachmentsAsync(Guid taskId, Guid userId)
         {
             var groupId = await _context.Tasks
@@ -141,6 +158,10 @@ namespace Plantitask.Infrastructure.Services
             return attachments;
         }
 
+        /// <summary>
+        /// Returns one attachment's metadata after confirming the caller belongs to the group
+        /// that owns it.
+        /// </summary>
         public async Task<Result<AttachmentDto>> GetAttachmentByIdAsync(Guid attachmentId, Guid userId)
         {
             var attachment = await _context.TaskAttachments
@@ -180,6 +201,11 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Opens the stored file for a group member. Hands back the stream together with the
+        /// original filename and the server-derived content type so the controller can serve it
+        /// as a download.
+        /// </summary>
         public async Task<Result<(Stream FileStream, string FileName, string ContentType)>> DownloadAttachmentAsync(Guid attachmentId, Guid userId)
         {
             var attachment = await _context.TaskAttachments
@@ -207,6 +233,11 @@ namespace Plantitask.Infrastructure.Services
             return (fileStream, attachment.FileName, attachment.ContentType);
         }
 
+        /// <summary>
+        /// Soft-deletes an attachment. The caller must be a member of the owning group, and then
+        /// either the uploader or a Manager and above. The database row commits first; deleting
+        /// the physical file is best effort because the row is the source of truth.
+        /// </summary>
         public async Task<Result> DeleteAttachmentAsync(Guid attachmentId, Guid userId)
         {
             var row = await _context.TaskAttachments

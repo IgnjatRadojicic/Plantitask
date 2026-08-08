@@ -14,6 +14,11 @@ using System.Security.Cryptography;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Registration, login, token lifecycle and the password flows. Two rules run through the
+    /// whole file: failure responses never reveal whether an account exists, and any credential
+    /// change revokes every refresh token the user has.
+    /// </summary>
     public class AuthService : IAuthService
     {
         private readonly IApplicationDbContext _context;
@@ -48,6 +53,11 @@ namespace Plantitask.Infrastructure.Services
             _appSettings = appSettings.Value;
         }
 
+        /// <summary>
+        /// Creates an account for an email that already passed code verification, then sends the
+        /// welcome email and signs the new user in. Duplicate email and username each get their
+        /// own conflict message - registration is where that fact is public by design.
+        /// </summary>
         public async Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto, string ipAddress)
         {
             var email = NormalizeEmail(registerDto.Email);
@@ -97,6 +107,12 @@ namespace Plantitask.Infrastructure.Services
             return await GenerateAuthResponseAsync(user, ipAddress);
         }
 
+        /// <summary>
+        /// Verifies credentials and issues a token pair. Unknown email, wrong password and
+        /// unconfirmed account all return the same message, and a dummy hash is verified when
+        /// the user is missing so response timing does not reveal which case it was. Also
+        /// rehashes the password on login when the stored work factor is outdated.
+        /// </summary>
         public async Task<Result<AuthResponseDto>> LoginAsync(LoginDto loginDto, string ipAddress)
         {
             var email = NormalizeEmail(loginDto.Email);
@@ -130,6 +146,11 @@ namespace Plantitask.Infrastructure.Services
             return await GenerateAuthResponseAsync(user, ipAddress);
         }
 
+        /// <summary>
+        /// Rotates a refresh token: the old one is marked revoked (not deleted) and a new pair
+        /// is issued. A token that arrives already revoked means someone replayed a used token -
+        /// theft's signature - so every session the user has is revoked on the spot.
+        /// </summary>
         public async Task<Result<AuthResponseDto>> RefreshTokenAsync(string refreshToken)
         {
             _logger.LogInformation("Attempting to refresh token");
@@ -169,6 +190,11 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Deletes the caller's refresh token. Deletion is right here - marking revoked is for
+        /// rotation - and a token owned by someone else is silently ignored so logout can never
+        /// be used to probe other users' sessions.
+        /// </summary>
         public async Task<Result> LogoutAsync(Guid userId, string refreshToken)
         {
             _logger.LogInformation("User {UserId} logging out", userId);
@@ -187,6 +213,11 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Tells the signup form whether an email is taken. A deliberate existence oracle - the
+        /// register flow leaks the same fact - with the per-IP rate limiter as the thing that
+        /// makes harvesting expensive. Decision recorded in auth-service.md.
+        /// </summary>
         public async Task<Result<CheckEmailResponseDto>> CheckEmailAsync(string email)
         {
             var normalized = NormalizeEmail(email);
@@ -196,6 +227,12 @@ namespace Plantitask.Infrastructure.Services
             return new CheckEmailResponseDto { Exists = exists };
         }
 
+        /// <summary>
+        /// Generates a six-digit code, stores its BCrypt hash in Redis for 15 minutes and emails
+        /// it. BCrypt because a short code is guessable, unlike the high-entropy tokens that get
+        /// plain SHA-256. Requests inside one minute of the last are refused, and a failed email
+        /// send is a real error since the caller cannot continue without the code.
+        /// </summary>
         public async Task<Result> SendVerificationCodeAsync(string email)
         {
             email = NormalizeEmail(email);
@@ -227,6 +264,10 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Checks a submitted code against the stored hash and marks the email verified.
+        /// Missing, expired and wrong codes all come back as the same message.
+        /// </summary>
         public async Task<Result> VerifyEmailCodeAsync(string email, string code)
         {
             email = NormalizeEmail(email);
@@ -246,6 +287,11 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Issues a one-hour reset token and emails the link. Always reports success, because an
+        /// unknown email must look identical to a known one from outside. Only the SHA-256 hash
+        /// of the token is stored - the plaintext exists solely inside the emailed link.
+        /// </summary>
         public async Task<Result> ForgotPasswordAsync(string email, string ipAddress)
         {
             email = NormalizeEmail(email);
@@ -291,6 +337,11 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Consumes a reset token and sets the new password. The token is single-use, and every
+        /// refresh token the user holds is revoked after the commit - a credential change ends
+        /// all existing sessions.
+        /// </summary>
         public async Task<Result<Guid>> ResetPasswordAsync(ResetPasswordDto resetPasswordDto)
         {
             _logger.LogInformation("Attempting password reset");
@@ -325,6 +376,12 @@ namespace Plantitask.Infrastructure.Services
             return user.Id;
         }
 
+        /// <summary>
+        /// Validates a Google ID token against our client id and signs the user in, creating the
+        /// account on first sight. SSO accounts get a random unusable password and a generated
+        /// username that follows the same rules the DTOs enforce, because this path writes the
+        /// entity directly and nothing else validates it.
+        /// </summary>
         public async Task<Result<AuthResponseDto>> GoogleLoginAsync(GoogleLoginDto dto, string ipAddress)
         {
             _logger.LogInformation("Google login attempt");
@@ -397,6 +454,10 @@ namespace Plantitask.Infrastructure.Services
             return await GenerateAuthResponseAsync(user, ipAddress);
         }
 
+        /// <summary>
+        /// Issues an access/refresh pair and stores the refresh token in Redis before handing
+        /// both back to the caller.
+        /// </summary>
         private async Task<AuthResponseDto> GenerateAuthResponseAsync(User user, string ipAddress)
         {
             var accessToken = _tokenGenerator.GenerateAccessToken(user);
@@ -413,6 +474,11 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Changes the password after verifying the current one, revokes every existing session
+        /// and signs the caller straight back in with a fresh pair. Revocation runs before the
+        /// new pair is issued - the other order would delete the token just created.
+        /// </summary>
         public async Task<Result<AuthResponseDto>> ChangePasswordAsync(
             Guid userId, ChangePasswordDto dto, string ipAddress)
         {
@@ -441,6 +507,10 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
+        /// <summary>
+        /// Writes the refresh token model to Redis keyed by the token's SHA-256 hash, with a TTL
+        /// matching its expiry. The plaintext token never reaches storage.
+        /// </summary>
         private async Task StoreRefreshTokenAsync(Guid userId, string refreshToken, string ipAddress)
         {
             var tokenModel = new RefreshTokenModel
@@ -455,11 +525,15 @@ namespace Plantitask.Infrastructure.Services
             await _redisService.SetRefreshTokenAsync(TokenHasher.Sha256(refreshToken), tokenModel, expiration);
         }
 
+        /// <summary>Cryptographically random six-digit code.</summary>
         private static string GenerateVerificationCode()
         {
             return RandomNumberGenerator.GetInt32(100000, 999999).ToString();
         }
 
+        /// <summary>
+        /// Retries the email-derived username with fresh random suffixes until one is free.
+        /// </summary>
         private async Task<string> GenerateUniqueUsernameAsync(string email)
         {
             string userName;
@@ -472,6 +546,10 @@ namespace Plantitask.Infrastructure.Services
             return userName;
         }
 
+        /// <summary>
+        /// Derives a valid username from the email's local part: letters, digits and underscore
+        /// only, capped so the random suffix stays inside the length limit.
+        /// </summary>
         private static string GenerateUsernameFromEmail(string email)
         {
             var localPart = email.Split('@')[0];
@@ -494,8 +572,10 @@ namespace Plantitask.Infrastructure.Services
             return $"{cleaned}_{suffix}";
         }
 
-        // Mail providers treat the mailbox case insensitively so the address is stored and
-        // compared in one canonical form. RedisService already lowercases its verification keys.
+        /// <summary>
+        /// Mail providers treat the mailbox case insensitively, so the address is stored and
+        /// compared in one canonical form. RedisService already lowercases its verification keys.
+        /// </summary>
         private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
     }
 }

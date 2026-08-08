@@ -8,6 +8,12 @@ using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Group lifecycle and membership. The group is the tenant boundary, so this service is
+    /// also the single source of truth for authorization checks - every other service asks
+    /// <see cref="IsUserMemberAsync"/> or <see cref="GetUserRoleAsync"/> instead of querying
+    /// the membership table itself.
+    /// </summary>
     public class GroupService : IGroupService
     {
         private readonly IApplicationDbContext _context;
@@ -27,12 +33,21 @@ namespace Plantitask.Infrastructure.Services
             _logger = logger;
         }
 
+        /// <summary>
+        /// The membership check the rest of the codebase leans on. Soft-deleted memberships are
+        /// excluded by the global query filter, so a removed member is simply not a member.
+        /// </summary>
         public async Task<bool> IsUserMemberAsync(Guid groupId, Guid userId)
         {
             return await _context.GroupMembers
                 .AnyAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
         }
 
+        /// <summary>
+        /// The caller's role in a group, or null when they are not a member. The enum's numeric
+        /// values are the permission ranks, so callers compare roles directly
+        /// (for example role &lt; GroupRole.Manager).
+        /// </summary>
         public async Task<GroupRole?> GetUserRoleAsync(Guid groupId, Guid userId)
         {
             return await _context.GroupMembers
@@ -41,6 +56,10 @@ namespace Plantitask.Infrastructure.Services
                 .FirstOrDefaultAsync();
         }
 
+        /// <summary>
+        /// Creates a group with a unique join code and makes the creator its Owner in the same
+        /// save. An optional password is BCrypt-hashed; the plan's group limit is checked first.
+        /// </summary>
         public async Task<Result<GroupDto>> CreateGroupAsync(CreateGroupDto createGroupDto, Guid userId)
         {
 
@@ -92,6 +111,12 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Joins a group by code, restoring a soft-deleted membership when someone comes back.
+        /// The password check runs before the restore branch on purpose - a returning member
+        /// gets no shortcut past it (that ordering bug shipped once). Rejoiners always come back
+        /// as plain Members regardless of the role they once held.
+        /// </summary>
         public async Task<Result<GroupDto>> JoinGroupAsync(JoinGroupDto joinGroupDto, Guid userId)
         {
             var code = joinGroupDto.GroupCode?.Trim().ToUpperInvariant() ?? string.Empty;
@@ -185,6 +210,10 @@ namespace Plantitask.Infrastructure.Services
 
         }
 
+        /// <summary>
+        /// Every group the caller belongs to, with member counts computed in SQL rather than by
+        /// loading members.
+        /// </summary>
         public async Task<Result<List<GroupDto>>> GetUserGroupsAsync(Guid userId)
         {
             var groups = await _context.GroupMembers
@@ -204,6 +233,9 @@ namespace Plantitask.Infrastructure.Services
             return groups;
         }
 
+        /// <summary>
+        /// The group's header info plus its member list, for members only.
+        /// </summary>
         public async Task<Result<GroupDetailsDto>> GetGroupDetailsAsync(Guid groupId, Guid userId)
         {
 
@@ -252,6 +284,11 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Renames the group or changes its password, Manager and above only. The password field
+        /// has three states: null keeps the current one, empty string removes protection, and
+        /// anything else becomes the new hash.
+        /// </summary>
         public async Task<Result<GroupDto>> UpdateGroupAsync(Guid groupId, UpdateGroupDto updateGroupDto, Guid userId)
         {
             var group = await _context.Groups.FindAsync(groupId);
@@ -296,6 +333,12 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Changes a member's role under the rank rules: you cannot touch your own role, you can
+        /// only manage members strictly below you, you cannot hand out a role at or above your
+        /// own, and Owner is never assignable here - ownership moves through
+        /// <see cref="TransferOwnershipAsync"/> only.
+        /// </summary>
         public async Task<Result<GroupMemberDto>> ChangeUserRoleAsync(
             Guid groupId, Guid memberId, ChangeRoleDto changeRoleDto, Guid userId)
         {
@@ -360,6 +403,10 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Moves ownership to another member in one save: the new owner becomes Owner, the old
+        /// one steps down to Manager, and the group row's OwnerId follows. Owner-only.
+        /// </summary>
         public async Task<Result> TransferOwnershipAsync(Guid groupId, Guid newOwnerId, Guid userId)
         {
             if (newOwnerId == userId)
@@ -392,6 +439,12 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Soft-deletes the group and everything under it (tasks, comments, attachments and
+        /// their notifications) in one transaction. Owner-only, and only once every other member
+        /// has been removed. The ExecuteUpdate cascades set UpdatedAt by hand because bulk
+        /// updates bypass the SaveChanges stamping override.
+        /// </summary>
         public async Task<Result> DeleteGroupAsync(Guid groupId, Guid userId)
         {
             var callerRole = await GetUserRoleAsync(groupId, userId);
@@ -477,6 +530,11 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Removes a member (soft delete), Manager and above only, and only for members ranked
+        /// strictly below the caller. The owner can never be removed, and removing yourself is
+        /// redirected to <see cref="LeaveGroupAsync"/>.
+        /// </summary>
         public async Task<Result> RemoveUserFromGroupAsync(Guid groupId, Guid memberId, Guid userId)
         {
             _logger.LogInformation("User {UserId} removing member {MemberId} from group {GroupId}",
@@ -518,6 +576,10 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// The caller leaves the group (soft delete, so rejoining later restores the row). The
+        /// owner cannot leave - ownership must be transferred or the group deleted instead.
+        /// </summary>
         public async Task<Result> LeaveGroupAsync(Guid groupId, Guid userId)
         {
             _logger.LogInformation("User {UserId} leaving group {GroupId}", userId, groupId);
@@ -542,6 +604,10 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Enforces the plan's group cap against the user's denormalized MaxGroups. Returns the
+        /// error to hand back, or null when the user still has room.
+        /// </summary>
         private async Task<Error?> CheckGroupLimitAsync(Guid userId)
         {
             var maxGroups = await _context.Users
@@ -560,6 +626,10 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
+        /// <summary>
+        /// Draws join codes until one is unused. Five tries against a 32^8 space means a
+        /// collision streak signals something genuinely wrong, so it throws rather than loops.
+        /// </summary>
         private async Task<string> GenerateUniqueGroupCode()
         {
             for (int attempt = 0; attempt < 5; attempt++)

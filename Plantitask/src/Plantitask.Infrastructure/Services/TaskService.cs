@@ -12,6 +12,11 @@ using System.Text.RegularExpressions;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Task CRUD, assignment, status flow and the kanban board. Authorization is rank-based
+    /// through GroupService: creating, assigning and priority changes need TeamLead and above,
+    /// deleting needs Manager, and status changes are open to the assignee and the creator too.
+    /// </summary>
     public class TaskService : ITaskService
     {
         private readonly IApplicationDbContext _context;
@@ -34,6 +39,12 @@ namespace Plantitask.Infrastructure.Services
             _backgroundJobService = backgroundJobService;
         }
 
+        /// <summary>
+        /// Creates a task at the end of the Not Started column, TeamLead and above. The assignee
+        /// (when given) must be a group member. A due-soon reminder is scheduled before the save
+        /// so its Hangfire JobId lands in the same insert; if the save then fails, the orphaned
+        /// job fires against a missing task and no-ops.
+        /// </summary>
         public async Task<Result<TaskDto>> CreateTaskAsync(Guid groupId, CreateTaskDto createTaskDto, Guid userId)
         {
             _logger.LogInformation("User {UserId} creating task in group {GroupId}", userId, groupId);
@@ -99,6 +110,11 @@ namespace Plantitask.Infrastructure.Services
             return result;
         }
 
+        /// <summary>
+        /// A group's tasks for a member, filterable by status, priority, assignee, overdue and a
+        /// case-insensitive search over title and description. Paged through the shared
+        /// PaginatedList contract, newest first.
+        /// </summary>
         public async Task<Result<PaginatedList<TaskDto>>> GetGroupTasksAsync(Guid groupId, TaskFilterDto? filter, Guid userId, int pageNumber = 1, int pageSize = 50)
         {
             var isMember = await _groupService.IsUserMemberAsync(groupId, userId);
@@ -142,6 +158,10 @@ namespace Plantitask.Infrastructure.Services
                 .ToPaginatedListAsync(pageNumber, pageSize);
         }
 
+        /// <summary>
+        /// One task through the shared projection. Doubles as the internal "re-fetch after
+        /// mutation" helper because the DTO needs joined display names anyway.
+        /// </summary>
         public async Task<Result<TaskDto>> GetTaskByIdAsync(Guid taskId, Guid userId)
         {
             var task = await _context.Tasks
@@ -160,6 +180,12 @@ namespace Plantitask.Infrastructure.Services
             return task;
         }
 
+        /// <summary>
+        /// Edits title, description, priority and due date - for the creator or TeamLead and
+        /// above. Null description means "leave it alone" while whitespace clears it, and
+        /// ClearDueDate exists because null cannot mean both. Any change reschedules the
+        /// due-soon reminder from scratch.
+        /// </summary>
         public async Task<Result<TaskDto>> UpdateTaskAsync(Guid taskId, UpdateTaskDto updateTaskDto, Guid userId)
         {
             var task = await _context.Tasks
@@ -223,6 +249,12 @@ namespace Plantitask.Infrastructure.Services
             return result;
         }
 
+        /// <summary>
+        /// Moves a task to another status for TeamLead and above, the assignee or the creator.
+        /// Returns a result record carrying the old and new status names so the controller can
+        /// notify without re-reading state. CompletedAt is set only on first completion and
+        /// cleared when the task leaves Completed.
+        /// </summary>
         public async Task<Result<TaskStatusChangeResult>> ChangeTaskStatusAsync(Guid taskId, ChangeTaskStatusDto statusDto, Guid userId)
         {
             var row = await _context.Tasks
@@ -292,6 +324,10 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Changes priority, TeamLead and above. Same result-record pattern as the status
+        /// change: old and new display names travel back with the task.
+        /// </summary>
         public async Task<Result<TaskPriorityChangeResult>> ChangeTaskPriorityAsync(Guid taskId, int newPriorityId, Guid userId)
         {
             var row = await _context.Tasks
@@ -344,6 +380,10 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Assigns the task to a group member, TeamLead and above, and reschedules the due-soon
+        /// reminder for the new assignee.
+        /// </summary>
         public async Task<Result> AssignTaskAsync(Guid taskId, AssignTaskDto assignDto, Guid userId)
         {
             var task = await _context.Tasks
@@ -389,6 +429,9 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Clears the assignee - TeamLead and above, or the assignee taking themselves off.
+        /// </summary>
         public async Task<Result> UnassignTaskAsync(Guid taskId, Guid userId)
         {
             var task = await _context.Tasks
@@ -421,6 +464,11 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Soft-deletes a task and cascades to its comments, attachments and notifications in
+        /// one transaction, Manager and above. The bulk updates set UpdatedAt by hand because
+        /// ExecuteUpdate bypasses the SaveChanges stamping override.
+        /// </summary>
         public async Task<Result> DeleteTaskAsync(Guid taskId, Guid userId)
         {
             var task = await _context.Tasks
@@ -482,6 +530,10 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// The member ids of the task's group, used by SignalR to know who may hear about this
+        /// task. Caller must be a member themselves.
+        /// </summary>
         public async Task<Result<List<Guid>>> GetTaskGroupMembersAsync(Guid taskId, Guid userId)
         {
             var task = await _context.Tasks
@@ -503,6 +555,11 @@ namespace Plantitask.Infrastructure.Services
             return memberIds;
         }
 
+        /// <summary>
+        /// Builds the whole board for a member: one projected query for the group's tasks,
+        /// grouped in memory into columns. The status lookup is served from a process-wide
+        /// cache because statuses are static seed data.
+        /// </summary>
         public async Task<Result<KanbanBoardDto>> GetKanbanBoardAsync(Guid groupId, Guid userId)
         {
             var callerRole = await _groupService.GetUserRoleAsync(groupId, userId);
@@ -564,6 +621,13 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Handles a kanban drag. Same-column reorders are open to any member; a cross-column
+        /// drag is a status change and answers to the ChangeTaskStatusAsync rule. Concurrent
+        /// drags trip the xmin token, so the whole operation retries up to three times before
+        /// giving up with a conflict. The per-drag renumbering is slated to be replaced by
+        /// sparse ranks (frontend/07-kanban-move-ranks.md), which also removes this retry loop.
+        /// </summary>
         public async Task<Result> MoveTaskAsync(Guid taskId, MoveTaskDto moveDto, Guid userId)
         {
             const int maxRetries = 3;
@@ -656,6 +720,10 @@ namespace Plantitask.Infrastructure.Services
             return Error.Internal("Unexpected error during task move");
         }
 
+        /// <summary>
+        /// Shifts the tasks between the old and new position by one so the moved task can slot
+        /// in without leaving duplicates or gaps.
+        /// </summary>
         private async Task ReorderWithinSameColumnAsync(
             Guid groupId, int statusId, Guid movingTaskId, int oldPosition, int newPosition)
         {
@@ -676,6 +744,10 @@ namespace Plantitask.Infrastructure.Services
             }
         }
 
+        /// <summary>
+        /// Renumbers the source column to close the gap and shifts the target column open at the
+        /// insertion point.
+        /// </summary>
         private async Task ReorderAcrossColumnsAsync(
             Guid groupId, int oldStatusId, int newStatusId, Guid movingTaskId, int newPosition)
         {
@@ -696,6 +768,10 @@ namespace Plantitask.Infrastructure.Services
                 t.DisplayOrder++;
         }
 
+        /// <summary>
+        /// The next free slot at the bottom of a column. The nullable Max cast is what makes an
+        /// empty column return -1 instead of throwing.
+        /// </summary>
         private async Task<int> NextDisplayOrderAsync(Guid groupId, int statusId)
         {
             var maxOrder = await _context.Tasks

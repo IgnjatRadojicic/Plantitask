@@ -6,6 +6,10 @@ using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Daily Hangfire job that ends expired one-time premium. Exists so the downgrade does not
+    /// depend on the user ever coming back to ask about their status.
+    /// </summary>
     public class PremiumBackgroundJob
     {
         private readonly IApplicationDbContext _context;

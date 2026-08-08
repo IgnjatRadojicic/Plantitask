@@ -14,6 +14,12 @@ using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Everything premium: PayPal checkout for subscriptions and one-time orders, the webhook
+    /// pipeline that keeps our state honest, and the grant/revoke rules. This file guards
+    /// money, so the recurring themes are idempotency (event-ID table), ownership proof
+    /// (custom_id) and failing closed when PayPal's answer is ambiguous.
+    /// </summary>
     public class PayPalService : IPayPalService
     {
         private const string AccessTokenCacheKey = "paypal-access-token";
@@ -85,6 +91,11 @@ namespace Plantitask.Infrastructure.Services
             return token;
         }
 
+        /// <summary>
+        /// Creates a PayPal subscription and returns the approval URL the browser must visit.
+        /// The user's id is stamped into custom_id here - that stamp is what later lets the
+        /// webhook and activation paths prove who the subscription belongs to.
+        /// </summary>
         public async Task<Result<CreateSubscriptionResponse>> CreateSubscriptionAsync(
             Guid userId, CreateSubscriptionRequest request)
         {
@@ -135,6 +146,11 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// The browser's return path after approval. Asks PayPal for the subscription's real
+        /// status instead of trusting the redirect, grants recurring premium only on ACTIVE,
+        /// and is a no-op when the webhook already got here first.
+        /// </summary>
         public async Task<Result> ActivateSubscriptionAsync(Guid userId, string subscriptionId)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
@@ -171,6 +187,12 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Cancels at PayPal, then revokes locally. The revoke deliberately proceeds even when
+        /// PayPal's cancel call fails so the user is never trapped - the cost is that PayPal may
+        /// keep billing until someone notices the warning log. Known open item: that log should
+        /// be an alert (paypal-service.md K).
+        /// </summary>
         public async Task<Result> CancelSubscriptionAsync(Guid userId)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
@@ -204,6 +226,11 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Creates a 30-day one-time order and returns the approval URL. Price and currency come
+        /// from configuration, never from the client, and custom_id carries the buyer's id for
+        /// the capture-side ownership check.
+        /// </summary>
         public async Task<Result<CreateOrderResponse>> CreateOneTimeOrderAsync(
             Guid userId, CreateOrderRequest request)
         {
@@ -265,6 +292,11 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// Captures an approved order and grants 30 days of premium. Idempotent per order (a
+        /// re-capture of the stamped order id short-circuits to success), and the custom_id
+        /// check fails closed - a capture response that cannot prove ownership grants nothing.
+        /// </summary>
         public async Task<Result<CaptureOrderResponse>> CaptureOrderAsync(Guid userId, string orderId)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
@@ -459,6 +491,11 @@ namespace Plantitask.Infrastructure.Services
             return Result.Success();
         }
 
+        /// <summary>
+        /// Webhook twin of <see cref="ActivateSubscriptionAsync"/> - grants recurring premium
+        /// via the custom_id stamp, covering users who never came back from the redirect.
+        /// Stages changes only; the caller owns the single commit.
+        /// </summary>
         private async Task HandleSubscriptionActivated(PayPalWebhookEvent evt)
         {
             var customId = evt.Resource.CustomId;
@@ -471,6 +508,10 @@ namespace Plantitask.Infrastructure.Services
             user.PayPalSubscriptionId = evt.Resource.Id;
         }
 
+        /// <summary>
+        /// A successful recurring charge. Re-granting the same values keeps the row fresh and is
+        /// naturally idempotent, which is exactly what a redelivered webhook needs.
+        /// </summary>
         private async Task HandlePaymentCompleted(PayPalWebhookEvent evt)
         {
             var billingAgreementId = evt.Resource.BillingAgreementId;
@@ -520,6 +561,10 @@ namespace Plantitask.Infrastructure.Services
                 userId, evt.Resource.Id);
         }
 
+        /// <summary>
+        /// PayPal gave up or the user cancelled from their side - CANCELLED, SUSPENDED and
+        /// EXPIRED all end here, and this is the only place recurring premium is revoked.
+        /// </summary>
         private async Task HandleSubscriptionCancelled(PayPalWebhookEvent evt)
         {
             var user = await _db.Users.FirstOrDefaultAsync(
@@ -545,6 +590,11 @@ namespace Plantitask.Infrastructure.Services
                 user.Id, evt.Resource.Id);
         }
 
+        /// <summary>
+        /// Asks PayPal's verify endpoint whether the transmission headers match the body for our
+        /// webhook id. Any error - network, parsing, anything - returns false, because an
+        /// unverifiable webhook must be treated as forged.
+        /// </summary>
         private async Task<bool> VerifyWebhookSignatureAsync(string body, Dictionary<string, string> headers)
         {
             try
@@ -631,6 +681,10 @@ namespace Plantitask.Infrastructure.Services
             user.MaxGroups = PlanLimits.PremiumMaxGroups;
         }
 
+        /// <summary>
+        /// The single teardown: clears every premium column and resets MaxGroups to the free
+        /// plan. Absolute assignments on purpose - running it twice is the same as once.
+        /// </summary>
         private static void RevokePremium(User user)
         {
             user.IsPremium = false;

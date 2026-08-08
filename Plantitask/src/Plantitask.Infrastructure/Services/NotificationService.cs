@@ -11,6 +11,11 @@ using Plantitask.Core.Projections;
 
 namespace Plantitask.Infrastructure.Services;
 
+/// <summary>
+/// Creates in-app notifications, reads them back and manages per-type preferences. The Notify*
+/// methods return the created DTOs so the controller can broadcast them over SignalR after the
+/// commit; preference checks always default to enabled when no row exists.
+/// </summary>
 public class NotificationService : INotificationService
 {
     private readonly IApplicationDbContext _context;
@@ -27,6 +32,10 @@ public class NotificationService : INotificationService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Notifies the assignee about a new assignment. Null when there is nothing to send: no
+    /// assignee, self-assignment, or the recipient turned this type off.
+    /// </summary>
     public async Task<NotificationDto?> NotifyAssignmentAsync(Guid actorId, TaskDto task)
     {
         if (task.AssignedToId is not Guid assigneeId || assigneeId == actorId)
@@ -52,6 +61,11 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification, await GetUserNameAsync(actorId));
     }
 
+    /// <summary>
+    /// Fans a status change out to the assignee and the creator, skipping the actor and anyone
+    /// who disabled the type. Preferences are fetched in one query and everything commits with
+    /// a single save - the shape that replaced the old save-per-recipient N+1.
+    /// </summary>
     public async Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskDto task, string oldStatus, string newStatus)
     {
         var recipients = new List<Guid>();
@@ -97,6 +111,10 @@ public class NotificationService : INotificationService
         return notifications.Select(n => ToDto(n, actorName)).ToList();
     }
 
+    /// <summary>
+    /// Fans a new comment out to the task's creator and assignee, minus the commenter. Same
+    /// batched-preferences, single-save shape as the status fan-out.
+    /// </summary>
     public async Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment)
     {
         var usersToNotify = new List<Guid>();
@@ -144,6 +162,10 @@ public class NotificationService : INotificationService
         return notifications.Select(n => ToDto(n, comment.UserName)).ToList();
     }
 
+    /// <summary>
+    /// Notifies the assignee that the priority moved, carrying both names in the message.
+    /// Null when there is no assignee, the actor is the assignee, or the type is disabled.
+    /// </summary>
     public async Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid actorId, TaskDto task, string oldPriority, string newPriority)
     {
         if (task.AssignedToId is not Guid assigneeId || assigneeId == actorId)
@@ -170,6 +192,10 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification, await GetUserNameAsync(actorId));
     }
 
+    /// <summary>
+    /// Tells the assignee their task was edited. Same null-when-nothing-to-send contract as the
+    /// other single-recipient notifiers.
+    /// </summary>
     public async Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid actorId, TaskDto task)
     {
         if (task.AssignedToId is not Guid assigneeId || assigneeId == actorId)
@@ -196,6 +222,9 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification, await GetUserNameAsync(actorId));
     }
 
+    /// <summary>
+    /// Confirms to the user that they joined a group. No actor - the user did this themselves.
+    /// </summary>
     public async Task<NotificationDto?> NotifyGroupInvitationAsync(Guid userId, string groupName)
     {
         if (!await ShouldNotifyAsync(userId, NotificationType.GroupInvitation))
@@ -216,6 +245,10 @@ public class NotificationService : INotificationService
         return await CreateNotificationAsync(notification, null);
     }
 
+    /// <summary>
+    /// The caller's notifications, newest first, optionally unread only, through the shared
+    /// projection and pagination contract.
+    /// </summary>
     public async Task<Result<PaginatedList<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false, int pageNumber = 1, int pageSize = 20)
     {
         var query = _context.Notifications
@@ -231,6 +264,7 @@ public class NotificationService : INotificationService
 
     }
 
+    /// <summary>The number for the bell badge.</summary>
     public async Task<Result<UnreadCountDto>> GetUnreadCountAsync(Guid userId)
     {
         var count = await _context.Notifications
@@ -240,6 +274,11 @@ public class NotificationService : INotificationService
         return new UnreadCountDto { Count = count };
     }
 
+    /// <summary>
+    /// Marks one notification read with a single UPDATE scoped to the owner, so someone else's
+    /// id is a silent no-op rather than a probe result. Sets UpdatedAt by hand because
+    /// ExecuteUpdate bypasses the stamping override.
+    /// </summary>
     public async Task<Result> MarkAsReadAsync(Guid notificationId, Guid userId)
     {
         var now = DateTime.UtcNow;
@@ -256,6 +295,7 @@ public class NotificationService : INotificationService
         return Result.Success();
     }
 
+    /// <summary>Marks everything unread as read in one set-based UPDATE.</summary>
     public async Task<Result> MarkAllAsReadAsync(Guid userId)
     {
         var now = DateTime.UtcNow;
@@ -272,6 +312,10 @@ public class NotificationService : INotificationService
         return Result.Success();
     }
 
+    /// <summary>
+    /// Soft-deletes one of the caller's own notifications; anyone else's id comes back as
+    /// NotFound because the owner filter is part of the lookup.
+    /// </summary>
     public async Task<Result> DeleteNotificationAsync(Guid notificationId, Guid userId)
     {
         var notification = await _context.Notifications
@@ -292,6 +336,10 @@ public class NotificationService : INotificationService
         return Result.Success();
     }
 
+    /// <summary>
+    /// The full preference sheet: every notification type, merged with the user's stored rows.
+    /// Types with no row show the defaults (enabled, 24 hours before for due-soon).
+    /// </summary>
     public async Task<Result<List<NotificationPreferenceDto>>> GetUserPreferencesAsync(Guid userId)
     {
         var existingPreferences = await _context.NotificationPreferences
@@ -319,6 +367,11 @@ public class NotificationService : INotificationService
         return preferences;
     }
 
+    /// <summary>
+    /// Upserts preference rows in one save. The whole batch is validated before anything is
+    /// touched - the type is a client-supplied enum so it gets Enum.IsDefined, and the reminder
+    /// hours are clamped to a sane range (null stays allowed and means no override).
+    /// </summary>
     public async Task<Result> SaveUserPreferencesAsync(Guid userId, UpdateNotificationPreferencesDto dto)
     {
         foreach (var item in dto.Preferences)
@@ -364,6 +417,10 @@ public class NotificationService : INotificationService
 
         return Result.Success();
     }
+    /// <summary>
+    /// Whether an in-app notification of this type should be created. No stored row means yes -
+    /// notifications are opt-out.
+    /// </summary>
     public async Task<bool> ShouldNotifyAsync(Guid userId, NotificationType type)
     {
         return await _context.NotificationPreferences
@@ -372,6 +429,7 @@ public class NotificationService : INotificationService
             .FirstOrDefaultAsync() ?? true;
     }
 
+    /// <summary>Same opt-out contract as <see cref="ShouldNotifyAsync"/>, for the email channel.</summary>
     public async Task<bool> ShouldEmailAsync(Guid userId, NotificationType type)
     {
         return await _context.NotificationPreferences
@@ -380,6 +438,10 @@ public class NotificationService : INotificationService
             .FirstOrDefaultAsync() ?? true;
     }
 
+    /// <summary>
+    /// How many hours before the due date the reminder should fire, defaulting to 24. Read at
+    /// scheduling time, so changing it affects future reminders, not ones already queued.
+    /// </summary>
     public async Task<int> GetReminderHoursBeforeAsync(Guid userId)
     {
         return await _context.NotificationPreferences
@@ -388,6 +450,7 @@ public class NotificationService : INotificationService
             .FirstOrDefaultAsync() ?? 24;
     }
 
+    /// <summary>Just the email and username, for building outbound mail.</summary>
     public async Task<(string Email, string UserName)?> GetUserContactAsync(Guid userId)
     {
         var user = await _context.Users
@@ -400,6 +463,10 @@ public class NotificationService : INotificationService
         return (user.Email, user.UserName);
     }
 
+    /// <summary>
+    /// Best-effort assignment email, honoring the email preference. Runs after the mutation is
+    /// committed, so failures are logged and swallowed - the Try prefix is the contract.
+    /// </summary>
     public async Task TrySendTaskAssignmentEmailAsync(Guid assigneeUserId, string taskTitle, string groupName, string assignedByUserName)
     {
         try
@@ -424,6 +491,10 @@ public class NotificationService : INotificationService
         }
     }
 
+    /// <summary>
+    /// Best-effort email to the assignee about a new comment, skipping self-comments and
+    /// unassigned tasks. Same log-and-swallow contract as the other Try sender.
+    /// </summary>
     public async Task TrySendCommentEmailAsync(Guid taskAssignedToUserId, Guid commenterId, string taskTitle, string commentContent)
     {
         try
@@ -453,6 +524,7 @@ public class NotificationService : INotificationService
         }
     }
 
+    /// <summary>Saves a single notification and maps it, with the actor name supplied by the caller.</summary>
     private async Task<NotificationDto> CreateNotificationAsync(Notification notification, string? actorName)
     {
         _context.Notifications.Add(notification);
@@ -461,6 +533,7 @@ public class NotificationService : INotificationService
         return ToDto(notification, actorName);
     }
 
+    /// <summary>Display name of the acting user, for the notifications they trigger.</summary>
     private Task<string?> GetUserNameAsync(Guid userId) =>
         _context.Users
             .Where(u => u.Id == userId)
@@ -479,6 +552,7 @@ public class NotificationService : INotificationService
         return dto;
     }
 
+    /// <summary>Human-readable label for each type on the preferences screen.</summary>
     private string GetNotificationTypeDescription(NotificationType type)
     {
         return type switch

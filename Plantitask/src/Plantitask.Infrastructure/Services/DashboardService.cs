@@ -10,6 +10,11 @@ using Plantitask.Core.Projections;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Read-only aggregates for the personal dashboard, the field view and group statistics.
+    /// Everything here follows the same recipe: aggregate in SQL, keep result sets bounded,
+    /// and do only untranslatable arithmetic and date gap-filling in memory.
+    /// </summary>
     public class DashboardService : IDashboardService
     {
         private readonly IApplicationDbContext _context;
@@ -26,6 +31,12 @@ namespace Plantitask.Infrastructure.Services
             _logger = logger;
         }
 
+        /// <summary>
+        /// The caller's own dashboard: due buckets (overdue, today, this week), a 30-day
+        /// completion trend, totals and recent activity from the groups they belong to. Pulls
+        /// one bounded slice of relevant tasks rather than everything ever assigned, then sorts
+        /// it into buckets in memory.
+        /// </summary>
         public async Task<Result<PersonalDashboardDto>> GetPersonalDashboardAsync(Guid userId)
         {
             var now = DateTime.UtcNow;
@@ -133,6 +144,11 @@ namespace Plantitask.Infrastructure.Services
             };
         }
 
+        /// <summary>
+        /// One tree per group the caller belongs to, with completion percentage and the growth
+        /// stage derived from it. Task and member counts come from two grouped SQL queries
+        /// joined up by dictionary lookups.
+        /// </summary>
         public async Task<Result<List<FieldTreeDto>>> GetFieldDataAsync(Guid userId)
         {
             var userGroups = await _context.GroupMembers
@@ -183,6 +199,12 @@ namespace Plantitask.Infrastructure.Services
             return result;
         }
 
+        /// <summary>
+        /// The full statistics page for one group, members only: status and priority breakdowns,
+        /// member workload, average completion time and the 30-day trend. Projects the handful
+        /// of columns the aggregates need and computes them in one pass - the date arithmetic
+        /// does not translate to SQL, and nothing here is ever returned as a row.
+        /// </summary>
         public async Task<Result<GroupStatisticsDto>> GetGroupStatisticsAsync(Guid groupId, Guid userId)
         {
             if (!await _groupService.IsUserMemberAsync(groupId, userId))

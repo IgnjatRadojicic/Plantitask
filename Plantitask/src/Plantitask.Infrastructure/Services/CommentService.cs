@@ -9,6 +9,10 @@ using Plantitask.Core.Projections;
 
 namespace Plantitask.Infrastructure.Services;
 
+/// <summary>
+/// Comments on tasks. Reads and writes are membership-gated through the task's group;
+/// editing is author-only while deleting extends to Managers and above.
+/// </summary>
 public class CommentService : ICommentService
 {
     private readonly IApplicationDbContext _context;
@@ -25,6 +29,10 @@ public class CommentService : ICommentService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Adds a comment to a task the caller can see. The task lookup uses the nullable-Guid
+    /// projection so "task missing" and "task found" are distinguishable without loading the row.
+    /// </summary>
     public async Task<Result<CommentDto>> AddCommentAsync(Guid taskId, CreateCommentDto createCommentDto, Guid userId)
     {
         _logger.LogInformation("User {UserId} adding comment to task {TaskId}", userId, taskId);
@@ -58,6 +66,10 @@ public class CommentService : ICommentService
         return await GetCommentByIdInternalAsync(comment.Id);
     }
 
+    /// <summary>
+    /// A task's comments for a group member, newest first, through the shared projection and
+    /// pagination contract.
+    /// </summary>
     public async Task<Result<PaginatedList<CommentDto>>> GetTaskCommentsAsync(Guid taskId, Guid userId, int pageNumber = 1, int pageSize = 20)
     {
         var groupId = await _context.Tasks
@@ -82,6 +94,10 @@ public class CommentService : ICommentService
             .ToPaginatedListAsync(pageNumber, pageSize);
     }
 
+    /// <summary>
+    /// Edits a comment. Only the author may edit, and they must still be a member of the group -
+    /// leaving the group ends your ability to touch what you wrote there.
+    /// </summary>
     public async Task<Result<CommentDto>> UpdateCommentAsync(Guid commentId, UpdateCommentDto updateCommentDto, Guid userId)
     {
         var row = await _context.TaskComments
@@ -110,6 +126,10 @@ public class CommentService : ICommentService
         return await GetCommentByIdInternalAsync(commentId);
     }
 
+    /// <summary>
+    /// Soft-deletes a comment. Membership comes first, then the rule: the author or a Manager
+    /// and above. This ordering is the reference shape for "creator may X" checks.
+    /// </summary>
     public async Task<Result> DeleteCommentAsync(Guid commentId, Guid userId)
     {
         var row = await _context.TaskComments
@@ -143,6 +163,10 @@ public class CommentService : ICommentService
         return Result.Success();
     }
 
+    /// <summary>
+    /// Re-reads one comment through the shared projection after a write - the DTO carries the
+    /// author's name, which a freshly saved entity does not have loaded.
+    /// </summary>
     private async Task<Result<CommentDto>> GetCommentByIdInternalAsync(Guid commentId)
     {
         var dto = await _context.TaskComments

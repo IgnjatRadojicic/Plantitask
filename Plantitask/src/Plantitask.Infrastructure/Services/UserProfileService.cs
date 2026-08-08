@@ -9,6 +9,10 @@ using Plantitask.Core.Validation;
 
 namespace Plantitask.Infrastructure.Services;
 
+/// <summary>
+/// The caller's own profile: reading it, editing names and managing the profile picture.
+/// Everything here is self-scoped - the userId always comes from the JWT, never from input.
+/// </summary>
 public class UserProfileService : IUserProfileService
 {
     private readonly IApplicationDbContext _context;
@@ -28,6 +32,7 @@ public class UserProfileService : IUserProfileService
         _logger = logger;
     }
 
+    /// <summary>The caller's profile through the shared projection.</summary>
     public async Task<Result<UserProfileDto>> GetProfileAsync(Guid userId)
     {
         var profile = await _context.Users
@@ -41,6 +46,11 @@ public class UserProfileService : IUserProfileService
         return profile;
     }
 
+    /// <summary>
+    /// Updates username and names. Usernames are case sensitive by decision, so the rename
+    /// check is Ordinal, and the unique index is the real guard - the availability check just
+    /// gives a nicer error, and the DbUpdateException catch handles the race it cannot close.
+    /// </summary>
     public async Task<Result<UserProfileDto>> UpdateProfileAsync(Guid userId, UpdateUserProfileDto dto)
     {
         var user = await _context.Users.FindAsync(userId);
@@ -87,6 +97,11 @@ public class UserProfileService : IUserProfileService
         return MapToDto(user);
     }
 
+    /// <summary>
+    /// Validates and stores a new profile picture, then cleans up the old one after the commit.
+    /// The DB write comes first so a failed cleanup can never leave the profile pointing at a
+    /// deleted file.
+    /// </summary>
     public async Task<Result<string>> UploadProfilePictureAsync(
         Guid userId, Stream fileStream, string fileName)
     {
@@ -115,6 +130,10 @@ public class UserProfileService : IUserProfileService
         return user.ProfilePicturePath!;
     }
 
+    /// <summary>
+    /// Clears the profile picture, committing the null first and deleting the stored file
+    /// best-effort afterwards - same ordering as the upload path.
+    /// </summary>
     public async Task<Result> RemoveProfilePictureAsync(Guid userId)
     {
         var user = await _context.Users.FindAsync(userId);
@@ -158,6 +177,7 @@ public class UserProfileService : IUserProfileService
         }
     }
 
+    /// <summary>In-memory twin of the profile projection, for responses built from a tracked entity.</summary>
     private static UserProfileDto MapToDto(User user)
     {
         return new UserProfileDto

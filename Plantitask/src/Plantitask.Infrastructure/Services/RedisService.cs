@@ -6,6 +6,11 @@ using Plantitask.Core.Models;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Redis-backed storage for refresh tokens and email verification codes. Tokens are keyed
+    /// by their SHA-256 hash - the plaintext never reaches Redis - and a per-user set makes
+    /// revoke-all possible without scanning keys.
+    /// </summary>
     public class RedisService : IRedisService
     {
 
@@ -21,6 +26,7 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
+        /// <summary>Looks a token up by hash; null means unknown or already expired out of Redis.</summary>
         public async Task<RefreshTokenModel?> GetRefreshTokenAsync(string tokenHash)
         {
                 var key = GetRefreshTokenKey(tokenHash);
@@ -34,6 +40,11 @@ namespace Plantitask.Infrastructure.Services
                 return JsonSerializer.Deserialize<RefreshTokenModel>(json.ToString());
         }
 
+        /// <summary>
+        /// Stores a token under its hash and adds the hash to the owner's token set. The set's
+        /// TTL is pushed out to match the newest token, so it lives exactly as long as the
+        /// longest-lived token in it.
+        /// </summary>
         public async Task SetRefreshTokenAsync(string tokenHash, RefreshTokenModel model, TimeSpan expiration)
         {
                 var key = GetRefreshTokenKey(tokenHash);
@@ -47,6 +58,10 @@ namespace Plantitask.Infrastructure.Services
             
         }
 
+        /// <summary>
+        /// Kills every session the user has: deletes each token in their set, then the set
+        /// itself. Called on credential changes and on refresh-token replay.
+        /// </summary>
         public async Task RevokeAllUserTokensAsync(Guid userId)
         {
                 var userTokensKey = GetUserTokensKey(userId);
@@ -63,6 +78,10 @@ namespace Plantitask.Infrastructure.Services
                 _logger.LogDebug("Revoked all refresh tokens for user {UserId}", userId);
         }
 
+        /// <summary>
+        /// Flags a rotated token as revoked while preserving its remaining TTL. Keeping the dead
+        /// token around is the point - its reappearance later is how replay gets detected.
+        /// </summary>
         public async Task MarkRefreshTokenRevokedAsync(string tokenHash)
         {
             var key = GetRefreshTokenKey(tokenHash);
@@ -75,6 +94,10 @@ namespace Plantitask.Infrastructure.Services
             await _db.StringSetAsync(key, JsonSerializer.Serialize(model), remainingTtl);
             _logger.LogDebug("Marked refresh token revoked for user {UserId}", model.UserId);
         }
+        /// <summary>
+        /// Removes a token completely - logout only. Rotation goes through
+        /// <see cref="MarkRefreshTokenRevokedAsync"/> instead so replay stays detectable.
+        /// </summary>
         public async Task DeleteRefreshTokenAsync(string tokenHash)
         {
             var model = await GetRefreshTokenAsync(tokenHash);
@@ -86,6 +109,10 @@ namespace Plantitask.Infrastructure.Services
             }
         }
 
+        /// <summary>
+        /// Stores a verification code's BCrypt hash in a per-email Redis hash with a TTL. The
+        /// hash also carries CreatedAt (for resend throttling) and the IsUsed flag.
+        /// </summary>
         public async Task StoreVerificationCodeAsync(string email, string codeHash, TimeSpan expiration)
         {
             var key = $"verification:{email.ToLower()}";
@@ -104,6 +131,10 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
+        /// <summary>
+        /// The stored code hash, or null when there is none or the code was already used - a
+        /// used code must verify exactly like a missing one.
+        /// </summary>
         public async Task<string?> GetVerificationCodeHashAsync(string email)
         {
             var key = $"verification:{email.ToLower()}";
@@ -119,6 +150,10 @@ namespace Plantitask.Infrastructure.Services
             return values[1].ToString();
         }
 
+        /// <summary>
+        /// Flips IsUsed after a successful verification, which is what
+        /// <see cref="IsEmailVerifiedAsync"/> reads during registration.
+        /// </summary>
         public async Task MarkVerificationCodeUsedAsync(string email)
         {
             var key = $"verification:{email.ToLower()}";
@@ -132,6 +167,10 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("Verification code marked as used for {Email}", email);
         }
 
+        /// <summary>
+        /// Whether this email passed code verification recently. "Used" means verified here, and
+        /// the answer expires with the Redis key - verification is a window, not a permanent fact.
+        /// </summary>
         public async Task<bool> IsEmailVerifiedAsync(string email)
         {
             var key = $"verification:{email.ToLower()}";
@@ -143,6 +182,7 @@ namespace Plantitask.Infrastructure.Services
             return string.Equals(value.ToString(), "true", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>When the current code was issued - feeds the one-minute resend throttle.</summary>
         public async Task<DateTime?> GetVerificationCodeCreatedAtAsync(string email)
         {
             var key = $"verification:{email.ToLower()}";

@@ -8,6 +8,10 @@ using Plantitask.Core.Models;
 
 namespace Plantitask.Infrastructure.Services.Email
 {
+    /// <summary>
+    /// Sends through SendGrid's API. A rejected send throws EmailSendException so callers can
+    /// decide whether that particular email was best-effort or a real failure.
+    /// </summary>
     public class SendGridEmailSender : IEmailSender
     {
         private readonly EmailSettings _settings;
@@ -21,6 +25,7 @@ namespace Plantitask.Infrastructure.Services.Email
             _client = new SendGridClient(_settings.SendGridApiKey);
         }
 
+        /// <summary>One HTML email out; non-success responses are logged with the body and rethrown as EmailSendException.</summary>
         public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
         {
             var from = new EmailAddress(_settings.FromEmail, _settings.FromName);

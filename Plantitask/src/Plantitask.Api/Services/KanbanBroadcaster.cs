@@ -5,6 +5,12 @@ using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Services
 {
+    /// <summary>
+    /// Pushes board changes into the "kanban-{groupId}" SignalR room. No per-user checks here
+    /// on purpose - KanbanHub verifies membership before anyone joins the room, so the room
+    /// itself is the tenant boundary. Every event carries the acting user's id so clients can
+    /// ignore their own echoes.
+    /// </summary>
     public class KanbanBroadcaster : IKanbanBroadcaster
     {
         private readonly IHubContext<KanbanHub> _hubContext;
@@ -14,6 +20,7 @@ namespace Plantitask.Api.Services
             _hubContext = hubContext;
         }
 
+        /// <summary>A drag landed: old and new column plus the new position, typed as a shared event.</summary>
         public async Task BroadcastTaskMovedAsync(Guid groupId, Guid taskId, int oldStatusId, MoveTaskDto moveDto, Guid movedByUserId)
         {
             await _hubContext.Clients
@@ -28,6 +35,7 @@ namespace Plantitask.Api.Services
                 });
         }
 
+        /// <summary>A new card appeared in a column; clients fetch the details themselves.</summary>
         public async Task BroadcastTaskCreatedAsync(Guid groupId, Guid taskId, int statusId, Guid createdByUserId)
         {
             await _hubContext.Clients
@@ -40,6 +48,7 @@ namespace Plantitask.Api.Services
                 });
         }
 
+        /// <summary>A card left the board, with the column it vacated so clients can close the gap.</summary>
         public async Task BroadcastTaskDeletedAsync(Guid groupId, Guid taskId, int statusId, Guid deletedByUserId)
         {
             await _hubContext.Clients
@@ -52,6 +61,7 @@ namespace Plantitask.Api.Services
                 });
         }
 
+        /// <summary>A card's contents changed; carries only the id so clients re-read what they show.</summary>
         public async Task BroadcastTaskUpdatedAsync(Guid groupId, Guid taskId, Guid updatedByUserId)
         {
             await _hubContext.Clients

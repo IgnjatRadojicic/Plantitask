@@ -8,6 +8,11 @@ using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Infrastructure.Services.Storage;
 
+/// <summary>
+/// Azure Blob twin of the local storage service, for real deployments. Same contract, same
+/// server-generated names; the container is created private so nothing is ever reachable
+/// without going through the API.
+/// </summary>
 public class AzureBlobStorageService : IFileStorageService
 {
     private readonly AzureBlobStorageSettings _blobSettings;
@@ -38,6 +43,11 @@ public class AzureBlobStorageService : IFileStorageService
             "Azure Blob Storage initialized with container '{Container}'", containerName);
     }
 
+    /// <summary>
+    /// Uploads under a fresh Guid name with the server-derived content type. The IfNoneMatch
+    /// condition is the blob equivalent of FileMode.CreateNew - a name collision fails instead
+    /// of overwriting.
+    /// </summary>
     public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, string folder)
     {
         // Size/extension/content validation is the caller's job (FileUploadRules) so failures
@@ -59,6 +69,10 @@ public class AzureBlobStorageService : IFileStorageService
     }
     
 
+    /// <summary>
+    /// Streams a blob without buffering it in memory. Missing blobs throw for the same reason
+    /// the local service throws - today a row always implies a file.
+    /// </summary>
     public async Task<Stream> DownloadFileAsync(string storagePath)
     {
         var blobClient = _containerClient.GetBlobClient(storagePath);
@@ -71,6 +85,7 @@ public class AzureBlobStorageService : IFileStorageService
         return response.Value.Content;
     }
 
+    /// <summary>Deletes the blob and its snapshots, logging a warning when it was already gone.</summary>
     public async Task DeleteFileAsync(string storagePath)
     {
         var blobClient = _containerClient.GetBlobClient(storagePath);
@@ -82,6 +97,7 @@ public class AzureBlobStorageService : IFileStorageService
             _logger.LogWarning("Blob '{BlobName}' not found for deletion", storagePath);
     }
 
+    /// <summary>Whether the stored key still has a blob behind it.</summary>
     public async Task<bool> FileExistsAsync(string storagePath)
     {
         var blobClient = _containerClient.GetBlobClient(storagePath);
@@ -89,6 +105,10 @@ public class AzureBlobStorageService : IFileStorageService
         return response.Value;
     }
 
+    /// <summary>
+    /// Public URL for public-by-design content, preferring the configured CDN base when set.
+    /// Group-scoped files never use this - they stream through the authorized endpoint.
+    /// </summary>
     public string GetFileUrl(string storagePath)
     {
         if (!string.IsNullOrWhiteSpace(_blobSettings.BaseUrl))

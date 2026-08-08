@@ -6,6 +6,11 @@ using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Thin wrapper around Hangfire scheduling so services depend on an interface instead of
+    /// static Hangfire calls. Owns the recurring job registrations and the one-off due-soon
+    /// reminders.
+    /// </summary>
     public class BackgroundJobService : IBackgroundJobService
     {
         private readonly ILogger<BackgroundJobService> _logger;
@@ -17,6 +22,10 @@ namespace Plantitask.Infrastructure.Services
             _notificationService = notificationService;
         }
 
+        /// <summary>
+        /// Deletes a scheduled job by id, quietly accepting null or empty so callers can pass
+        /// whatever DueSoonJobId happens to hold.
+        /// </summary>
         public void CancelScheduledJob(string jobId)
         {
             if (string.IsNullOrEmpty(jobId))
@@ -26,6 +35,11 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("Cancelled scheduled job {JobId}", jobId);
         }
 
+        /// <summary>
+        /// Schedules the due-soon reminder at the assignee's preferred offset before the due
+        /// date. Returns the Hangfire JobId for the task row to keep (that is what makes
+        /// cancel-on-change possible), or null when the reminder time is already in the past.
+        /// </summary>
         public async Task<string?> ScheduleTaskDueSoonNotification(Guid taskId, Guid userId, DateTime dueDate)
         {
             int hours = await _notificationService.GetReminderHoursBeforeAsync(userId);
@@ -55,6 +69,11 @@ namespace Plantitask.Infrastructure.Services
             return jobId;
         }
 
+        /// <summary>
+        /// Registers the three recurring jobs at startup: overdue check (daily 00:00 UTC),
+        /// one-time premium expiry (daily 01:00 UTC) and notification cleanup (weekly Sunday
+        /// 02:00 UTC). AddOrUpdate makes this idempotent across restarts.
+        /// </summary>
         public void SetupRecurringJobs()
         {
             RecurringJob.AddOrUpdate<NotificationBackgroundJob>(
@@ -76,6 +95,7 @@ namespace Plantitask.Infrastructure.Services
                 "Recurring jobs configured: check-overdue-tasks (daily 00:00 UTC), expire-onetime-premium (daily 01:00 UTC), cleanup-old-notifications (weekly Sun 02:00 UTC)");
         }
 
+        /// <summary>Runs the overdue digest immediately instead of waiting for midnight - a dev and support lever.</summary>
         public void TriggerOverdueCheck()
         {
             BackgroundJob.Enqueue<NotificationBackgroundJob>(job => job.CheckOverdueTasksAndNotify());

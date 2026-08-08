@@ -9,6 +9,11 @@ using Plantitask.Core.Projections;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// The Hangfire side of notifications: scheduled due-soon reminders, the daily overdue
+    /// digest and retention cleanup. Every job here is written to be retried - Hangfire will
+    /// re-run them on failure, so each one has to be safe to run twice.
+    /// </summary>
     public class NotificationBackgroundJob
     {
         private const int WorstTasksInDigestEmail = 2;
@@ -32,6 +37,12 @@ namespace Plantitask.Infrastructure.Services
             _notificationService = notificationService;
         }
 
+        /// <summary>
+        /// Fires at the scheduled reminder time. Re-checks the world before sending - the task
+        /// may have been completed, unassigned or deleted since scheduling - and treats each of
+        /// those as a quiet skip, not an error. The notification commits first; the email is
+        /// best effort after it.
+        /// </summary>
         [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 3600 })]
         public async Task SendTaskDueSoonNotification(Guid taskId)
         {
@@ -97,6 +108,12 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
+        /// <summary>
+        /// The daily overdue digest: one notification and one email per user, no matter how many
+        /// tasks are overdue. The NotificationDigestLogs table is what makes reruns safe - a user
+        /// already digested today is skipped, so a retry cannot double-send. Notifications and
+        /// digest markers commit together; emails go out afterwards, each in its own try.
+        /// </summary>
         [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 3600 })]
         [DisableConcurrentExecution(timeoutInSeconds: 300)]
         public async Task CheckOverdueTasksAndNotify()
@@ -202,6 +219,10 @@ namespace Plantitask.Infrastructure.Services
             _logger.LogInformation("Sent overdue digests to {Count} users", digests.Count);
         }
 
+        /// <summary>
+        /// One task gets a specific sentence with the day count; more than one collapses to a
+        /// total, because the notification row has no room for a list.
+        /// </summary>
         private static string BuildDigestMessage(IReadOnlyList<OverdueTaskLine> tasks)
         {
             if (tasks.Count == 1)
@@ -220,6 +241,11 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
+        /// <summary>
+        /// Weekly retention: soft-deletes notifications read more than 30 days ago and hard
+        /// deletes digest log rows past their window. Both are set-based statements, and the
+        /// soft delete stamps UpdatedAt by hand since ExecuteUpdate bypasses the override.
+        /// </summary>
         [AutomaticRetry(Attempts = 2)]
         public async Task CleanupOldNotifications()
         {

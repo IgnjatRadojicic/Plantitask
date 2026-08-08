@@ -10,6 +10,12 @@ using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Infrastructure.Services
 {
+    /// <summary>
+    /// Writes and reads the audit trail. Deliberately uses IDbContextFactory instead of the
+    /// request-scoped context: audit writes must not depend on whatever state the request's
+    /// tracked context is in, and LogAsync often runs after the mutation already saved.
+    /// The three read methods are unreachable today - see the warnings on each.
+    /// </summary>
     public class AuditService : IAuditService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _factory;
@@ -26,6 +32,11 @@ namespace Plantitask.Infrastructure.Services
             _logger = logger;
         }
 
+        /// <summary>
+        /// Appends one audit row on its own short-lived context. Failures are logged and
+        /// swallowed by policy: an audit hiccup must never fail the user's mutation. The
+        /// structural fix for silent loss is the planned outbox.
+        /// </summary>
         public async Task LogAsync(CreateAuditLogRequest request)
         {
 
@@ -66,6 +77,12 @@ namespace Plantitask.Infrastructure.Services
             }
         }
 
+        /// <summary>
+        /// History of a single entity. WARNING: the authorization switch default-allows unknown
+        /// entity types, which is why every AuditController route is closed with [NonAction].
+        /// Do not reopen the route before the winter-2026 rework inverts the default to deny
+        /// (docs/winter-2026/auditlog.md carries the plan).
+        /// </summary>
         public async Task<Result<List<AuditLogDto>>> GetEntityHistoryAsync(string entityType, Guid entityId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50)
         {
             await using var context = await _factory.CreateDbContextAsync();
@@ -91,6 +108,10 @@ namespace Plantitask.Infrastructure.Services
             return logs;
         }
 
+        /// <summary>
+        /// Everything that happened in one group, membership-checked. Unreachable until the
+        /// winter-2026 audit rework reopens the routes.
+        /// </summary>
         public async Task<Result<List<AuditLogDto>>> GetGroupHistoryAsync(Guid groupId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50)
         {
             await using var context = await _factory.CreateDbContextAsync();
@@ -111,6 +132,11 @@ namespace Plantitask.Infrastructure.Services
             return logs;
         }
 
+        /// <summary>
+        /// One user's actions as seen by the requester. WARNING: the GroupId == null clause
+        /// exposes group-less events (logins, with IP and user agent) for any target user, so
+        /// this stays behind [NonAction] until the winter-2026 rework makes those self-only.
+        /// </summary>
         public async Task<Result<List<AuditLogDto>>> GetUserHistoryAsync(Guid userId, Guid requestingUserId, int pageNumber = 1, int pageSize = 50)
         {
             await using var context = await _factory.CreateDbContextAsync();
@@ -133,6 +159,11 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
+        /// <summary>
+        /// Maps an entity type to the group that owns it. The null default arm is the known
+        /// default-allow hole from audit-service.md A; it survives only because the callers are
+        /// unreachable, and the rework replaces it with a denying default.
+        /// </summary>
         private static async Task<Guid?> GetEntityGroupIdAsync(ApplicationDbContext context, string entityType, Guid entityId)
         {
             return entityType switch

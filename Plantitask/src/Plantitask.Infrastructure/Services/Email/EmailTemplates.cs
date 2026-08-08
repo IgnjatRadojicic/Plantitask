@@ -3,8 +3,18 @@ using Plantitask.Core.DTO.Tasks;
 
 namespace Plantitask.Infrastructure.Services.Email
 {
+    /// <summary>
+    /// The HTML bodies for every outbound email. One rule holds everywhere in this file: any
+    /// user-controlled string is HtmlEncoded at the point it enters the markup - names, titles,
+    /// comments, links, all of it. New templates must keep that rule or they open an injection
+    /// path straight into people's inboxes.
+    /// </summary>
     public static class EmailTemplates
     {
+        /// <summary>
+        /// The shared shell: header with logo, content slot, footer. Inline styles and the mso
+        /// conditional tables exist because Outlook ignores a style block.
+        /// </summary>
         private static string BaseTemplate(string content)
         {
             var logoUrl = "https://raw.githubusercontent.com/IgnjatRadojicic/Plantitask/main/Plantitask/logo.png";
@@ -143,6 +153,7 @@ namespace Plantitask.Infrastructure.Services.Email
 </html>";
         }
 
+        /// <summary>Greets a new account, whether it came from registration or Google SSO.</summary>
         public static string Welcome(string displayName)
         {
             return BaseTemplate($@"
@@ -151,6 +162,7 @@ namespace Plantitask.Infrastructure.Services.Email
                 <p>Get started by creating your first group or joining an existing one.</p>");
         }
 
+        /// <summary>Carries the one-hour reset link; the link is encoded like any other input.</summary>
         public static string PasswordReset(string userName, string resetLink)
         {
             return BaseTemplate($@"
@@ -167,6 +179,7 @@ namespace Plantitask.Infrastructure.Services.Email
                 <p>If you didn't request this, you can safely ignore this email. Your password will remain unchanged.</p>");
         }
 
+        /// <summary>Tells someone they were assigned a task and by whom.</summary>
         public static string TaskAssignment(string userName, string taskTitle, string groupName, string assignedBy)
         {
             return BaseTemplate($@"
@@ -179,6 +192,7 @@ namespace Plantitask.Infrastructure.Services.Email
                 <p>Log in to view the details and start working on it.</p>");
         }
 
+        /// <summary>An invitation carrying the group's join code in the code box.</summary>
         public static string GroupInvitation(string inviterName, string groupName, string groupCode)
         {
             return BaseTemplate($@"
@@ -191,6 +205,7 @@ namespace Plantitask.Infrastructure.Services.Email
                 <p>Log in to your account and enter this code to join the group.</p>");
         }
 
+        /// <summary>Shows the assignee a new comment - the comment body is user input, hence encoded.</summary>
         public static string TaskComment(string userName, string commenterName, string taskTitle, string commentText)
         {
             return BaseTemplate($@"
@@ -202,6 +217,7 @@ namespace Plantitask.Infrastructure.Services.Email
                 </div>");
         }
 
+        /// <summary>The scheduled reminder that a task's due date is approaching.</summary>
         public static string TaskDueSoon(string userName, string taskTitle, DateTime dueDate)
         {
             return BaseTemplate($@"
@@ -214,6 +230,10 @@ namespace Plantitask.Infrastructure.Services.Email
                 <p>Log in to check the details and make sure it's on track.</p>");
         }
 
+        /// <summary>
+        /// The daily digest: total overdue count plus the worst offenders, capped by the caller
+        /// so the email stays short no matter how bad the backlog is.
+        /// </summary>
         public static string TaskOverdueDigest(string userName, int overdueCount, IReadOnlyList<OverdueTaskLine> worstTasks)
         {
             var lines = string.Join("", worstTasks.Select(t =>
@@ -246,6 +266,7 @@ namespace Plantitask.Infrastructure.Services.Email
             return daysOverdue == 1 ? "1 day overdue" : $"{daysOverdue} days overdue";
         }
 
+        /// <summary>The six-digit verification code, displayed large in the code box.</summary>
         public static string EmailVerification(string userName, string code)
         {
             return BaseTemplate($@"
