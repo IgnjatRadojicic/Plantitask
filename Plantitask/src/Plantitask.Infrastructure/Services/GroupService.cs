@@ -118,6 +118,8 @@ namespace Plantitask.Infrastructure.Services
                 return Error.BadRequest("This group is no longer active");
 
 
+            // IgnoreQueryFilters: a previously removed membership is soft-deleted and the restore
+            // branch below needs to find it.
             var existingMember = await _context.GroupMembers
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(gm => gm.GroupId == groupData.Id && gm.UserId == userId);
