@@ -316,6 +316,11 @@ namespace Plantitask.Infrastructure.Services
         }
 
 
+        /// <summary>
+        /// INTERNAL: no authorization. Only callable from TreeProgressBroadcaster, which emits
+        /// into the membership-gated "group_{id}" room. Never expose via a controller without
+        /// adding a membership check.
+        /// </summary>
         public async Task<Result<FieldTreeDto>> GetGroupTreeProgressAsync(Guid groupId)
         {
             var groupName = await _context.Groups
