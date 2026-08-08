@@ -584,11 +584,25 @@ namespace Plantitask.Infrastructure.Services
                     if (task == null)
                         return Error.NotFound("Task not found");
 
-                    if (!await _groupService.IsUserMemberAsync(task.GroupId, userId))
+                    var callerRole = await _groupService.GetUserRoleAsync(task.GroupId, userId);
+
+                    if (callerRole == null)
                         return Error.Forbidden("You don't have permission to move tasks");
 
                     var oldStatusId = task.StatusId;
                     var oldDisplayOrder = task.DisplayOrder;
+
+                    // A cross column drag is a status change so it answers to the same rule as
+                    // ChangeTaskStatusAsync. Reordering inside a column stays open to members.
+                    if (oldStatusId != moveDto.NewStatusId)
+                    {
+                        var canChangeStatus = callerRole >= GroupRole.TeamLead
+                            || task.AssignedToId == userId
+                            || task.CreatedBy == userId;
+
+                        if (!canChangeStatus)
+                            return Error.Forbidden("You don't have permission to change this task's status");
+                    }
 
                     if (oldStatusId == moveDto.NewStatusId)
                     {
