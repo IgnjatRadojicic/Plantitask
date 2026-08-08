@@ -562,7 +562,7 @@ namespace Plantitask.Infrastructure.Services
 
         private async Task<string> GenerateUniqueGroupCode()
         {
-            for (int attemp = 0; attempt < 5; attempt++)
+            for (int attempt = 0; attempt < 5; attempt++)
             {
                 var code = _codeGenerator.Generate();
                 if (!await _context.Groups.AnyAsync(g => g.GroupCode == code))
