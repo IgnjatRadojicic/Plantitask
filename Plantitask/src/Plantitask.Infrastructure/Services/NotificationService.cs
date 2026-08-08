@@ -336,6 +336,15 @@ public class NotificationService : INotificationService
 
     public async Task<Result> SaveUserPreferencesAsync(Guid userId, UpdateNotificationPreferencesDto dto)
     {
+        foreach (var item in dto.Preferences)
+        {
+            if (!Enum.IsDefined(item.Type))
+                return Error.BadRequest("Unknown notification type");
+
+            if (item.ReminderHoursBefore is < 1 or > 168)
+                return Error.Validation("Reminder hours must be between 1 and 168");
+        }
+
         var types = dto.Preferences.Select(p => p.Type).ToList();
 
         var existingPreferences = await _context.NotificationPreferences
