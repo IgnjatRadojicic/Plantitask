@@ -6,7 +6,6 @@ using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Projections;
-using System.Linq;
 
 namespace Plantitask.Infrastructure.Services
 {

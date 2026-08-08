@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Pipelines.Sockets.Unofficial.Arenas;
 using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Kanban;
 using Plantitask.Core.DTO.Tasks;
@@ -10,8 +9,6 @@ using Plantitask.Core.Projections;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
-
 
 namespace Plantitask.Infrastructure.Services
 {
