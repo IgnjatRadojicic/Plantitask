@@ -13,11 +13,16 @@ namespace Plantitask.Infrastructure.Services
     public class DashboardService : IDashboardService
     {
         private readonly IApplicationDbContext _context;
+        private readonly IGroupService _groupService;
         private readonly ILogger<DashboardService> _logger;
 
-        public DashboardService(IApplicationDbContext context, ILogger<DashboardService> logger)
+        public DashboardService(
+            IApplicationDbContext context,
+            IGroupService groupService,
+            ILogger<DashboardService> logger)
         {
             _context = context;
+            _groupService = groupService;
             _logger = logger;
         }
 
@@ -180,10 +185,7 @@ namespace Plantitask.Infrastructure.Services
 
         public async Task<Result<GroupStatisticsDto>> GetGroupStatisticsAsync(Guid groupId, Guid userId)
         {
-            var membership = await _context.GroupMembers
-                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
-
-            if (membership == null)
+            if (!await _groupService.IsUserMemberAsync(groupId, userId))
                 return Error.Forbidden("You must be a member of this group");
 
             var groupName = await _context.Groups
