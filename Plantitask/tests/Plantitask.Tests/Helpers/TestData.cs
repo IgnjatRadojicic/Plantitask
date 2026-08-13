@@ -18,6 +18,9 @@ namespace Plantitask.Tests.Helpers
 
         public static readonly Guid GroupId = new("11111111-0000-0000-0000-000000000001");
         public static readonly Guid OtherGroupId = new("11111111-0000-0000-0000-000000000002");
+
+        /// <summary>The task a test seeds when it only needs one and wants to name it later.</summary>
+        public static readonly Guid TaskId = new("dddddddd-0000-0000-0000-000000000001");
     }
 
     /// <summary>

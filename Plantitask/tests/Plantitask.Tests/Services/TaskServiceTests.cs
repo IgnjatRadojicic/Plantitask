@@ -18,7 +18,6 @@ namespace Plantitask.Tests.Services
 {
     public class TaskServiceTests : DbTestBase
     {
-        private static readonly Guid TaskId = Guid.Parse("dddddddd-0000-0000-0000-000000000001");
 
         private readonly Mock<IBackgroundJobService> _jobs = new();
 

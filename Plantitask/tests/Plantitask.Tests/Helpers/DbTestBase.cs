@@ -1,4 +1,5 @@
-﻿using Plantitask.Infrastructure.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Tests.Helpers
 {
@@ -17,6 +18,10 @@ namespace Plantitask.Tests.Helpers
         protected DbTestBase(PostgresFixture fixture) => _fixture = fixture;
 
         protected ApplicationDbContext NewContext() => _fixture.NewContext();
+
+        /// <summary>For the services that take IDbContextFactory rather than a context.</summary>
+        protected IDbContextFactory<ApplicationDbContext> ContextFactory
+            => new TestDbContextFactory(_fixture.Options);
 
         public Task InitializeAsync() => _fixture.ResetAsync();
 
