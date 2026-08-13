@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Plantitask.Core.Common.Interfaces;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
 using Plantitask.Infrastructure.Data;
@@ -105,6 +106,19 @@ namespace Plantitask.Tests.Helpers
 
             await db.SaveChangesAsync();
         }
+
+        /// <summary>
+        /// Rewrites a row's CreatedAt after the fact. Necessary because the SaveChangesAsync
+        /// override stamps every Added IEntity with UtcNow, so a historical timestamp cannot be
+        /// seeded directly and without distinct timestamps an "ordered newest first" assertion
+        /// is a coin flip, since DateTime.UtcNow barely moves between two inserts.
+        /// ExecuteUpdate bypasses the change tracker and therefore the override.
+        /// </summary>
+        public static Task BackdateAsync<T>(
+            this ApplicationDbContext db, Guid id, DateTime createdAt) where T : class, IEntity
+            => db.Set<T>()
+                .Where(e => e.Id == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.CreatedAt, createdAt));
 
         /// <summary>
         /// Repoints an existing membership at another role. Rank boundary theories use this

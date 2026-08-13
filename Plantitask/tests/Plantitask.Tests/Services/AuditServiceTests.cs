@@ -14,6 +14,8 @@ namespace Plantitask.Tests.Services
 {
     public class AuditServiceTests : DbTestBase
     {
+        private static readonly Guid TaskId = Guid.Parse("dddddddd-0000-0000-0000-000000000001");
+
         public AuditServiceTests(PostgresFixture fixture) : base(fixture) { }
 
         /// <summary>
@@ -95,18 +97,12 @@ namespace Plantitask.Tests.Services
 
             // A historical CreatedAt cannot be seeded through SaveChangesAsync: the override in
             // ApplicationDbContext overwrites it with UtcNow on every Added IEntity. ExecuteUpdate
-            // bypasses the change tracker and therefore the override, so it goes in afterwards.
+            // bypasses the change tracker and therefore the override, so it goes in afterwards
             if (createdAt.HasValue)
-            {
-                await db.AuditLogs
-                    .Where(a => a.Id == log.Id)
-                    .ExecuteUpdateAsync(s => s.SetProperty(a => a.CreatedAt, createdAt.Value));
-            }
+                await db.BackdateAsync<AuditLog>(log.Id, createdAt.Value);
         }
 
-        // =====================================================================
-        // LogAsync
-        // =====================================================================
+
 
         [Fact]
         public async Task LogAsync_WritesEveryFieldOfTheRequest()
@@ -172,9 +168,9 @@ namespace Plantitask.Tests.Services
         }
 
         /// <summary>
-        /// The swallow is deliberate policy - an audit hiccup must never fail the user's
+        /// The swallow is deliberate policy an audit hiccup must never fail the user's
         /// mutation. A UserId with no matching row trips the foreign key, which is the cheapest
-        /// way to make the write fail for real rather than by mocking something to throw.
+        /// way to make the write fail for real rather than by mocking something to throw
         /// </summary>
         [Fact]
         public async Task LogAsync_SwallowsAFailedWriteInsteadOfThrowing()
@@ -194,8 +190,8 @@ namespace Plantitask.Tests.Services
 
         /// <summary>
         /// The reason AuditService takes IDbContextFactory at all. The audit row is written on
-        /// its own connection, so it survives the caller rolling back - an audit trail that
-        /// disappeared with the transaction it was recording would be worthless.
+        /// its own connection, so it survives the caller rolling back, an audit trail that
+        /// disappeared with the transaction it was recording would be worthless
         /// </summary>
         [Fact]
         public async Task LogAsync_WritesOnItsOwnConnectionAndSurvivesTheCallersRollback()
@@ -218,9 +214,6 @@ namespace Plantitask.Tests.Services
             Assert.Equal(1, await assert.AuditLogs.CountAsync());
         }
 
-        // =====================================================================
-        // GetGroupHistoryAsync
-        // =====================================================================
 
         [Fact]
         public async Task GetGroupHistoryAsync_WhenCallerLeadsAnotherGroup_ReturnsForbidden()
@@ -310,10 +303,6 @@ namespace Plantitask.Tests.Services
             Assert.Equal("seeded", dto.UserName);
         }
 
-        // =====================================================================
-        // GetEntityHistoryAsync
-        // =====================================================================
-
         [Theory]
         [InlineData("TaskItem")]
         [InlineData("Group")]
@@ -377,9 +366,9 @@ namespace Plantitask.Tests.Services
         /// KNOWN HOLE, pinned deliberately. GetEntityGroupIdAsync's switch default-allows any
         /// entity type it does not recognise, so no membership check runs and an outsider reads
         /// the rows. This is finding A in services/Finished/audit-service.md and the only reason
-        /// it is not exploitable today is that every AuditController route is [NonAction].
+        /// it is not exploitable today is that every AuditController route is [NonAction]
         /// When the winter-2026 rework inverts the default to deny, this test flips to asserting
-        /// Forbidden and becomes the regression guard. Do not "fix" the test on its own.
+        /// Forbidden and becomes the regression guard. Do not "fix" the test on its own
         /// </summary>
         [Fact]
         public async Task GetEntityHistoryAsync_WithAnUnrecognisedEntityType_SkipsTheMembershipCheck_KnownHole()
@@ -415,9 +404,7 @@ namespace Plantitask.Tests.Services
             Assert.Single(result.Value!);
         }
 
-        // =====================================================================
-        // GetUserHistoryAsync
-        // =====================================================================
+
 
         [Fact]
         public async Task GetUserHistoryAsync_ExcludesGroupsTheRequesterIsNotIn()
@@ -450,7 +437,7 @@ namespace Plantitask.Tests.Services
 
         /// <summary>
         /// KNOWN HOLE, pinned deliberately. The `a.GroupId == null` clause means group-less
-        /// events - logins, carrying IP address and user agent - come back for ANY target user,
+        /// events logins, carrying IP address and user agent - come back for ANY target user,
         /// including one the requester shares no group with. This is why GetUserHistoryAsync sits
         /// behind [NonAction]. The winter-2026 rework makes group-less rows self-only, at which
         /// point this test flips to asserting the row is absent.
