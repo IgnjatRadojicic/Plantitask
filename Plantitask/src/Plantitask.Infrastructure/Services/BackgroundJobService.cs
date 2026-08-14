@@ -13,11 +13,19 @@ namespace Plantitask.Infrastructure.Services
     /// </summary>
     public class BackgroundJobService : IBackgroundJobService
     {
+        private readonly IBackgroundJobClient _jobs;
+        private readonly IRecurringJobManager _recurringJobs;
         private readonly ILogger<BackgroundJobService> _logger;
         private readonly INotificationService _notificationService;
 
-        public BackgroundJobService(ILogger<BackgroundJobService> logger, INotificationService notificationService)
+        public BackgroundJobService(
+            IBackgroundJobClient jobs,
+            IRecurringJobManager recurringJobs,
+            ILogger<BackgroundJobService> logger,
+            INotificationService notificationService)
         {
+            _jobs = jobs;
+            _recurringJobs = recurringJobs;
             _logger = logger;
             _notificationService = notificationService;
         }
@@ -31,7 +39,7 @@ namespace Plantitask.Infrastructure.Services
             if (string.IsNullOrEmpty(jobId))
                 return;
 
-            BackgroundJob.Delete(jobId);
+            _jobs.Delete(jobId);
             _logger.LogInformation("Cancelled scheduled job {JobId}", jobId);
         }
 
@@ -59,7 +67,7 @@ namespace Plantitask.Infrastructure.Services
                 return null;
             }
 
-            var jobId = BackgroundJob.Schedule<NotificationBackgroundJob>(
+            var jobId = _jobs.Schedule<NotificationBackgroundJob>(
                 job => job.SendTaskDueSoonNotification(taskId),
                 reminderTime);
 
@@ -76,17 +84,17 @@ namespace Plantitask.Infrastructure.Services
         /// </summary>
         public void SetupRecurringJobs()
         {
-            RecurringJob.AddOrUpdate<NotificationBackgroundJob>(
+            _recurringJobs.AddOrUpdate<NotificationBackgroundJob>(
                 "check-overdue-tasks",
                 job => job.CheckOverdueTasksAndNotify(),
                 Cron.Daily(hour: 0, minute: 0));
 
-            RecurringJob.AddOrUpdate<NotificationBackgroundJob>(
+            _recurringJobs.AddOrUpdate<NotificationBackgroundJob>(
             "cleanup-old-notifications",
             job => job.CleanupOldNotifications(),
             Cron.Weekly(DayOfWeek.Sunday, hour: 2, minute: 0));
 
-            RecurringJob.AddOrUpdate<PremiumBackgroundJob>(
+            _recurringJobs.AddOrUpdate<PremiumBackgroundJob>(
                 "expire-onetime-premium",
                 job => job.ExpireOneTimePremiumAsync(),
                 Cron.Daily(hour: 1, minute: 0));
@@ -98,7 +106,7 @@ namespace Plantitask.Infrastructure.Services
         /// <summary>Runs the overdue digest immediately instead of waiting for midnight - a dev and support lever.</summary>
         public void TriggerOverdueCheck()
         {
-            BackgroundJob.Enqueue<NotificationBackgroundJob>(job => job.CheckOverdueTasksAndNotify());
+            _jobs.Enqueue<NotificationBackgroundJob>(job => job.CheckOverdueTasksAndNotify());
             _logger.LogInformation("Manually triggered overdue check");
 
 
