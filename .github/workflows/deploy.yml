@@ -25,6 +25,54 @@ jobs:
           cd /home/dragonshield/Plantitask/Plantitask
           docker compose build
 
+      # Throwaway datastores for the suite. Published on loopback-only, non-standard
+      # ports so a bad connection string cannot reach the production Postgres on 5432
+      # or Redis on 6391 - the tests DROP DATABASE and FLUSHDB by design.
+      - name: Start test datastores
+        run: |
+          docker rm -f plantitask-test-pg plantitask-test-redis 2>/dev/null || true
+
+          docker run -d --name plantitask-test-pg \
+            -e POSTGRES_PASSWORD=plantitask_test_pw \
+            -p 127.0.0.1:55432:5432 \
+            postgres:16-alpine
+
+          docker run -d --name plantitask-test-redis \
+            -p 127.0.0.1:56379:6379 \
+            redis:7-alpine
+
+          # Postgres restarts once during init and listens on a unix socket before
+          # the TCP port opens, so probe over TCP - that is what the tests connect on.
+          for i in $(seq 1 60); do
+            if docker exec plantitask-test-pg pg_isready -h 127.0.0.1 -p 5432 -U postgres >/dev/null 2>&1; then
+              echo "postgres ready after ${i}s"; break
+            fi
+            if [ "$i" -eq 60 ]; then echo "postgres never became ready"; exit 1; fi
+            sleep 1
+          done
+
+          for i in $(seq 1 30); do
+            if [ "$(docker exec plantitask-test-redis redis-cli ping 2>/dev/null)" = "PONG" ]; then
+              echo "redis ready after ${i}s"; break
+            fi
+            if [ "$i" -eq 30 ]; then echo "redis never became ready"; exit 1; fi
+            sleep 1
+          done
+
+      # A non-zero exit fails the job here, so Deploy never runs.
+      - name: Run tests
+        env:
+          PLANTITASK_TEST_DB: "Host=127.0.0.1;Port=55432;Username=postgres;Password=plantitask_test_pw"
+          PLANTITASK_TEST_REDIS: "127.0.0.1:56379"
+        run: |
+          cd /home/dragonshield/Plantitask/Plantitask
+          dotnet test Plantitask/tests/Plantitask.Tests/Plantitask.Tests.csproj -c Release --nologo
+          
+      - name: Stop test datastores
+        if: always()
+        run: |
+          docker rm -f plantitask-test-pg plantitask-test-redis 2>/dev/null || true          
+
       - name: Deploy
         run: |
           cd /home/dragonshield/Plantitask/Plantitask
