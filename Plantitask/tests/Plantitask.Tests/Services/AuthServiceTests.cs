@@ -98,13 +98,21 @@ namespace Plantitask.Tests.Services
             };
 
         private static RefreshTokenModel StoredToken(
-            Guid userId, bool revoked = false, DateTime? expiresAt = null, string ip = "203.0.113.7") => new()
+            Guid userId,
+            bool revoked = false,
+            DateTime? expiresAt = null,
+            string ip = "203.0.113.7",
+            DateTime? revokedAt = null) => new()
             {
                 UserId = userId,
                 CreatedAt = DateTime.UtcNow.AddMinutes(-5),
                 ExpiresAt = expiresAt ?? DateTime.UtcNow.AddDays(7),
                 CreatedByIp = ip,
-                IsRevoked = revoked
+                IsRevoked = revoked,
+                // MarkRefreshTokenRevokedAsync stamps both fields on the same line, so revoked
+                // with no timestamp is a state production cannot reach. Default the stamp well
+                // outside the grace window so "revoked" keeps meaning "replayed" by default.
+                RevokedAt = revoked ? revokedAt ?? DateTime.UtcNow.AddMinutes(-5) : null
             };
 
         [Fact]
@@ -345,6 +353,81 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var result = await NewSut(act).RefreshTokenAsync("replayed");
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Unauthorized", result.Error!.Code);
+
+            _redis.Verify(r => r.RevokeAllUserTokensAsync(MemberId), Times.Once);
+        }
+
+        /// <summary>
+        /// Two tabs that got past the browser lock hand in the same token, and the loser must not
+        /// be read as a thief. Elapsed time since rotation is the only thing separating the two,
+        /// so a token revoked moments ago earns a 409 and every session stays alive.
+        /// </summary>
+        [Fact]
+        public async Task RefreshTokenAsync_InsideTheRotationGrace_ReportsAConflictAndKeepsSessions()
+        {
+            await SeedAsync();
+            _redis
+                .Setup(r => r.GetRefreshTokenAsync(It.IsAny<string>()))
+                .ReturnsAsync(StoredToken(
+                    MemberId, revoked: true, revokedAt: DateTime.UtcNow.AddSeconds(-1)));
+
+            await using var act = NewContext();
+            var result = await NewSut(act).RefreshTokenAsync("lost-the-race");
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Conflict", result.Error!.Code);
+
+            _redis.Verify(r => r.RevokeAllUserTokensAsync(It.IsAny<Guid>()), Times.Never);
+        }
+
+        /// <summary>
+        /// The grace window is a clock, not an amnesty. A token revoked longer ago than the window
+        /// is still theft's signature and still ends every session.
+        /// </summary>
+        [Fact]
+        public async Task RefreshTokenAsync_JustOutsideTheRotationGrace_StillEndsEverySession()
+        {
+            await SeedAsync();
+            _redis
+                .Setup(r => r.GetRefreshTokenAsync(It.IsAny<string>()))
+                .ReturnsAsync(StoredToken(
+                    MemberId, revoked: true, revokedAt: DateTime.UtcNow.AddSeconds(-30)));
+
+            await using var act = NewContext();
+            var result = await NewSut(act).RefreshTokenAsync("replayed-later");
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Unauthorized", result.Error!.Code);
+
+            _redis.Verify(r => r.RevokeAllUserTokensAsync(MemberId), Times.Once);
+        }
+
+        /// <summary>
+        /// A revoked token with no RevokedAt cannot be produced by the rotation path, so it is a
+        /// data anomaly. It must fail closed rather than fall into the grace branch, because an
+        /// unknown revocation time is not evidence of innocence.
+        /// </summary>
+        [Fact]
+        public async Task RefreshTokenAsync_RevokedWithNoTimestamp_FailsClosed()
+        {
+            await SeedAsync();
+            _redis
+                .Setup(r => r.GetRefreshTokenAsync(It.IsAny<string>()))
+                .ReturnsAsync(new RefreshTokenModel
+                {
+                    UserId = MemberId,
+                    CreatedAt = DateTime.UtcNow.AddMinutes(-5),
+                    ExpiresAt = DateTime.UtcNow.AddDays(7),
+                    CreatedByIp = "203.0.113.7",
+                    IsRevoked = true,
+                    RevokedAt = null
+                });
+
+            await using var act = NewContext();
+            var result = await NewSut(act).RefreshTokenAsync("anomalous");
 
             Assert.True(result.IsFailure);
             Assert.Equal("Unauthorized", result.Error!.Code);

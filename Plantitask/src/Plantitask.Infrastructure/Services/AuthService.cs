@@ -31,6 +31,11 @@ namespace Plantitask.Infrastructure.Services
         private readonly JwtSettings _jwtSettings;
         private readonly AppSettings _appSettings;
 
+        // How long after a rotation a revoked token is still read as a lost race rather than
+        // theft. Five seconds covers a round trip on bad mobile; automated exfiltration replays
+        // in milliseconds, so widening this buys an attacker far more than it buys a user.
+        private static readonly TimeSpan RotationGrace = TimeSpan.FromSeconds(5);
+
         public AuthService(
             IApplicationDbContext context,
             IPasswordHasher passwordHasher,
@@ -161,6 +166,26 @@ namespace Plantitask.Infrastructure.Services
                 return Error.Unauthorized("Invalid refresh token");
             if (tokenModel.IsRevoked)
             {
+                // Theft and a lost rotation race send the identical signal - a token that was
+                // already spent - so elapsed time is the only thing that tells them apart.
+                // MarkRefreshTokenRevokedAsync stamps RevokedAt on the same line it sets
+                // IsRevoked, so a missing stamp is a data anomaly and never a reason to forgive.
+                if (tokenModel.RevokedAt is null)
+                    _logger.LogError(
+                        "Refresh token for user {UserId} is revoked with no RevokedAt stamp",
+                        tokenModel.UserId);
+
+                var revokedAgo = DateTime.UtcNow - (tokenModel.RevokedAt ?? DateTime.MinValue);
+
+                if (revokedAgo <= RotationGrace)
+                {
+                    _logger.LogInformation(
+                        "Refresh for user {UserId} lost a rotation race by {ElapsedMs}ms",
+                        tokenModel.UserId, (int)revokedAgo.TotalMilliseconds);
+
+                    return Error.Conflict("Refresh already in progress");
+                }
+
                 _logger.LogWarning("Refresh token reuse detected for user {UserId} — revoking all sessions", tokenModel.UserId);
                 await _redisService.RevokeAllUserTokensAsync(tokenModel.UserId);
                 return Error.Unauthorized("Invalid refresh token");

@@ -73,6 +73,20 @@ namespace Plantitask.Web.Services
                     var response = await http.PostAsJsonAsync("api/auth/refresh",
                         new RefreshTokenDto { RefreshToken = refreshToken });
 
+                    // 409 means this token was rotated seconds ago by another tab that got past
+                    // the lock - a lost race, not a dead session. The winner writes the new pair
+                    // to the localStorage we share, so re-read it rather than tearing the session
+                    // down. If the winner has not landed yet, the next attempt reads its refresh
+                    // token at the top of this method and recovers on its own.
+                    if (response.StatusCode == HttpStatusCode.Conflict)
+                    {
+                        var afterRace = await GetAccessTokenAsync();
+
+                        return afterRace != tokenBeforeLock && !string.IsNullOrWhiteSpace(afterRace)
+                            ? afterRace
+                            : null;
+                    }
+
                     if (!response.IsSuccessStatusCode)
                     {
                         if (response.StatusCode is HttpStatusCode.Unauthorized
