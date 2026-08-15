@@ -34,11 +34,11 @@ jobs:
 
           docker run -d --name plantitask-test-pg \
             -e POSTGRES_PASSWORD=plantitask_test_pw \
-            -p 127.0.0.1:55432:5432 \
+            -p 127.0.0.1:15432:5432 \
             postgres:16-alpine
 
           docker run -d --name plantitask-test-redis \
-            -p 127.0.0.1:56379:6379 \
+            -p 127.0.0.1:16379:6379 \
             redis:7-alpine
 
           # Postgres restarts once during init and listens on a unix socket before
@@ -62,8 +62,8 @@ jobs:
       # A non-zero exit fails the job here, so Deploy never runs.
       - name: Run tests
         env:
-          PLANTITASK_TEST_DB: "Host=127.0.0.1;Port=55432;Username=postgres;Password=plantitask_test_pw"
-          PLANTITASK_TEST_REDIS: "127.0.0.1:56379"
+          PLANTITASK_TEST_DB: "Host=127.0.0.1;Port=15432;Username=postgres;Password=plantitask_test_pw"
+          PLANTITASK_TEST_REDIS: "127.0.0.1:16379"
         run: |
           cd /home/dragonshield/Plantitask/Plantitask
           dotnet test Plantitask/tests/Plantitask.Tests/Plantitask.Tests.csproj -c Release --nologo
