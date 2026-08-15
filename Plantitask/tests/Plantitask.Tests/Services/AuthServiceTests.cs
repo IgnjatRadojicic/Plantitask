@@ -687,6 +687,42 @@ namespace Plantitask.Tests.Services
         }
 
         /// <summary>
+        /// Clicking "forgot password" twice leaves two live links. Redeeming either one has to
+        /// kill both, or the older email is still a way into an account whose owner just proved
+        /// they had lost control of it.
+        /// </summary>
+        [Fact]
+        public async Task ResetPasswordAsync_SpendsEveryLiveTokenTheUserHolds()
+        {
+            await SeedAsync();
+            var older = await SeedResetTokenAsync(MemberId);
+            var newer = await SeedResetTokenAsync(MemberId);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ResetPasswordAsync(new ResetPasswordDto
+            {
+                Token = newer, Email = "member@example.com", NewPassword = "Br@ndNew1"
+            });
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            var stored = await assert.PasswordResetTokens.ToListAsync();
+            Assert.Equal(2, stored.Count);
+            Assert.All(stored, t => Assert.True(t.IsUsed));
+            Assert.All(stored, t => Assert.NotNull(t.UsedAt));
+
+            await using var replay = NewContext();
+            var second = await NewSut(replay).ResetPasswordAsync(new ResetPasswordDto
+            {
+                Token = older, Email = "member@example.com", NewPassword = "Different1!"
+            });
+
+            Assert.True(second.IsFailure);
+            Assert.Equal("BadRequest", second.Error!.Code);
+        }
+
+        /// <summary>
         /// A credential change ends every existing session, because anyone holding a stolen
         /// refresh token would otherwise keep it working across the reset.
         /// </summary>

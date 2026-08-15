@@ -338,9 +338,9 @@ namespace Plantitask.Infrastructure.Services
         }
 
         /// <summary>
-        /// Consumes a reset token and sets the new password. The token is single-use, and every
-        /// refresh token the user holds is revoked after the commit - a credential change ends
-        /// all existing sessions.
+        /// Consumes a reset token and sets the new password. Every live token the user holds is
+        /// spent, not just the one presented, and every refresh token is revoked after the commit
+        /// - a credential change ends all existing sessions.
         /// </summary>
         public async Task<Result<Guid>> ResetPasswordAsync(ResetPasswordDto resetPasswordDto)
         {
@@ -348,32 +348,45 @@ namespace Plantitask.Infrastructure.Services
 
             var tokenHash = TokenHasher.Sha256(resetPasswordDto.Token);
 
-            var resetToken = await _context.PasswordResetTokens
-                .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash
-                                        && !rt.IsUsed
-                                        && rt.ExpiresAt > DateTime.UtcNow);
+            var tokenUserId = await _context.PasswordResetTokens
+                .Where(rt => rt.TokenHash == tokenHash
+                          && !rt.IsUsed
+                          && rt.ExpiresAt > DateTime.UtcNow)
+                .Select(rt => (Guid?)rt.UserId)
+                .FirstOrDefaultAsync();
 
-            if (resetToken == null)
+            if (tokenUserId == null)
                 return Error.BadRequest("Invalid or expired reset token");
 
-            var user = await _context.Users.FindAsync(resetToken.UserId);
+            var userId = tokenUserId.Value;
+            var newPasswordHash = _passwordHasher.HashPassword(resetPasswordDto.NewPassword);
+            var now = DateTime.UtcNow;
 
-            if (user == null)
-                return Error.BadRequest("Invalid or expired reset token");
+            // The whole set dies, not just the token presented. Two forgot-password clicks leave
+            // two working links, and the older one is a second way into an account whose owner
+            // just proved they had lost control of it. Spending them before the password is
+            // written means a failed write leaves no usable link behind.
+            // ExecuteUpdate skips the SaveChanges override so UpdatedAt is stamped by hand.
+            await _context.PasswordResetTokens
+                .Where(rt => rt.UserId == userId
+                          && !rt.IsUsed
+                          && rt.ExpiresAt > now)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(rt => rt.IsUsed, true)
+                    .SetProperty(rt => rt.UsedAt, now)
+                    .SetProperty(rt => rt.UpdatedAt, now));
 
-            user.PasswordHash = _passwordHasher.HashPassword(resetPasswordDto.NewPassword);
-            
+            await _context.Users
+                .Where(u => u.Id == userId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(u => u.PasswordHash, newPasswordHash)
+                    .SetProperty(u => u.UpdatedAt, now));
 
-            resetToken.IsUsed = true;
-            resetToken.UsedAt = DateTime.UtcNow;
+            await _redisService.RevokeAllUserTokensAsync(userId);
 
-            await _context.SaveChangesAsync();
+            _logger.LogInformation("Password reset successfully for user: {UserId}", userId);
 
-            await _redisService.RevokeAllUserTokensAsync(user.Id);
-
-            _logger.LogInformation("Password reset successfully for user: {UserId}", user.Id);
-
-            return user.Id;
+            return userId;
         }
 
         /// <summary>
