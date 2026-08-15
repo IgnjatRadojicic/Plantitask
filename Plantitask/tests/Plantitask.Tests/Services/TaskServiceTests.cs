@@ -1,608 +1,1233 @@
+﻿using Azure.Core.GeoJson;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Org.BouncyCastle.Pqc.Crypto.Lms;
 using Plantitask.Core.DTO.Kanban;
 using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
-using Plantitask.Core.Entities.Lookups;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Services;
 using Plantitask.Tests.Helpers;
-using static Plantitask.Tests.Helpers.TestDataBuilder;
+using static Plantitask.Tests.Helpers.TestIds;
 
-namespace Plantitask.Tests.Services;
 
-public class TaskServiceTests
+namespace Plantitask.Tests.Services
 {
-    private readonly Mock<IApplicationDbContext> _mockContext;
-    private readonly Mock<ILogger<TaskService>> _mockLogger;
-    private readonly Mock<IGroupService> _mockGroupService;
-    private readonly Mock<IBackgroundJobService> _mockBackgroundJob;
-    private readonly TaskService _sut;
-
-    public TaskServiceTests()
+    public class TaskServiceTests : DbTestBase
     {
-        _mockContext = new Mock<IApplicationDbContext>();
-        _mockLogger = new Mock<ILogger<TaskService>>();
-        _mockGroupService = new Mock<IGroupService>();
-        _mockBackgroundJob = new Mock<IBackgroundJobService>();
 
-        _sut = new TaskService(
-            _mockContext.Object,
-            _mockLogger.Object,
-            _mockGroupService.Object,
-            _mockBackgroundJob.Object);
-    }
+        private readonly Mock<IBackgroundJobService> _jobs = new();
 
-    [Fact]
-    public async Task CreateTaskAsync_WhenUserIsNotGroupMember_ReturnsForbidden()
-    {
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>()).Object);
+        public TaskServiceTests(PostgresFixture fixture) : base (fixture) { }
 
-        var dto = new CreateTaskDto { Title = "New Task", PriorityId = (int)TaskPriority.Medium };
+        private TaskService NewSut(IApplicationDbContext context) => new(
+            context,
+            NullLogger<TaskService>.Instance,
+            new GroupService(
+                context,
+                Mock.Of<IGroupCodeGenerator>(),
+                Mock.Of<IPasswordHasher>(),
+                NullLogger<GroupService>.Instance),
+            new MemoryCache(new MemoryCacheOptions()),
+            _jobs.Object);
 
-        var result = await _sut.CreateTaskAsync(GroupId1, dto, UserId1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("Forbidden", result.Error!.Code);
-        Assert.Contains("member of this group", result.Error.Message);
-    }
-
-    [Fact]
-    public async Task CreateTaskAsync_WhenMemberPermissionBelowTeamLead_ReturnsForbidden()
-    {
-        var memberships = new List<GroupMember>
+        private async Task SeedAsync()
         {
-            CreateMembership(UserId1, GroupId1, roleId: RoleIds.Member)
-        };
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(memberships).Object);
-
-        var dto = new CreateTaskDto { Title = "New Task", PriorityId = (int)TaskPriority.Medium };
-
-        var result = await _sut.CreateTaskAsync(GroupId1, dto, UserId1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("Forbidden", result.Error!.Code);
-        Assert.Contains("Team Leads", result.Error.Message);
-    }
-
-    [Fact]
-    public async Task CreateTaskAsync_WhenAssigneeNotGroupMember_ReturnsBadRequest()
-    {
-        var memberships = new List<GroupMember>
-        {
-            CreateMembership(UserId1, GroupId1, roleId: RoleIds.TeamLead)
-        };
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(memberships).Object);
-        _mockContext.Setup(c => c.TaskPriorities).Returns(MockDbSetFactory.Create(CreatePriorities()).Object);
-
-        var dto = new CreateTaskDto
-        {
-            Title = "New Task",
-            PriorityId = (int)TaskPriority.Medium,
-            AssignedToUserId = UserId2
-        };
-
-        var result = await _sut.CreateTaskAsync(GroupId1, dto, UserId1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("BadRequest", result.Error!.Code);
-    }
-
-    [Fact]
-    public async Task CreateTaskAsync_InvalidPriority_ReturnsBadRequest()
-    {
-        var memberships = new List<GroupMember>
-        {
-            CreateMembership(UserId1, GroupId1, roleId: RoleIds.TeamLead)
-        };
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(memberships).Object);
-        _mockContext.Setup(c => c.TaskPriorities).Returns(MockDbSetFactory.Create(new List<TaskPriorityLookup>()).Object);
-
-        var dto = new CreateTaskDto { Title = "New Task", PriorityId = 999 };
-
-        var result = await _sut.CreateTaskAsync(GroupId1, dto, UserId1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("BadRequest", result.Error!.Code);
-        Assert.Contains("priority", result.Error.Message);
-    }
-
-    [Fact]
-    public async Task CreateTaskAsync_WithValidTeamLead_SchedulesDueSoonNotification()
-    {
-        var memberships = new List<GroupMember>
-    {
-        CreateMembership(UserId1, GroupId1, roleId: RoleIds.TeamLead),
-        CreateMembership(UserId2, GroupId1, roleId: RoleIds.Member)
-    };
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(memberships).Object);
-        _mockContext.Setup(c => c.TaskPriorities).Returns(MockDbSetFactory.Create(CreatePriorities()).Object);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem>()).Object);
-        _mockContext.Setup(c => c.TaskStatuses).Returns(MockDbSetFactory.Create(CreateStatuses()).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-
-        var dueDate = DateTime.UtcNow.AddDays(3);
-        var dto = new CreateTaskDto
-        {
-            Title = "New Task",
-            Description = "Description",
-            PriorityId = (int)TaskPriority.Medium,
-            AssignedToUserId = UserId2,
-            DueDate = dueDate
-        };
-
-        try
-        {
-            await _sut.CreateTaskAsync(GroupId1, dto, UserId1);
-        }
-        catch (NullReferenceException)
-        {
-
+            await using var db = NewContext();
+            await db.SeedWorldAsync();
         }
 
-        _mockBackgroundJob.Verify(
-            b => b.ScheduleTaskDueSoonNotification(It.IsAny<Guid>(), UserId2, dueDate),
-            Times.Once);
-    }
-
-
-    [Fact]
-    public async Task ChangeTaskStatusAsync_WhenNotMember_ReturnsForbidden()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>()).Object);
-
-        var result = await _sut.ChangeTaskStatusAsync(TaskId1, new ChangeTaskStatusDto { NewStatusId = 2 }, UserId2);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("Forbidden", result.Error!.Code);
-    }
-
-    [Fact]
-    public async Task ChangeTaskStatusAsync_RegularMemberNotAssignedOrCreator_ReturnsForbidden()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1, createdBy: UserId1, assignedToId: UserId2);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-
-        var memberships = new List<GroupMember>
+        private async Task PromoteMemberAsync(GroupRole role)
         {
-            CreateMembership(UserId3, GroupId1, roleId: RoleIds.Member)
-        };
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(memberships).Object);
+            await using var db = NewContext();
+            await db.SetRoleAsync(MemberId, role);
+        }
 
-        var result = await _sut.ChangeTaskStatusAsync(TaskId1, new ChangeTaskStatusDto { NewStatusId = 2 }, UserId3);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("Forbidden", result.Error!.Code);
-    }
-
-    [Fact]
-    public async Task ChangeTaskStatusAsync_TaskNotFound_ReturnsNotFound()
-    {
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem>()).Object);
-
-        var result = await _sut.ChangeTaskStatusAsync(Guid.NewGuid(), new ChangeTaskStatusDto { NewStatusId = 2 }, UserId1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("NotFound", result.Error!.Code);
-    }
-
-    [Fact]
-    public async Task ChangeTaskStatusAsync_AssignedUserCanChangeStatus()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1, createdBy: UserId1, assignedToId: UserId2, statusId: (int)TaskStatusItem.NotStarted);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-
-        var memberships = new List<GroupMember>
+        /// <summary>Seeds one task in Dev Team created by the lead, at the well known TaskId.</summary>
+        private async Task SeedTaskAsync(
+            TaskStatusItem status = TaskStatusItem.NotStarted,
+            TaskPriority priority = TaskPriority.Medium,
+            Guid? assignedTo = null,
+            Guid? createdBy = null,
+            DateTime? dueDate = null,
+            DateTime? completedAt = null)
         {
-            CreateMembership(UserId2, GroupId1, roleId: RoleIds.Member)
-        };
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(memberships).Object);
-        _mockContext.Setup(c => c.TaskStatuses).Returns(MockDbSetFactory.Create(CreateStatuses()).Object);
-        _mockContext.Setup(c => c.TaskPriorities).Returns(MockDbSetFactory.Create(CreatePriorities()).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            await using var db = NewContext();
+            var task = TestData.Task(
+                GroupId, createdBy ?? LeadId,
+                status: status, priority: priority,
+                assignedTo: assignedTo, dueDate: dueDate, id: TaskId);
+            task.CompletedAt = completedAt;
+            db.Tasks.Add(task);
+            await db.SaveChangesAsync();
+        }
 
-        var result = await _sut.ChangeTaskStatusAsync(TaskId1, new ChangeTaskStatusDto { NewStatusId = (int)TaskStatusItem.InProgress }, UserId2);
+        private static CreateTaskDto NewTaskDto(
+            string title = "Write the tests",
+            int priorityId = (int)TaskPriority.Medium,
+            Guid? assignedTo = null,
+            DateTime? dueDate = null) => new()
+            {
+                Title = title,
+                Description = "Description",
+                PriorityId = priorityId,
+                AssignedToUserId = assignedTo,
+                DueDate = dueDate
+            };
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Not Started", result.Value!.OldStatus);
-        Assert.Equal("In Progress", result.Value.NewStatus);
-    }
-
-    [Fact]
-    public async Task ChangeTaskStatusAsync_ToCompleted_SetsCompletedAt()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1, createdBy: UserId1, statusId: (int)TaskStatusItem.InProgress);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+        [Fact]
+        public async Task CreateTaskAsync_WhenCallerIsNotAMember_ReturnsForbidden()
         {
-            CreateMembership(UserId1, GroupId1, roleId: RoleIds.TeamLead)
-        }).Object);
-        _mockContext.Setup(c => c.TaskStatuses).Returns(MockDbSetFactory.Create(CreateStatuses()).Object);
-        _mockContext.Setup(c => c.TaskPriorities).Returns(MockDbSetFactory.Create(CreatePriorities()).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            await SeedAsync();
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateTaskAsync(GroupId, NewTaskDto(), OutsiderId);
 
-        var result = await _sut.ChangeTaskStatusAsync(TaskId1, new ChangeTaskStatusDto { NewStatusId = (int)TaskStatusItem.Completed }, UserId1);
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
 
-        Assert.True(result.IsSuccess);
-        Assert.NotNull(task.CompletedAt);
-        Assert.Equal("Completed", result.Value!.NewStatus);
-    }
+            await using var assert = NewContext();
+            Assert.Equal(0, await assert.Tasks.CountAsync());
+        }
 
-    [Fact]
-    public async Task ChangeTaskStatusAsync_FromCompletedToInProgress_ClearsCompletedAt()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1, createdBy: UserId1,
-            statusId: (int)TaskStatusItem.Completed, completedAt: DateTime.UtcNow.AddDays(-1));
-
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+        [Theory]
+        [InlineData(GroupRole.Member, false)]
+        [InlineData(GroupRole.TeamLead, true)]
+        [InlineData(GroupRole.Manager, true)]
+        [InlineData(GroupRole.Owner, true)]
+        public async Task CreateTaskAsync_RequiresTeamLeadOrAbove(GroupRole role, bool shouldSucceed)
         {
-            CreateMembership(UserId1, GroupId1, roleId: RoleIds.TeamLead)
-        }).Object);
-        _mockContext.Setup(c => c.TaskStatuses).Returns(MockDbSetFactory.Create(CreateStatuses()).Object);
-        _mockContext.Setup(c => c.TaskPriorities).Returns(MockDbSetFactory.Create(CreatePriorities()).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            await SeedAsync();
+            await PromoteMemberAsync(role);
 
-        await _sut.ChangeTaskStatusAsync(TaskId1, new ChangeTaskStatusDto { NewStatusId = (int)TaskStatusItem.InProgress }, UserId1);
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateTaskAsync(GroupId, NewTaskDto(), MemberId);
 
-        Assert.Null(task.CompletedAt);
-    }
+            Assert.Equal(shouldSucceed, result.IsSuccess);
 
-    [Fact]
-    public async Task ChangeTaskStatusAsync_InvalidStatus_ReturnsBadRequest()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1, createdBy: UserId1, statusId: (int)TaskStatusItem.NotStarted);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+            await using var assert = NewContext();
+            Assert.Equal(shouldSucceed ? 1 : 0, await assert.Tasks.CountAsync());
+        }
+
+        [Fact]
+        public async Task CreateTaskAsync_WithUnknownPriority_ReturnsBadRequest()
         {
-            CreateMembership(UserId1, GroupId1, roleId: RoleIds.TeamLead)
-        }).Object);
-        _mockContext.Setup(c => c.TaskStatuses).Returns(MockDbSetFactory.Create(new List<TaskStatusLookup>()).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            await SeedAsync();
 
-        var result = await _sut.ChangeTaskStatusAsync(TaskId1, new ChangeTaskStatusDto { NewStatusId = 999 }, UserId1);
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateTaskAsync(GroupId, NewTaskDto(priorityId: 999), LeadId);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal("BadRequest", result.Error!.Code);
-    }
-
-    [Theory]
-    [InlineData(RoleIds.Member, false)]
-    [InlineData(RoleIds.TeamLead, false)]
-    [InlineData(RoleIds.Manager, true)]
-    [InlineData(RoleIds.Owner, true)]
-    public async Task DeleteTaskAsync_RequiresManagerOrAbove(int roleId, bool shouldSucceed)
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1);
-        task.Attachments = new List<TaskAttachment>();
-
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+            Assert.True(result.IsFailure);
+            Assert.Equal("BadRequest", result.Error!.Code);
+            Assert.Contains("priority", result.Error.Message);
+        }
+        [Fact]
+        public async Task CreateTaskAsync_WhenAssigneeBelongsToAnotherGroup_ReturnsBadRequest()
         {
-            CreateMembership(UserId1, GroupId1, roleId: roleId)
-        }).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            await SeedAsync();
 
-        var result = await _sut.DeleteTaskAsync(TaskId1, UserId1);
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateTaskAsync(
+                GroupId, NewTaskDto(assignedTo: OtherLeadId), LeadId);
 
-        if (shouldSucceed)
+            Assert.True(result.IsFailure);
+            Assert.Equal("BadRequest", result.Error!.Code);
+
+            await using var assert = NewContext();
+            Assert.Equal(0, await assert.Tasks.CountAsync());
+        }
+
+        [Fact]
+        public async Task CreateTaskAsync_AsTeamLead_PersistsTheTaskAndReturnsTheJoinedProjection()
         {
-            Assert.True(result.IsSuccess);
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateTaskAsync(
+                GroupId, NewTaskDto(assignedTo: MemberId), LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            var dto = result.Value!;
+            Assert.Equal("Write the tests", dto.Title);
+            Assert.Equal("Dev Team", dto.GroupName);
+            Assert.Equal("lead", dto.CreatedByUserName);
+            Assert.Equal("member", dto.AssignedToUserName);
+            Assert.Equal("Not Started", dto.StatusDisplayName);
+            Assert.Equal("Medium", dto.PriorityName);
+
+            await using var assert = NewContext();
+            var stored = await assert.Tasks.SingleAsync();
+            Assert.Equal((int)TaskStatusItem.NotStarted, stored.StatusId);
+            Assert.Equal(LeadId, stored.CreatedBy);
+            Assert.Equal(MemberId, stored.AssignedToId);
+            Assert.NotEqual(default, stored.CreatedAt);
+        }
+
+        [Fact]
+        public async Task CreateTaskAsync_PlacesEachNewTaskAtTheBottomOfNotStarted()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var sut = NewSut(act);
+
+            await sut.CreateTaskAsync(GroupId, NewTaskDto(title: "First"), LeadId);
+            await sut.CreateTaskAsync(GroupId, NewTaskDto(title: "Second"), LeadId);
+            await sut.CreateTaskAsync(GroupId, NewTaskDto(title: "Third"), LeadId);
+
+            await using var assert = NewContext();
+            var orders = await assert.Tasks
+                .OrderBy(t => t.DisplayOrder)
+                .Select(t => new { t.Title, t.DisplayOrder })
+                .ToListAsync();
+
+            Assert.Equal(new[] { "First", "Second", "Third" }, orders.Select(o => o.Title));
+            Assert.Equal(new[] { 0, 1, 2 }, orders.Select(o => o.DisplayOrder));
+        }
+
+        [Fact]
+        public async Task CreateTaskAsync_NumbersEachGroupsColumnIndependently()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var sut = NewSut(act);
+
+            await sut.CreateTaskAsync(GroupId, NewTaskDto(title: "Ours"), LeadId);
+            await sut.CreateTaskAsync(OtherGroupId, NewTaskDto(title: "Theirs"), OtherLeadId);
+
+            await using var assert = NewContext();
+            Assert.Equal(0, (await assert.Tasks.SingleAsync(t => t.GroupId == GroupId)).DisplayOrder);
+            Assert.Equal(0, (await assert.Tasks.SingleAsync(t => t.GroupId == OtherGroupId)).DisplayOrder);
+        }
+
+        [Fact]
+        public async Task CreateTaskAsync_WithDueDateAndAssignee_SchedulesTheDueSoonReminder()
+        {
+            await SeedAsync();
+
+            var dueDate = DateTime.UtcNow.AddDays(3);
+            _jobs.Setup(j => j.ScheduleTaskDueSoonNotification(It.IsAny<Guid>(), MemberId, dueDate))
+                .ReturnsAsync("hangfire-job-1");
+
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateTaskAsync(
+                GroupId, NewTaskDto(assignedTo: MemberId, dueDate: dueDate), LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            _jobs.Verify(j => j.ScheduleTaskDueSoonNotification(
+                It.IsAny<Guid>(), MemberId, dueDate), Times.Once);
+
+            await using var assert = NewContext();
+            Assert.Equal("hangfire-job-1", (await assert.Tasks.SingleAsync()).DueSoonJobId);
+        }
+
+
+        [Fact]
+        public async Task CreateTaskAsync_WithNoAssignee_DoesNotScheduleAReminder()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateTaskAsync(
+                GroupId, NewTaskDto(dueDate: DateTime.UtcNow.AddDays(3)), LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            _jobs.Verify(j => j.ScheduleTaskDueSoonNotification(
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>()), Times.Never);
+
+            await using var assert = NewContext();
+            Assert.Null((await assert.Tasks.SingleAsync()).DueSoonJobId);
+        }
+
+        [Fact]
+        public async Task GetTaskByIdAsync_WhenTaskDoesNotExist_ReturnsNotFound()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetTaskByIdAsync(Guid.NewGuid(), LeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("NotFound", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task GetTaskByIdAsync_WhenCallerLeadsAnotherGroup_ReturnsForbidden()
+        {
+            await SeedAsync();
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetTaskByIdAsync(TaskId, OtherLeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task GetTaskByIdAsync_AsAnyMember_ReturnsTheProjection()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(assignedTo: MemberId, priority: TaskPriority.Urgent);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetTaskByIdAsync(TaskId, MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal("Dev Team", result.Value!.GroupName);
+            Assert.Equal("Urgent", result.Value.PriorityName);
+            Assert.Equal("member", result.Value.AssignedToUserName);
+            Assert.Equal(0, result.Value.AttachmentCount);
+        }
+
+        [Fact]
+        public async Task GetGroupTasksAsync_WhenCallerLeadsAnotherGroup_ReturnsForbidden()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetGroupTasksAsync(GroupId, null, OtherLeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task GetGroupTasksAsync_ReturnsOnlyTheRequestedGroupsTasks()
+        {
+            await SeedAsync();
+
+            await using (var db = NewContext())
+            {
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "Ours"));
+                db.Tasks.Add(TestData.Task(OtherGroupId, OtherLeadId, title: "Theirs"));
+                await db.SaveChangesAsync();
+            }
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetGroupTasksAsync(GroupId, null, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal(1, result.Value!.TotalCount);
+            Assert.Equal("Ours", result.Value.Items.Single().Title);
+        }
+
+        [Fact]
+        public async Task GetGroupTasksAsync_ExcludesSoftDeletedTasks()
+        {
+            await SeedAsync();
+
+            await using (var db = NewContext())
+            {
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "Alive"));
+                var dead = TestData.Task(GroupId, LeadId, title: "Deleted");
+                dead.IsDeleted = true;
+                dead.DeletedAt = DateTime.UtcNow;
+                db.Tasks.Add(dead);
+                await db.SaveChangesAsync();
+            }
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetGroupTasksAsync(GroupId, null, LeadId);
+
+            Assert.Equal(1, result.Value!.TotalCount);
+            Assert.Equal("Alive", result.Value.Items.Single().Title);
+        }
+
+        [Fact]
+        public async Task GetGroupTasksAsync_FiltersByStatusAndPriorityAndAssignee()
+        {
+            await SeedAsync();
+
+            await using (var db = NewContext())
+            {
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "Match",
+                    status: TaskStatusItem.InProgress, priority: TaskPriority.High, assignedTo: MemberId));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "WrongStatus",
+                    status: TaskStatusItem.NotStarted, priority: TaskPriority.High, assignedTo: MemberId));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "WrongPriority",
+                    status: TaskStatusItem.InProgress, priority: TaskPriority.Low, assignedTo: MemberId));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "WrongAssignee",
+                    status: TaskStatusItem.InProgress, priority: TaskPriority.High, assignedTo: LeadId));
+                await db.SaveChangesAsync();
+            }
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetGroupTasksAsync(GroupId, new TaskFilterDto
+            {
+                StatusId = (int)TaskStatusItem.InProgress,
+                PriorityId = (int)TaskPriority.High,
+                AssignedToUserId = MemberId
+            }, LeadId);
+
+            Assert.Equal(1, result.Value!.TotalCount);
+            Assert.Equal("Match", result.Value.Items.Single().Title);
+        }
+
+        [Fact]
+        public async Task GetGroupTasksAsync_OverdueFilterIgnoresCompletedTasks()
+        {
+            await SeedAsync();
+
+            var past = DateTime.UtcNow.AddDays(-2);
+
+            await using (var db = NewContext())
+            {
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "Overdue",
+                    status: TaskStatusItem.InProgress, dueDate: past));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "OverdueButDone",
+                    status: TaskStatusItem.Completed, dueDate: past));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "NotDueYet",
+                    status: TaskStatusItem.InProgress, dueDate: DateTime.UtcNow.AddDays(5)));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "NoDueDate"));
+                await db.SaveChangesAsync();
+            }
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetGroupTasksAsync(
+                GroupId, new TaskFilterDto { IsOverDue = true }, LeadId);
+
+            Assert.Equal(1, result.Value!.TotalCount);
+            Assert.Equal("Overdue", result.Value.Items.Single().Title);
+        }
+
+        [Fact]
+        public async Task GetGroupTasksAsync_SearchTermMatchesTitleOrDescriptionCaseInsensitively()
+        {
+            await SeedAsync();
+
+            await using (var db = NewContext())
+            {
+                var byTitle = TestData.Task(GroupId, LeadId, title: "Deploy The PIPELINE");
+                byTitle.Description = "nothing relevant";
+
+                var byDescription = TestData.Task(GroupId, LeadId, title: "Unrelated");
+                byDescription.Description = "touches the pipeline config";
+
+                var noMatch = TestData.Task(GroupId, LeadId, title: "Unrelated too");
+                noMatch.Description = "nothing relevant";
+
+                db.Tasks.AddRange(byTitle, byDescription, noMatch);
+                await db.SaveChangesAsync();
+            }
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetGroupTasksAsync(
+                GroupId, new TaskFilterDto { SearchTerm = "pipeline" }, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal(2, result.Value!.TotalCount);
+            Assert.DoesNotContain(result.Value.Items, t => t.Title == "Unrelated too");
+        }
+
+        [Fact]
+        public async Task GetGroupTasksAsync_PagesAndCountsBeforeSkipTake()
+        {
+            await SeedAsync();
+
+            await using (var db = NewContext())
+            {
+                for (var i = 0; i < 7; i++)
+                    db.Tasks.Add(TestData.Task(GroupId, LeadId, title: $"Task {i}"));
+                await db.SaveChangesAsync();
+            }
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetGroupTasksAsync(GroupId, null, LeadId, pageNumber: 2, pageSize: 3);
+
+            Assert.Equal(7, result.Value!.TotalCount);
+            Assert.Equal(3, result.Value.Items.Count);
+            Assert.Equal(2, result.Value.PageNumber);
+        }
+
+        [Fact]
+        public async Task UpdateTaskAsync_WhenTaskDoesNotExist_ReturnsNotFound()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UpdateTaskAsync(
+                Guid.NewGuid(), new UpdateTaskDto { Title = "New" }, LeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("NotFound", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task UpdateTaskAsync_WhenCallerLeadsAnotherGroup_ReturnsForbidden()
+        {
+            await SeedAsync();
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UpdateTaskAsync(
+                TaskId, new UpdateTaskDto { Title = "Hijacked" }, OtherLeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+
+            await using var assert = NewContext();
+            Assert.NotEqual("Hijacked", (await assert.Tasks.SingleAsync()).Title);
+        }
+
+        [Fact]
+        public async Task UpdateTaskAsync_WhenPlainMemberDidNotCreateIt_ReturnsForbidden()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(createdBy: LeadId);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UpdateTaskAsync(
+                TaskId, new UpdateTaskDto { Title = "Hijacked" }, MemberId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task UpdateTaskAsync_WhenPlainMemberCreatedIt_Succeeds()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(createdBy: MemberId);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UpdateTaskAsync(
+                TaskId, new UpdateTaskDto { Title = "Mine to edit" }, MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            var stored = await assert.Tasks.SingleAsync();
+            Assert.Equal("Mine to edit", stored.Title);
+            Assert.Equal(MemberId, stored.UpdatedBy);
+            Assert.NotNull(stored.UpdatedAt);
+        }
+
+        [Fact]
+        public async Task UpdateTaskAsync_NullDescriptionLeavesItAloneAndWhitespaceClearsIt()
+        {
+            await SeedAsync();
+            await SeedTaskAsync();
+
+            await using (var act = NewContext())
+            {
+                await NewSut(act).UpdateTaskAsync(TaskId, new UpdateTaskDto { Title = "Renamed" }, LeadId);
+            }
+
+            await using (var assert = NewContext())
+            {
+                Assert.Equal("Seeded description", (await assert.Tasks.SingleAsync()).Description);
+            }
+
+            await using (var act = NewContext())
+            {
+                await NewSut(act).UpdateTaskAsync(TaskId, new UpdateTaskDto { Description = "   " }, LeadId);
+            }
+
+            await using (var assert = NewContext())
+            {
+                Assert.Null((await assert.Tasks.SingleAsync()).Description);
+            }
+        }
+
+        [Fact]
+        public async Task UpdateTaskAsync_ClearDueDateWinsOverAnySuppliedDate()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(dueDate: DateTime.UtcNow.AddDays(4));
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UpdateTaskAsync(TaskId, new UpdateTaskDto
+            {
+                DueDate = DateTime.UtcNow.AddDays(9),
+                ClearDueDate = true
+            }, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            Assert.Null((await assert.Tasks.SingleAsync()).DueDate);
+        }
+
+        [Fact]
+        public async Task UpdateTaskAsync_WithUnknownPriority_ReturnsBadRequestAndSavesNothing()
+        {
+            await SeedAsync();
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UpdateTaskAsync(
+                TaskId, new UpdateTaskDto { Title = "Renamed", PriorityId = 999 }, LeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("BadRequest", result.Error!.Code);
+
+            await using var assert = NewContext();
+            Assert.Equal("Seeded task", (await assert.Tasks.SingleAsync()).Title);
+        }
+
+        [Fact]
+        public async Task UpdateTaskAsync_CancelsTheOldReminderBeforeSchedulingTheNewOne()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(assignedTo: MemberId, dueDate: DateTime.UtcNow.AddDays(2));
+
+            await using (var db = NewContext())
+            {
+                (await db.Tasks.SingleAsync()).DueSoonJobId = "old-job";
+                await db.SaveChangesAsync();
+            }
+
+            var newDueDate = DateTime.UtcNow.AddDays(6);
+            _jobs.Setup(j => j.ScheduleTaskDueSoonNotification(TaskId, MemberId, newDueDate))
+                .ReturnsAsync("new-job");
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UpdateTaskAsync(
+                TaskId, new UpdateTaskDto { DueDate = newDueDate }, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            _jobs.Verify(j => j.CancelScheduledJob("old-job"), Times.Once);
+
+            await using var assert = NewContext();
+            Assert.Equal("new-job", (await assert.Tasks.SingleAsync()).DueSoonJobId);
+        }
+
+        [Fact]
+        public async Task ChangeTaskStatusAsync_WhenTaskDoesNotExist_ReturnsNotFound()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskStatusAsync(
+                Guid.NewGuid(), new ChangeTaskStatusDto { NewStatusId = 2 }, LeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("NotFound", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task ChangeTaskStatusAsync_WhenCallerLeadsAnotherGroup_ReturnsForbidden()
+        {
+            await SeedAsync();
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskStatusAsync(
+                TaskId, new ChangeTaskStatusDto { NewStatusId = 2 }, OtherLeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task ChangeTaskStatusAsync_WhenPlainMemberIsNeitherAssigneeNorCreator_ReturnsForbidden()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(createdBy: LeadId, assignedTo: LeadId);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskStatusAsync(
+                TaskId, new ChangeTaskStatusDto { NewStatusId = 2 }, MemberId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task ChangeTaskStatusAsync_TheAssigneeMayChangeItEvenAsAPlainMember()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(createdBy: LeadId, assignedTo: MemberId);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskStatusAsync(
+                TaskId, new ChangeTaskStatusDto { NewStatusId = (int)TaskStatusItem.InProgress }, MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal("Not Started", result.Value!.OldStatus);
+            Assert.Equal("In Progress", result.Value.NewStatus);
+        }
+
+        [Fact]
+        public async Task ChangeTaskStatusAsync_TheCreatorMayChangeItEvenAsAPlainMember()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(createdBy: MemberId, assignedTo: LeadId);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskStatusAsync(
+                TaskId, new ChangeTaskStatusDto { NewStatusId = (int)TaskStatusItem.InProgress }, MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+        }
+
+        [Fact]
+        public async Task ChangeTaskStatusAsync_WithUnknownStatus_ReturnsBadRequest()
+        {
+            await SeedAsync();
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskStatusAsync(
+                TaskId, new ChangeTaskStatusDto { NewStatusId = 999 }, LeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("BadRequest", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task ChangeTaskStatusAsync_ToTheStatusItAlreadyHas_ReturnsBadRequest()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(status: TaskStatusItem.InProgress);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskStatusAsync(
+                TaskId, new ChangeTaskStatusDto { NewStatusId = (int)TaskStatusItem.InProgress }, LeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("BadRequest", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task ChangeTaskStatusAsync_EnteringCompletedStampsCompletedAt()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(status: TaskStatusItem.InProgress);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskStatusAsync(
+                TaskId, new ChangeTaskStatusDto { NewStatusId = (int)TaskStatusItem.Completed }, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            Assert.NotNull((await assert.Tasks.SingleAsync()).CompletedAt);
+        }
+
+        [Fact]
+        public async Task ChangeTaskStatusAsync_LeavingCompletedClearsCompletedAt()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(status: TaskStatusItem.Completed, completedAt: DateTime.UtcNow.AddDays(-1));
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskStatusAsync(
+                TaskId, new ChangeTaskStatusDto { NewStatusId = (int)TaskStatusItem.InProgress }, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            Assert.Null((await assert.Tasks.SingleAsync()).CompletedAt);
+        }
+
+        [Fact]
+        public async Task ChangeTaskStatusAsync_MovesTheTaskToTheBottomOfItsNewColumn()
+        {
+            await SeedAsync();
+
+            await using (var db = NewContext())
+            {
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "Already there",
+                    status: TaskStatusItem.InProgress, displayOrder: 0));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "Also there",
+                    status: TaskStatusItem.InProgress, displayOrder: 1));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "Moving",
+                    status: TaskStatusItem.NotStarted, displayOrder: 0, id: TaskId));
+                await db.SaveChangesAsync();
+            }
+
+            await using var act = NewContext();
+            await NewSut(act).ChangeTaskStatusAsync(
+                TaskId, new ChangeTaskStatusDto { NewStatusId = (int)TaskStatusItem.InProgress }, LeadId);
+
+            await using var assert = NewContext();
+            var moved = await assert.Tasks.SingleAsync(t => t.Id == TaskId);
+            Assert.Equal(2, moved.DisplayOrder);
+        }
+
+        [Theory]
+        [InlineData(GroupRole.Member, false)]
+        [InlineData(GroupRole.TeamLead, true)]
+        [InlineData(GroupRole.Manager, true)]
+        public async Task ChangeTaskPriorityAsync_RequiresTeamLeadOrAbove(GroupRole role, bool shouldSucceed)
+        {
+            await SeedAsync();
+            await PromoteMemberAsync(role);
+            await SeedTaskAsync(priority: TaskPriority.Low, createdBy: MemberId);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskPriorityAsync(
+                TaskId, (int)TaskPriority.Urgent, MemberId);
+
+            Assert.Equal(shouldSucceed, result.IsSuccess);
+
+            await using var assert = NewContext();
+            var expected = shouldSucceed ? TaskPriority.Urgent : TaskPriority.Low;
+            Assert.Equal((int)expected, (await assert.Tasks.SingleAsync()).PriorityId);
+        }
+
+        [Fact]
+        public async Task ChangeTaskPriorityAsync_ReturnsBothDisplayNames()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(priority: TaskPriority.Low);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskPriorityAsync(
+                TaskId, (int)TaskPriority.Urgent, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal("Low", result.Value!.OldPriority);
+            Assert.Equal("Urgent", result.Value.NewPriority);
+        }
+
+        [Fact]
+        public async Task ChangeTaskPriorityAsync_WithUnknownPriority_ReturnsBadRequest()
+        {
+            await SeedAsync();
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).ChangeTaskPriorityAsync(TaskId, 999, LeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("BadRequest", result.Error!.Code);
+        }
+        [Theory]
+        [InlineData(GroupRole.Member, false)]
+        [InlineData(GroupRole.TeamLead, true)]
+        [InlineData(GroupRole.Manager, true)]
+        public async Task AssignTaskAsync_RequiresTeamLeadOrAbove(GroupRole role, bool shouldSucceed)
+        {
+            await SeedAsync();
+            await PromoteMemberAsync(role);
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).AssignTaskAsync(
+                TaskId, new AssignTaskDto { UserId = LeadId }, MemberId);
+
+            Assert.Equal(shouldSucceed, result.IsSuccess);
+
+            await using var assert = NewContext();
+            var stored = await assert.Tasks.SingleAsync();
+            Assert.Equal(shouldSucceed ? LeadId : null, stored.AssignedToId);
+        }
+
+        [Fact]
+        public async Task AssignTaskAsync_WhenTargetBelongsToAnotherGroup_ReturnsBadRequest()
+        {
+            await SeedAsync();
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).AssignTaskAsync(
+                TaskId, new AssignTaskDto { UserId = OtherLeadId }, LeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("BadRequest", result.Error!.Code);
+
+            await using var assert = NewContext();
+            Assert.Null((await assert.Tasks.SingleAsync()).AssignedToId);
+        }
+
+        [Fact]
+        public async Task UnassignTaskAsync_TheAssigneeMayRemoveThemselves()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(assignedTo: MemberId);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UnassignTaskAsync(TaskId, MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            Assert.Null((await assert.Tasks.SingleAsync()).AssignedToId);
+        }
+
+        [Fact]
+        public async Task UnassignTaskAsync_AnUninvolvedPlainMemberCannot()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(assignedTo: LeadId);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UnassignTaskAsync(TaskId, MemberId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+
+            await using var assert = NewContext();
+            Assert.Equal(LeadId, (await assert.Tasks.SingleAsync()).AssignedToId);
+        }
+
+        [Theory]
+        [InlineData(GroupRole.Member, false)]
+        [InlineData(GroupRole.TeamLead, false)]
+        [InlineData(GroupRole.Manager, true)]
+        [InlineData(GroupRole.Owner, true)]
+        public async Task DeleteTaskAsync_RequiresManagerOrAbove(GroupRole role, bool shouldSucceed)
+        {
+            await SeedAsync();
+            await PromoteMemberAsync(role);
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).DeleteTaskAsync(TaskId, MemberId);
+
+            Assert.Equal(shouldSucceed, result.IsSuccess);
+
+            await using var assert = NewContext();
+            Assert.Equal(shouldSucceed ? 0 : 1, await assert.Tasks.CountAsync());
+        }
+
+        [Fact]
+        public async Task DeleteTaskAsync_WhenTaskDoesNotExist_ReturnsNotFound()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).DeleteTaskAsync(Guid.NewGuid(), LeadId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("NotFound", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task DeleteTaskAsync_SoftDeletesTheTaskAndCascadesToItsChildren()
+        {
+            await SeedAsync();
+            await PromoteMemberAsync(GroupRole.Manager);
+            await SeedTaskAsync();
+
+            await using (var db = NewContext())
+            {
+                db.TaskComments.Add(new TaskComment
+                {
+                    TaskId = TaskId,
+                    Content = "a comment",
+                    CreatedBy = LeadId
+                });
+                db.TaskAttachments.Add(new TaskAttachment
+                {
+                    TaskId = TaskId,
+                    FileName = "spec.pdf",
+                    FilePath = "uploads/spec.pdf",
+                    ContentType = "application/pdf",
+                    FileSize = 1024,
+                    CreatedBy = LeadId
+                });
+                db.Notifications.Add(new Notification
+                {
+                    UserId = LeadId,
+                    Type = NotificationType.TaskAssigned,
+                    Title = "Assigned",
+                    Message = "You were assigned",
+                    RelatedEntityId = TaskId,
+                    RelatedEntityType = "Task"
+                });
+                await db.SaveChangesAsync();
+            }
+
+            await using var act = NewContext();
+            var result = await NewSut(act).DeleteTaskAsync(TaskId, MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+
+            Assert.Equal(0, await assert.Tasks.CountAsync());
+            Assert.Equal(0, await assert.TaskComments.CountAsync());
+            Assert.Equal(0, await assert.TaskAttachments.CountAsync());
+            Assert.Equal(0, await assert.Notifications.CountAsync());
+
+            var task = await assert.Tasks.IgnoreQueryFilters().SingleAsync();
             Assert.True(task.IsDeleted);
+            Assert.NotNull(task.DeletedAt);
+            Assert.Equal(MemberId, task.DeletedBy);
+
+            var comment = await assert.TaskComments.IgnoreQueryFilters().SingleAsync();
+            Assert.True(comment.IsDeleted);
+            Assert.Equal(MemberId, comment.DeletedBy);
+            Assert.NotNull(comment.UpdatedAt);
         }
-        else
+
+        [Fact]
+        public async Task GetTaskGroupMembersAsync_ReturnsOnlyThatGroupsMembers()
         {
+            await SeedAsync();
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetTaskGroupMembersAsync(TaskId, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal(2, result.Value!.Count);
+            Assert.Contains(LeadId, result.Value);
+            Assert.Contains(MemberId, result.Value);
+            Assert.DoesNotContain(OtherLeadId, result.Value);
+        }
+
+        [Fact]
+        public async Task GetTaskGroupMembersAsync_WhenCallerLeadsAnotherGroup_ReturnsForbidden()
+        {
+            await SeedAsync();
+            await SeedTaskAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetTaskGroupMembersAsync(TaskId, OtherLeadId);
+
             Assert.True(result.IsFailure);
             Assert.Equal("Forbidden", result.Error!.Code);
         }
-    }
 
-    [Fact]
-    public async Task DeleteTaskAsync_TaskNotFound_ReturnsNotFound()
-    {
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem>()).Object);
-
-        var result = await _sut.DeleteTaskAsync(Guid.NewGuid(), UserId1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("NotFound", result.Error!.Code);
-    }
-
-    [Fact]
-    public async Task DeleteTaskAsync_SoftDeletesTaskAndAttachments()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1);
-        var attachment = new TaskAttachment
+        [Fact]
+        public async Task GetKanbanBoardAsync_WhenCallerLeadsAnotherGroup_ReturnsForbidden()
         {
-            Id = Guid.NewGuid(),
-            TaskId = TaskId1,
-            FileName = "test.pdf",
-            FilePath = "/uploads/test.pdf",
-            ContentType = "application/pdf",
-            FileSize = 1024,
-            CreatedBy = UserId1
-        };
-        task.Attachments = new List<TaskAttachment> { attachment };
+            await SeedAsync();
 
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
-        {
-            CreateMembership(UserId1, GroupId1, roleId: RoleIds.Manager)
-        }).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            await using var act = NewContext();
+            var result = await NewSut(act).GetKanbanBoardAsync(GroupId, OtherLeadId);
 
-        var result = await _sut.DeleteTaskAsync(TaskId1, UserId1);
-
-        Assert.True(result.IsSuccess);
-        Assert.True(task.IsDeleted);
-        Assert.NotNull(task.DeletedAt);
-        Assert.Equal(UserId1, task.DeletedBy);
-        Assert.True(attachment.IsDeleted);
-        Assert.NotNull(attachment.DeletedAt);
-    }
-
-
-    [Theory]
-    [InlineData(RoleIds.Member, false)]
-    [InlineData(RoleIds.TeamLead, true)]
-    [InlineData(RoleIds.Manager, true)]
-    public async Task AssignTaskAsync_RequiresTeamLeadOrAbove(int roleId, bool shouldSucceed)
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-
-        var memberships = new List<GroupMember>
-        {
-            CreateMembership(UserId1, GroupId1, roleId: roleId),
-            CreateMembership(UserId2, GroupId1, roleId: RoleIds.Member)
-        };
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(memberships).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-
-        var dto = new AssignTaskDto { UserId = UserId2 };
-
-        var result = await _sut.AssignTaskAsync(TaskId1, dto, UserId1);
-
-        if (shouldSucceed)
-        {
-            Assert.True(result.IsSuccess);
-            Assert.Equal(UserId2, task.AssignedToId);
-        }
-        else
-        {
             Assert.True(result.IsFailure);
             Assert.Equal("Forbidden", result.Error!.Code);
         }
-    }
 
-    [Fact]
-    public async Task UnassignTaskAsync_AssignedUserCanUnassignThemselves()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1, assignedToId: UserId2);
-        task.Attachments = new List<TaskAttachment>();
-
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+        [Fact]
+        public async Task GetKanbanBoardAsync_ReturnsEveryStatusAsAColumnEvenWhenEmpty()
         {
-            CreateMembership(UserId2, GroupId1, roleId: RoleIds.Member)
-        }).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            await SeedAsync();
 
-        var result = await _sut.UnassignTaskAsync(TaskId1, UserId2);
+            await using var act = NewContext();
+            var result = await NewSut(act).GetKanbanBoardAsync(GroupId, LeadId);
 
-        Assert.True(result.IsSuccess);
-        Assert.Null(task.AssignedToId);
-    }
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal("Dev Team", result.Value!.GroupName);
+            Assert.Equal(4, result.Value.Columns.Count);
+            Assert.All(result.Value.Columns, c => Assert.Empty(c.Tasks));
+        }
 
-    [Fact]
-    public async Task UnassignTaskAsync_UnrelatedMemberCannotUnassign()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1, assignedToId: UserId2);
-        task.Attachments = new List<TaskAttachment>();
-
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+        [Fact]
+        public async Task GetKanbanBoardAsync_PutsEachTaskInItsColumnOrderedAndIgnoresOtherGroups()
         {
-            CreateMembership(UserId3, GroupId1, roleId: RoleIds.Member)
-        }).Object);
+            await SeedAsync();
 
-        var result = await _sut.UnassignTaskAsync(TaskId1, UserId3);
+            await using (var db = NewContext())
+            {
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "Second",
+                    status: TaskStatusItem.NotStarted, displayOrder: 1));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "First",
+                    status: TaskStatusItem.NotStarted, displayOrder: 0));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "Doing",
+                    status: TaskStatusItem.InProgress, displayOrder: 0));
+                db.Tasks.Add(TestData.Task(OtherGroupId, OtherLeadId, title: "Theirs",
+                    status: TaskStatusItem.NotStarted, displayOrder: 0));
+                await db.SaveChangesAsync();
+            }
 
-        Assert.True(result.IsFailure);
-        Assert.Equal("Forbidden", result.Error!.Code);
-    }
+            await using var act = NewContext();
+            var result = await NewSut(act).GetKanbanBoardAsync(GroupId, LeadId);
 
+            Assert.True(result.IsSuccess, result.Error?.Message);
 
-    [Fact]
-    public async Task UpdateTaskAsync_TaskCreatorCanUpdateEvenAsMember()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1, createdBy: UserId1);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+            var notStarted = result.Value!.Columns.Single(c => c.StatusId == (int)TaskStatusItem.NotStarted);
+            Assert.Equal(new[] { "First", "Second" }, notStarted.Tasks.Select(t => t.Title));
+
+            var inProgress = result.Value.Columns.Single(c => c.StatusId == (int)TaskStatusItem.InProgress);
+            Assert.Equal("Doing", inProgress.Tasks.Single().Title);
+
+            Assert.DoesNotContain(result.Value.Columns.SelectMany(c => c.Tasks), t => t.Title == "Theirs");
+        }
+
+        [Fact]
+        public async Task MoveTaskAsync_WhenTaskDoesNotExist_ReturnsNotFound()
         {
-            CreateMembership(UserId1, GroupId1, roleId: RoleIds.Member)
-        }).Object);
-        _mockContext.Setup(c => c.TaskPriorities).Returns(MockDbSetFactory.Create(CreatePriorities()).Object);
-        _mockContext.Setup(c => c.TaskStatuses).Returns(MockDbSetFactory.Create(CreateStatuses()).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            await SeedAsync();
 
-        var dto = new UpdateTaskDto { Title = "Updated Title" };
+            await using var act = NewContext();
+            var result = await NewSut(act).MoveTaskAsync(Guid.NewGuid(), new MoveTaskDto
+            {
+                NewStatusId = (int)TaskStatusItem.InProgress,
+                NewDisplayOrder = 0
+            }, LeadId);
 
-        await _sut.UpdateTaskAsync(TaskId1, dto, UserId1);
+            Assert.True(result.IsFailure);
+            Assert.Equal("NotFound", result.Error!.Code);
+        }
 
-        Assert.Equal("Updated Title", task.Title);
-    }
-
-    [Fact]
-    public async Task UpdateTaskAsync_NonCreatorMember_ReturnsForbidden()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1, createdBy: UserId1);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+        [Fact]
+        public async Task MoveTaskAsync_WhenCallerLeadsAnotherGroup_ReturnsForbidden()
         {
-            CreateMembership(UserId2, GroupId1, roleId: RoleIds.Member)
-        }).Object);
+            await SeedAsync();
+            await SeedTaskAsync();
 
-        var result = await _sut.UpdateTaskAsync(TaskId1, new UpdateTaskDto { Title = "Hacked" }, UserId2);
+            await using var act = NewContext();
+            var result = await NewSut(act).MoveTaskAsync(TaskId, new MoveTaskDto
+            {
+                NewStatusId = (int)TaskStatusItem.InProgress,
+                NewDisplayOrder = 0
+            }, OtherLeadId);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal("Forbidden", result.Error!.Code);
-    }
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+        }
 
-    [Fact]
-    public async Task UpdateTaskAsync_TaskNotFound_ReturnsNotFound()
-    {
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem>()).Object);
-
-        var result = await _sut.UpdateTaskAsync(Guid.NewGuid(), new UpdateTaskDto { Title = "X" }, UserId1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("NotFound", result.Error!.Code);
-    }
-
-    [Fact]
-    public async Task GetKanbanBoardAsync_NonMember_ReturnsForbidden()
-    {
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>()).Object);
-
-        var result = await _sut.GetKanbanBoardAsync(GroupId1, UserId1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("Forbidden", result.Error!.Code);
-    }
-
-    [Fact]
-    public async Task GetKanbanBoardAsync_ReturnsColumnsWithTasksSorted()
-    {
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+        [Fact]
+        public async Task MoveTaskAsync_APlainMemberMayReorderInsideAColumn()
         {
-            CreateMembership(UserId1, GroupId1, roleId: RoleIds.Member)
-        }).Object);
-        _mockContext.Setup(c => c.Groups).Returns(MockDbSetFactory.Create(new List<Group>
+            await SeedAsync();
+
+            await using (var db = NewContext())
+            {
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "A", displayOrder: 0, id: TaskId));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "B", displayOrder: 1));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "C", displayOrder: 2));
+                await db.SaveChangesAsync();
+            }
+
+            await using var act = NewContext();
+            var result = await NewSut(act).MoveTaskAsync(TaskId, new MoveTaskDto
+            {
+                NewStatusId = (int)TaskStatusItem.NotStarted,
+                NewDisplayOrder = 2
+            }, MemberId);
+
+            await using var assert = NewContext();
+            var order = await assert.Tasks
+                .OrderBy(t => t.DisplayOrder)
+                .Select(t => t.Title)
+                .ToListAsync();
+
+            Assert.Equal(new[] { "B", "C", "A" }, order);
+        }
+
+        [Fact]
+
+        public async Task MoveTaskAsync_APlainMembeMayNotDragSomeoneElsesTaskToAnotherColumn()
         {
-            CreateGroup(GroupId1, "Dev Team")
-        }).Object);
-        _mockContext.Setup(c => c.TaskStatuses).Returns(MockDbSetFactory.Create(CreateStatuses()).Object);
+            await SeedAsync();
+            await SeedTaskAsync(createdBy: LeadId, assignedTo: LeadId);
 
-        var tasks = new List<TaskItem>
+            await using var act = NewContext();
+            var result = await NewSut(act).MoveTaskAsync(TaskId, new MoveTaskDto
+            {
+                NewStatusId = (int)TaskStatusItem.InProgress,
+                NewDisplayOrder = 0
+            }, MemberId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+
+            await using var assert = NewContext();
+            Assert.Equal((int)TaskStatusItem.NotStarted, (await assert.Tasks.SingleAsync()).StatusId);
+        }
+
+        [Fact]
+        public async Task MoveTaskAsync_DraggingIntoCompletedStampsCompletedAt()
         {
-            CreateTask(groupId: GroupId1, statusId: (int)TaskStatusItem.NotStarted, displayOrder: 1, title: "Task B"),
-            CreateTask(groupId: GroupId1, statusId: (int)TaskStatusItem.NotStarted, displayOrder: 0, title: "Task A"),
-            CreateTask(groupId: GroupId1, statusId: (int)TaskStatusItem.InProgress, displayOrder: 0, title: "Task C"),
-        };
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(tasks).Object);
+            await SeedAsync();
+            await SeedTaskAsync(status: TaskStatusItem.InProgress);
 
-        var result = await _sut.GetKanbanBoardAsync(GroupId1, UserId1);
+            await using var act = NewContext();
+            var result = await NewSut(act).MoveTaskAsync(TaskId, new MoveTaskDto
+            {
+                NewStatusId = (int)TaskStatusItem.Completed,
+                NewDisplayOrder = 0
+            }, LeadId);
 
-        Assert.True(result.IsSuccess);
-        var board = result.Value!;
-        Assert.Equal(4, board.Columns.Count);
-        Assert.Equal("Dev Team", board.GroupName);
-        Assert.Equal(2, board.Columns.First(c => c.StatusId == (int)TaskStatusItem.NotStarted).Tasks.Count);
-    }
+            Assert.True(result.IsSuccess, result.Error?.Message);
 
+            await using var assert = NewContext();
+            var moved = await assert.Tasks.SingleAsync();
+            Assert.Equal((int)TaskStatusItem.Completed, moved.StatusId);
+            Assert.NotNull(moved.CompletedAt);
+        }
 
-    [Fact]
-    public async Task MoveTaskAsync_AcrossColumns_SetsCompletedAtWhenMovingToCompleted()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1,
-            statusId: (int)TaskStatusItem.InProgress, displayOrder: 0);
-
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
+        [Fact]
+        public async Task MoveTaskAsync_DraggingOutOfCompletedClearsCompletedAt()
         {
-            CreateMembership(UserId1, GroupId1, roleId: RoleIds.Member)
-        }).Object);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            await SeedAsync();
+            await SeedTaskAsync(status: TaskStatusItem.Completed, completedAt: DateTime.UtcNow.AddDays(-1));
 
-        var result = await _sut.MoveTaskAsync(TaskId1, new MoveTaskDto
+            await using var act = NewContext();
+            var result = await NewSut(act).MoveTaskAsync(TaskId, new MoveTaskDto
+            {
+                NewStatusId = (int)TaskStatusItem.InProgress,
+                NewDisplayOrder = 0
+            }, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            Assert.Null((await assert.Tasks.SingleAsync()).CompletedAt);
+        }
+
+        [Fact]
+        public async Task MoveTaskAsync_AcrossColumnsClosesTheGapInTheSourceColumn()
         {
-            NewStatusId = (int)TaskStatusItem.Completed,
-            NewDisplayOrder = 0
-        }, UserId1);
+            await SeedAsync();
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal((int)TaskStatusItem.Completed, task.StatusId);
-        Assert.NotNull(task.CompletedAt);
-    }
+            await using (var db = NewContext())
+            {
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "A", displayOrder: 0));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "B", displayOrder: 1, id: TaskId));
+                db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "C", displayOrder: 2));
+                await db.SaveChangesAsync();
+            }
 
-    [Fact]
-    public async Task MoveTaskAsync_TaskNotFound_ReturnsNotFound()
-    {
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem>()).Object);
+            await using var act = NewContext();
+            var result = await NewSut(act).MoveTaskAsync(TaskId, new MoveTaskDto
+            {
+                NewStatusId = (int)TaskStatusItem.InProgress,
+                NewDisplayOrder = 0
+            }, LeadId);
 
-        var result = await _sut.MoveTaskAsync(Guid.NewGuid(), new MoveTaskDto
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            var remaining = await assert.Tasks
+                .Where(t => t.StatusId == (int)TaskStatusItem.NotStarted)
+                .OrderBy(t => t.DisplayOrder)
+                .Select(t => new { t.Title, t.DisplayOrder })
+                .ToListAsync();
+
+            Assert.Equal(new[] { "A", "C" }, remaining.Select(r => r.Title));
+            Assert.Equal(new[] { 0, 1 }, remaining.Select(r => r.DisplayOrder));
+        }
+
+        /// <summary>
+        /// The xmin concurrency token is what MoveTaskAsync's retry loop reacts to. This proves the
+        /// token is live on a real Postgres connection. The loop's give-up path needs sustained
+        /// contention across three attempts and is not deterministically reachable from a test.
+        /// </summary>
+        [Fact]
+        public async Task TaskItem_RowVersion_DetectsAConcurrentWrite()
         {
-            NewStatusId = (int)TaskStatusItem.InProgress,
-            NewDisplayOrder = 0
-        }, UserId1);
+            await SeedAsync();
+            await SeedTaskAsync();
 
-        Assert.True(result.IsFailure);
-        Assert.Equal("NotFound", result.Error!.Code);
-    }
+            await using var first = NewContext();
+            await using var second = NewContext();
 
-    [Fact]
-    public async Task MoveTaskAsync_ConcurrencyConflict_ReturnsConflictAfterRetries()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1, statusId: (int)TaskStatusItem.NotStarted);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>
-        {
-            CreateMembership(UserId1, GroupId1, RoleIds.Member)
-        }).Object);
+            var readByFirst = await first.Tasks.SingleAsync();
+            var readBySecond = await second.Tasks.SingleAsync();
 
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateConcurrencyException("Concurrent modification"));
-        _mockContext.Setup(c => c.ClearChangeTracker());
+            readByFirst.Title = "written by first caller";
+            await first.SaveChangesAsync();
 
-        var result = await _sut.MoveTaskAsync(TaskId1, new MoveTaskDto
-        {
-            NewStatusId = (int)TaskStatusItem.InProgress,
-            NewDisplayOrder = 0
-        }, UserId1);
+            readBySecond.Title = "written by second caller";
 
-        Assert.True(result.IsFailure);
-        Assert.Equal("Conflict", result.Error!.Code);
-        Assert.Contains("modified by another user", result.Error.Message);
-    }
-
-
-    [Fact]
-    public async Task GetGroupTasksAsync_NonMember_ReturnsForbidden()
-    {
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>()).Object);
-
-        var result = await _sut.GetGroupTasksAsync(GroupId1, null, UserId1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("Forbidden", result.Error!.Code);
-    }
-
-    [Fact]
-    public async Task GetTaskByIdAsync_TaskNotFound_ReturnsNotFound()
-    {
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem>()).Object);
-
-        var result = await _sut.GetTaskByIdAsync(Guid.NewGuid(), UserId1);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("NotFound", result.Error!.Code);
-    }
-
-    [Fact]
-    public async Task GetTaskByIdAsync_NonMember_ReturnsForbidden()
-    {
-        var task = CreateTask(id: TaskId1, groupId: GroupId1);
-        _mockContext.Setup(c => c.Tasks).Returns(MockDbSetFactory.Create(new List<TaskItem> { task }).Object);
-        _mockContext.Setup(c => c.GroupMembers).Returns(MockDbSetFactory.Create(new List<GroupMember>()).Object);
-
-        var result = await _sut.GetTaskByIdAsync(TaskId1, UserId2);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("Forbidden", result.Error!.Code);
+            await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => second.SaveChangesAsync());
+        }
     }
 }
