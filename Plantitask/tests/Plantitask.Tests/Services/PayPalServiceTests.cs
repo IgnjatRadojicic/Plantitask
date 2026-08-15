@@ -420,8 +420,13 @@ namespace Plantitask.Tests.Services
             Assert.False((await ReadUserAsync(MemberId)).IsPremium);
         }
 
+        /// <summary>
+        /// A 30 day pass has no billing agreement behind it, so cancelling it contacts nobody and
+        /// the only thing a revoke could accomplish is deleting days the user already paid for.
+        /// Refusing is the fix, and the row must come back untouched.
+        /// </summary>
         [Fact]
-        public async Task CancelSubscriptionAsync_DoesNotCallPayPalForAOneTimePurchase()
+        public async Task CancelSubscriptionAsync_RefusesAOneTimePassAndKeepsThePaidDays()
         {
             await SeedAsync();
             await GrantPremiumAsync(MemberId, "onetime", DateTime.UtcNow.AddDays(10), orderId: "ORDER-1");
@@ -429,9 +434,14 @@ namespace Plantitask.Tests.Services
             await using var act = NewContext();
             var result = await NewSut(act).CancelSubscriptionAsync(MemberId);
 
-            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.True(result.IsFailure);
+            Assert.Equal("BadRequest", result.Error!.Code);
             Assert.Equal(0, _http.CountOfRequestsTo("/cancel"));
-            Assert.False((await ReadUserAsync(MemberId)).IsPremium);
+
+            var user = await ReadUserAsync(MemberId);
+            Assert.True(user.IsPremium);
+            Assert.Equal("onetime", user.SubscriptionType);
+            Assert.True(user.PremiumExpiresAt > DateTime.UtcNow);
         }
 
         [Fact]

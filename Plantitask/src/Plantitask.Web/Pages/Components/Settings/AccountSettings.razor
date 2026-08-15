@@ -161,21 +161,32 @@ else
                     }
                 </dl>
 
-                <button class="ds-btn-cancel"
-                        aria-label="Cancel premium subscription"
-                        @onclick="HandleCancelPremium"
-                        disabled="@_cancelling">
-                    @if (_cancelling)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true"
-                                             Color="Color.Inherit" Style="width:14px;height:14px;" />
-                        <span>Cancelling...</span>
-                    }
-                    else
-                    {
-                        <span>Cancel Subscription</span>
-                    }
-                </button>
+                @* A 30-Day Pass has no billing agreement to stop, so offering "cancel" would only
+                   invite the user to throw away days they already paid for. *@
+                @if (_profile.SubscriptionType == "recurring")
+                {
+                    <button class="ds-btn-cancel"
+                            aria-label="Cancel premium subscription"
+                            @onclick="HandleCancelPremium"
+                            disabled="@_cancelling">
+                        @if (_cancelling)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true"
+                                                 Color="Color.Inherit" Style="width:14px;height:14px;" />
+                            <span>Cancelling...</span>
+                        }
+                        else
+                        {
+                            <span>Cancel Subscription</span>
+                        }
+                    </button>
+                }
+                else
+                {
+                    <p class="ds-subscription-pitch">
+                        Nothing renews. Your pass simply ends on the date above.
+                    </p>
+                }
             </div>
         }
         else

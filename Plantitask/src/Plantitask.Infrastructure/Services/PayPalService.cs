@@ -188,10 +188,11 @@ namespace Plantitask.Infrastructure.Services
         }
 
         /// <summary>
-        /// Cancels at PayPal, then revokes locally. The revoke deliberately proceeds even when
-        /// PayPal's cancel call fails so the user is never trapped - the cost is that PayPal may
-        /// keep billing until someone notices the warning log. Known open item: that log should
-        /// be an alert (paypal-service.md K).
+        /// Cancels a recurring subscription at PayPal, then revokes locally. The revoke
+        /// deliberately proceeds even when PayPal's cancel call fails so the user is never
+        /// trapped - the cost is that PayPal may keep billing until someone notices the warning
+        /// log. Known open item: that log should be an alert (paypal-service.md K).
+        /// One-time passes are refused rather than cancelled.
         /// </summary>
         public async Task<Result> CancelSubscriptionAsync(Guid userId)
         {
@@ -201,6 +202,12 @@ namespace Plantitask.Infrastructure.Services
 
             if (!user.IsPremium)
                 return Error.BadRequest("User does not have an active premium subscription");
+
+            // A one time pass has no billing agreement behind it, so there is nothing to cancel
+            // and revoking here would do nothing but delete days already paid for. The daily
+            // expire-onetime-premium job owns that end date.
+            if (user.SubscriptionType == "onetime")
+                return Error.BadRequest("A 30 day pass has nothing to cancel. It ends on its own.");
 
             if (user.SubscriptionType == "recurring" && !string.IsNullOrEmpty(user.PayPalSubscriptionId))
             {
