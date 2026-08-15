@@ -230,17 +230,29 @@ namespace Plantitask.Infrastructure.Services
 
             task.UpdatedBy = userId;
 
+            // Hangfire is not in the transaction, so the order here is load bearing: schedule
+            // first, commit, cancel last. Cancelling first means a save that fails has already
+            // destroyed the reminder and left the row pointing at a job that no longer exists.
+            var previousJobId = task.DueSoonJobId;
 
-            if (task.DueSoonJobId != null)
+            try
             {
-                _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
+                task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
+                    ? await _backgroundJobService.ScheduleTaskDueSoonNotification(
+                        task.Id, task.AssignedToId.Value, task.DueDate.Value)
+                    : null;
+            }
+            catch (Exception ex)
+            {
+                // Same stance as CreateTaskAsync: a reminder is not worth failing the edit over.
+                _logger.LogError(ex, "Failed to reschedule reminder for task {TaskId}", task.Id);
+                task.DueSoonJobId = previousJobId;
             }
 
-            task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
-                ? await _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value)
-                : null;
-
             await _context.SaveChangesAsync();
+
+            if (previousJobId != null && previousJobId != task.DueSoonJobId)
+                _backgroundJobService.CancelScheduledJob(previousJobId);
 
             var result = await GetTaskByIdAsync(task.Id, userId);
 
@@ -410,16 +422,27 @@ namespace Plantitask.Infrastructure.Services
             task.AssignedToId = assignDto.UserId;
             task.UpdatedBy = userId;
 
-            if (task.DueSoonJobId != null)
+            // Same ordering rule as UpdateTaskAsync: the cancel is the only irreversible half, so
+            // it happens after the row is safely on disk.
+            var previousJobId = task.DueSoonJobId;
+
+            try
             {
-                _backgroundJobService.CancelScheduledJob(task.DueSoonJobId);
+                task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
+                    ? await _backgroundJobService.ScheduleTaskDueSoonNotification(
+                        task.Id, task.AssignedToId.Value, task.DueDate.Value)
+                    : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to reschedule reminder for task {TaskId}", task.Id);
+                task.DueSoonJobId = previousJobId;
             }
 
-            task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
-             ? await _backgroundJobService.ScheduleTaskDueSoonNotification(task.Id, task.AssignedToId.Value, task.DueDate.Value)
-             : null;
-
             await _context.SaveChangesAsync();
+
+            if (previousJobId != null && previousJobId != task.DueSoonJobId)
+                _backgroundJobService.CancelScheduledJob(previousJobId);
 
 
 

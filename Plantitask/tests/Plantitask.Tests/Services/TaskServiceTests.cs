@@ -572,8 +572,14 @@ namespace Plantitask.Tests.Services
             Assert.Equal("Seeded task", (await assert.Tasks.SingleAsync()).Title);
         }
 
+        /// <summary>
+        /// Hangfire is outside the transaction, so the irreversible half goes last. The new job is
+        /// scheduled first and the old one cancelled only once the row is on disk. The other order
+        /// destroys the reminder whenever the save fails and leaves the row pointing at a job that
+        /// no longer exists.
+        /// </summary>
         [Fact]
-        public async Task UpdateTaskAsync_CancelsTheOldReminderBeforeSchedulingTheNewOne()
+        public async Task UpdateTaskAsync_SchedulesTheNewReminderBeforeCancellingTheOldOne()
         {
             await SeedAsync();
             await SeedTaskAsync(assignedTo: MemberId, dueDate: DateTime.UtcNow.AddDays(2));
@@ -584,20 +590,59 @@ namespace Plantitask.Tests.Services
                 await db.SaveChangesAsync();
             }
 
+            var calls = new List<string>();
             var newDueDate = DateTime.UtcNow.AddDays(6);
+
             _jobs.Setup(j => j.ScheduleTaskDueSoonNotification(TaskId, MemberId, newDueDate))
+                .Callback(() => calls.Add("schedule"))
                 .ReturnsAsync("new-job");
+            _jobs.Setup(j => j.CancelScheduledJob("old-job"))
+                .Callback(() => calls.Add("cancel"));
 
             await using var act = NewContext();
             var result = await NewSut(act).UpdateTaskAsync(
                 TaskId, new UpdateTaskDto { DueDate = newDueDate }, LeadId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
-
-            _jobs.Verify(j => j.CancelScheduledJob("old-job"), Times.Once);
+            Assert.Equal(new[] { "schedule", "cancel" }, calls);
 
             await using var assert = NewContext();
             Assert.Equal("new-job", (await assert.Tasks.SingleAsync()).DueSoonJobId);
+        }
+
+        /// <summary>
+        /// A reminder is best effort, which is the stance CreateTaskAsync already takes. Hangfire
+        /// being unreachable must not fail an ordinary edit, and the reminder that is still
+        /// scheduled has to survive rather than be quietly dropped from the row.
+        /// </summary>
+        [Fact]
+        public async Task UpdateTaskAsync_WhenSchedulingThrows_StillSavesTheEditAndKeepsTheOldReminder()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(assignedTo: MemberId, dueDate: DateTime.UtcNow.AddDays(2));
+
+            await using (var db = NewContext())
+            {
+                (await db.Tasks.SingleAsync()).DueSoonJobId = "old-job";
+                await db.SaveChangesAsync();
+            }
+
+            _jobs.Setup(j => j.ScheduleTaskDueSoonNotification(
+                    It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>()))
+                .ThrowsAsync(new InvalidOperationException("hangfire is unreachable"));
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UpdateTaskAsync(
+                TaskId, new UpdateTaskDto { Title = "Edited while Hangfire is down" }, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            var task = await assert.Tasks.SingleAsync();
+            Assert.Equal("Edited while Hangfire is down", task.Title);
+            Assert.Equal("old-job", task.DueSoonJobId);
+
+            _jobs.Verify(j => j.CancelScheduledJob(It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
