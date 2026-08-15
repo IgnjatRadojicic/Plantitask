@@ -104,6 +104,11 @@ namespace Plantitask.Infrastructure.Services.Storage
         /// </summary>
         private string ResolveStoredPath(string storagePath)
         {
+            // A stored key is always server generated as "folder/{guid}{ext}", so a backslash is
+            // always anomalous. Normalising it makes the containment check behave identically on
+            // Linux, where a backslash is an ordinary filename character rather than a separator.
+            storagePath = storagePath.Replace('\\', '/');
+
             var basePath = Path.TrimEndingDirectorySeparator(
                 Path.GetFullPath(_settings.LocalStorage.BasePath));
             var fullPath = Path.GetFullPath(Path.Combine(basePath, storagePath));
