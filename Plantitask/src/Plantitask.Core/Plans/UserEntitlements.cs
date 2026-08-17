@@ -24,10 +24,10 @@ namespace Plantitask.Core.Plans
         public bool IsPremium => Tier != PlanTier.Free;
 
         /// <summary>
-        /// The value the client has always received in PremiumStatusDto.SubscriptionType and
-        /// UserProfileDto.SubscriptionType. AccountSettings.razor branches on "recurring" to
-        /// decide whether to offer a cancel button, so these strings are a wire contract and do
-        /// not follow GrantSource when it is renamed.
+        /// The value the client has always received in PremiumStatusDto.SubscriptionType.
+        /// AccountSettings.razor branches on "recurring" to decide whether to offer a cancel
+        /// button, so these strings are a wire contract and do not follow GrantSource when it
+        /// is renamed.
         /// </summary>
         public string? SubscriptionType => Source switch
         {

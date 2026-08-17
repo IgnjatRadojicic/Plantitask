@@ -22,6 +22,15 @@ public class UserProfileService : IUserProfileService
     // Matches [RequestSizeLimit] on UserProfileController.UploadProfilePicture.
     private const int MaxProfilePictureMb = 5;
 
+    /// <summary>
+    /// The projection compiled for in-memory use. One definition of the profile shape with two
+    /// callers: EF translates the Expression to SQL on a read, and this invokes it against an
+    /// already-tracked entity after a write, so a mutation response costs no second round trip.
+    /// Static because compiling is not free and the result is good for the life of the process.
+    /// </summary>
+    private static readonly Func<User, UserProfileDto> MapProfile =
+        UserProjections.ToProfileDto.Compile();
+
     public UserProfileService(
         IApplicationDbContext context,
         IFileStorageService fileStorage,
@@ -32,7 +41,10 @@ public class UserProfileService : IUserProfileService
         _logger = logger;
     }
 
-    /// <summary>The caller's profile through the shared projection.</summary>
+    /// <summary>
+    /// The caller's profile. Identity only: premium state lives behind
+    /// GET /api/user/profile/entitlements, so this service never needs to know what a plan is.
+    /// </summary>
     public async Task<Result<UserProfileDto>> GetProfileAsync(Guid userId)
     {
         var profile = await _context.Users
@@ -94,7 +106,7 @@ public class UserProfileService : IUserProfileService
 
         _logger.LogInformation("User {UserId} updated their profile", userId);
 
-        return MapToDto(user);
+        return MapProfile(user);
     }
 
     /// <summary>
@@ -177,24 +189,4 @@ public class UserProfileService : IUserProfileService
         }
     }
 
-    /// <summary>In-memory twin of the profile projection, for responses built from a tracked entity.</summary>
-    private static UserProfileDto MapToDto(User user)
-    {
-        return new UserProfileDto
-        {
-            Id = user.Id,
-            UserName = user.UserName,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            ProfilePicturePath = user.ProfilePicturePath,
-            LastLoginAt = user.LastLoginAt,
-            CreatedAt = user.CreatedAt,
-            IsPremium = user.HasActivePremium,
-            SubscriptionType = user.SubscriptionType,
-            PremiumExpiresAt = user.PremiumExpiresAt,
-            PremiumStartedAt = user.PremiumStartedAt,
-            MaxGroups = user.MaxGroups
-        };
-    }
 }
