@@ -23,9 +23,13 @@ namespace Plantitask.Core.Interfaces
         DbSet<TaskComment> TaskComments { get; set; }
 
 
+        DbSet<PlanVersion> PlanVersions { get; set; }
+        DbSet<UserPlanGrant> UserPlanGrants { get; set; }
+
         DbSet<TaskStatusLookup> TaskStatuses { get; set; }
         DbSet<TaskPriorityLookup> TaskPriorities { get; set; }
         DbSet<GroupRoleLookup> GroupRoles { get; set; }
+        DbSet<PlanLookup> Plans { get; set; }
         DbSet<Notification> Notifications { get; set; }
         DbSet<NotificationPreference> NotificationPreferences { get; set; }
         DbSet<NotificationDigestLog> NotificationDigestLogs { get; set; }

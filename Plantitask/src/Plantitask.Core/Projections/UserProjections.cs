@@ -8,12 +8,13 @@ namespace Plantitask.Core.Projections
     public static class UserProjections
     {
         /// <summary>
-        /// Reads a profile without materialising the User entity, so PasswordHash and the
-        /// PayPal columns never enter memory on a plain profile read.
+        /// Reads a profile without materialising the User entity, so PasswordHash never enters
+        /// memory on a plain profile read.
         ///
-        /// IsPremium repeats the rule in UserSpecifications.HasActivePremium rather than
-        /// calling User.HasActivePremium. That property is a compiled Func, which EF cannot
-        /// translate - referencing it here throws at query time. Change one and change both.
+        /// Carries identity only. The premium fields on UserProfileDto come from the active
+        /// grant and are stamped by UserProfileService after this runs, because resolving a
+        /// grant means ordering by precedence and falling back to the free plan, and an
+        /// expression tree cannot call the one method that knows those rules.
         /// </summary>
         public static Expression<Func<User, UserProfileDto>> ToProfileDto => u => new UserProfileDto
         {
@@ -24,12 +25,7 @@ namespace Plantitask.Core.Projections
             LastName = u.LastName,
             ProfilePicturePath = u.ProfilePicturePath,
             LastLoginAt = u.LastLoginAt,
-            CreatedAt = u.CreatedAt,
-            IsPremium = u.IsPremium && (!u.PremiumExpiresAt.HasValue || u.PremiumExpiresAt > DateTime.UtcNow),
-            SubscriptionType = u.SubscriptionType,
-            PremiumExpiresAt = u.PremiumExpiresAt,
-            PremiumStartedAt = u.PremiumStartedAt,
-            MaxGroups = u.MaxGroups
+            CreatedAt = u.CreatedAt
         };
     }
 }

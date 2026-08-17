@@ -16,6 +16,5 @@ namespace Plantitask.Core.DTO.Users
         public string? SubscriptionType { get; set; }
         public DateTime? PremiumExpiresAt { get; set; }
         public DateTime? PremiumStartedAt { get; set; }
-        public int MaxGroups { get; set; }
     }
 }
