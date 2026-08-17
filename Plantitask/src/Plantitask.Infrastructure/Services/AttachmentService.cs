@@ -23,16 +23,19 @@ namespace Plantitask.Infrastructure.Services
         private readonly FileStorageSettings _settings;
         private readonly ILogger<AttachmentService> _logger;
         private readonly IGroupService _groupService;
+        private readonly IEntitlementService _entitlements;
         public AttachmentService(
             IApplicationDbContext context,
             IFileStorageService fileStorage,
             IOptions<FileStorageSettings> settings,
             IGroupService groupService,
+            IEntitlementService entitlements,
             ILogger<AttachmentService> logger)
         {
             _context = context;
             _fileStorage = fileStorage;
             _groupService = groupService;
+            _entitlements = entitlements;
             _settings = settings.Value;
             _logger = logger;
         }
@@ -64,6 +67,10 @@ namespace Plantitask.Infrastructure.Services
                 content, fileName, _settings.MaxFileSizeInMB, _settings.AllowedExtensions);
             if (validation.IsFailure)
                 return validation.Error!;
+
+            var quotaError = await CheckStorageQuotaAsync(userId, content.Length);
+            if (quotaError != null)
+                return quotaError;
 
             var contentType = FileUploadRules.ContentTypeFor(validation.Value!);
             var storagePath = await _fileStorage.UploadFileAsync(content, fileName, contentType, "attachments");
@@ -271,14 +278,48 @@ namespace Plantitask.Infrastructure.Services
             try
             {
                 await _fileStorage.DeleteFileAsync(attachment.FilePath);
+
+                // Stamped only once the bytes are really gone. Leaving it null on failure is
+                // what hands the row to AttachmentPurgeJob instead of orphaning the file, which
+                // is what this catch used to do silently.
+                attachment.FilePurgedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to delete physical file for attachment {AttachmentId}", attachmentId);
+                _logger.LogWarning(ex,
+                    "Failed to delete physical file for attachment {AttachmentId}, purge job will retry",
+                    attachmentId);
             }
 
             return Result.Success();
         }
 
+        /// <summary>
+        /// The per-user storage cap. Runs after validation so the size is known but before any
+        /// storage I/O, because a file rejected after upload is a file we are paying to keep.
+        ///
+        /// Quota is per uploader, not per tree: your files count against you wherever you put
+        /// them, so the message makes sense to whoever hits it and no tree owner can be filled
+        /// up by their members.
+        /// </summary>
+        private async Task<Error?> CheckStorageQuotaAsync(Guid userId, long incomingBytes)
+        {
+            var entitlements = await _entitlements.GetEntitlementsAsync(userId);
+            if (entitlements.IsFailure)
+                return entitlements.Error!;
+
+            var limit = entitlements.Value!.MaxStorageBytes;
+            var used = await _entitlements.GetStorageUsedBytesAsync(userId);
+
+            if (used + incomingBytes <= limit)
+                return null;
+
+            const long mb = 1024 * 1024;
+
+            return Error.Forbidden(
+                $"This file would put you over your {limit / mb} MB storage limit. " +
+                $"You have used {used / mb} MB. Delete something or upgrade to Premium for more.");
+        }
     }
 }
