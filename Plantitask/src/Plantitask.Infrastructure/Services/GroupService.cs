@@ -19,17 +19,20 @@ namespace Plantitask.Infrastructure.Services
         private readonly IApplicationDbContext _context;
         private readonly IGroupCodeGenerator _codeGenerator;
         private readonly IPasswordHasher _passwordHasher;
+        private readonly IEntitlementService _entitlements;
         private readonly ILogger<GroupService> _logger;
 
         public GroupService(
             IApplicationDbContext context,
             IGroupCodeGenerator codeGenerator,
             IPasswordHasher passwordHasher,
+            IEntitlementService entitlements,
             ILogger<GroupService> logger)
         {
             _context = context;
             _codeGenerator = codeGenerator;
             _passwordHasher = passwordHasher;
+            _entitlements = entitlements;
             _logger = logger;
         }
 
@@ -605,20 +608,22 @@ namespace Plantitask.Infrastructure.Services
         }
 
         /// <summary>
-        /// Enforces the plan's group cap against the user's denormalized MaxGroups. Returns the
-        /// error to hand back, or null when the user still has room.
+        /// Enforces the group cap from the user's resolved plan. Returns the error to hand back,
+        /// or null when the user still has room.
         /// </summary>
         private async Task<Error?> CheckGroupLimitAsync(Guid userId)
         {
-            var maxGroups = await _context.Users
-                .Where(u => u.Id == userId)
-                .Select(u => (int?)u.MaxGroups)
-                .FirstOrDefaultAsync();
-            if (maxGroups == null)
-                return Error.NotFound("User not found");
+            // This used to read User.MaxGroups, a stored copy the nightly expiry job kept up to
+            // date. Between a pass expiring and that job running, enforcement saw the premium
+            // number while the status endpoint reported the free one. The limit is derived now,
+            // so the two cannot disagree.
+            var entitlements = await _entitlements.GetEntitlementsAsync(userId);
+            if (entitlements.IsFailure)
+                return entitlements.Error!;
 
-            var currentGroupCount = await _context.GroupMembers
-                .CountAsync(gm => gm.UserId == userId);
+            var maxGroups = entitlements.Value!.MaxGroups;
+
+            var currentGroupCount = await _entitlements.GetGroupCountAsync(userId);
 
             return currentGroupCount >= maxGroups
                 ? Error.Forbidden($"You've reached your limit of {maxGroups} Trees. Upgrade to Premium for more.")
