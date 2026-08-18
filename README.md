@@ -505,6 +505,8 @@ The same class of bug had already been fixed once for application CSS and JS, wh
 
 The suite is 24 test classes and just over 500 test methods, which expand to roughly 600 cases once the theories are counted. It runs against a real PostgreSQL and a real Redis.
 
+**Coverage is the whole service layer, not a critical-path subset.** Every service in `Infrastructure/Services` has a test class, alongside `TreeProgressCalculator` and `FileUploadRules`. Four gaps are known and each has a reason: `EntitlementService` and `AttachmentPurgeJob` were both added after the rebuild and are next in line, while `AzureBlobStorageService` and the two email senders are structural exclusions explained below. Controllers and the Blazor frontend have no test project yet.
+
 ### Why the mocked DbContext was deleted
 
 The old harness mocked `DbSet`. It could not see global query filters, transactions or `ExecuteUpdate`, and those are exactly where the tenancy bugs live. It was never going to test the thing worth testing.
@@ -598,7 +600,13 @@ push to main
 - Email verification with 6-digit codes cached in Redis, and password reset with hashed single-use tokens
 - Group creation with derived join codes, optional passwords, ownership transfer, and a role hierarchy of Owner, Manager, TeamLead, Member
 - Interactive PixiJS field where trees represent groups, with drag-to-rearrange and seven growth stages tied to completion
-- Kanban board with drag and drop across and within columns, optimistic concurrency, bounded retry and gap-free `DisplayOrder`
+- Kanban board with:
+  - Drag-and-drop task reordering, both within a column and across columns
+  - Optimistic concurrency with automatic retry, up to 3 attempts
+  - `DisplayOrder` management with gap-free sequential numbering
+  - Real-time updates via SignalR on every move
+  - Automatic `CompletedAt` timestamp when a task reaches Done
+  - Cross-column drags answering to the same authorization rule as the status endpoint
 - Real-time updates over SignalR for notifications, field growth and Kanban moves, with typed event payloads
 - Task search backed by a trigram index, with pagination that clamps before it pages
 - Task comments with role-aware moderation: authors edit their own, Managers and above can remove someone else's
