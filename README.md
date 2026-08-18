@@ -143,7 +143,7 @@ src/
 │   └── Specifications/          # Reusable predicates that stayed off the entities
 │
 ├── Plantitask.Infrastructure/   # EF Core, migrations, service implementations
-│   ├── Data/                    # DbContext, configurations, converters, 21 migrations
+│   ├── Data/                    # DbContext, configurations, converters, 20 migrations
 │   └── Services/                # Auth, Group, Task, Entitlement, PayPal, jobs, storage, email
 │
 ├── Plantitask.Api/              # Controllers, middleware, hubs, Program.cs
@@ -160,6 +160,40 @@ tests/
 **Result pattern, not exceptions.** Services return `Result<T>`. Controllers convert with `ToActionResult()`. The frontend mirrors it with `ServiceResult<T>`, so every page handles success and failure in the same two lines.
 
 **One place per rule.** `IEntitlementService` is the only code that decides what a user may do. `IGroupService` is the only code that answers a membership question. Enforcement and display read the same number, which removes the class of bug where the API refuses something the UI says is allowed.
+
+---
+
+## Design Patterns and Principles
+
+**Clean Architecture** with strict dependency inversion. Core has zero external dependencies and defines all interfaces, Infrastructure implements them, the API layer only orchestrates, and `Plantitask.Contracts` sits below everything as a dependency-free leaf both the API and the browser can reference. No project reference flows inward.
+
+**Result Pattern** replaces exception-based error handling across the entire backend. Services return `Result<T>` instead of throwing. Controllers convert results via a `ToActionResult()` extension. The frontend mirrors this with `ServiceResult<T>`, so every page follows the same two-line shape: check success, then use the data or show the error.
+
+**Dependency Inversion (SOLID "D")** applied throughout. Every service has an interface, and pages and controllers depend on abstractions rather than concrete classes. This is what made the test rebuild possible: `BackgroundJobService` could only be tested once it took `IBackgroundJobClient` and `IRecurringJobManager` instead of calling Hangfire's static facades, because a static call has nothing to substitute.
+
+**BaseApiService Inheritance** (Open/Closed). Every frontend HTTP service inherits a shared abstract base providing `GetAsync<T>`, `PostAsync<T>`, `PutAsync<T>`, `PatchAsync<T>`, `DeleteAsync<T>` and unified error parsing. Adding a new API service means writing only its public methods.
+
+**DelegatingHandler Pipeline** for cross-cutting authentication. `AuthTokenHandler` attaches the access token to outgoing requests, handles a 401 with a silent refresh, and replays the failed request. Individual services never touch authorization headers. The refresh itself deliberately goes through a *separate* named client with no handler, because a refresh flowing through the handler that triggers it would recurse into a lock the outer frame already holds.
+
+**Refresh Token Rotation** with reuse detection. Each refresh invalidates the previous token and issues a new pair, and the `ReplacedByToken` chain is what makes a replay detectable. Tokens are stored as SHA-256 rather than BCrypt, because a salted hash can be verified but never looked up by, and a 512-bit random token gains nothing from a deliberately slow hash.
+
+**Optimistic Concurrency Control.** Entities carry a concurrency token checked by EF Core on every update, so two users editing the same task means the second write gets a `DbUpdateConcurrencyException` rather than silently clobbering the first. No database locks are held during user think-time.
+
+**Retry-Based Conflict Resolution** for Kanban moves. Rather than merging conflicting changes, which is complex and error-prone for sequential data, the service clears the change tracker and retries against fresh state: up to 3 attempts with 50ms, 100ms and 150ms backoff. Sequential `DisplayOrder` values behave like a bank transfer rather than a document edit, so they cannot be safely merged. This mirrors what Jira, Trello and GitHub Projects do.
+
+**Observer Pattern (Event Bus)** on the frontend. `FieldUIService` exposes `OnPlantTreeRequested` and `OnJoinTreeRequested`, so the layout's navigation buttons fire events and the Field page subscribes. No tight coupling, no query parameter hacks, no shared mutable state.
+
+**Background Job Processing** via Hangfire on PostgreSQL storage. Recurring jobs handle the overdue digest, attachment purging and notification cleanup, and every recurring job is registered with `AddOrUpdate` keyed by a fixed id so a restart updates rather than duplicates.
+
+**Soft Delete Pattern** across all major entities, with a flat `!IsDeleted` filter applied in `OnModelCreating` and an explicit transactional write cascade that flags every descendant. Deleted rows keep the audit trail intact. A user-facing account recovery window is planned but not implemented.
+
+**Audit Logging** on state-changing operations, through `IAuditService`. It writes on its own connection via `IDbContextFactory`, deliberately, so an audit row survives the caller rolling back. An audit trail that vanished with the transaction it was recording would be worthless.
+
+**Custom Authentication State Provider** bridges JWT tokens with Blazor's authorization framework. It parses claims without signature validation, since that is the backend's job, and exposes the identity to `AuthorizeView` and `[Authorize]`. It *subscribes* to `SessionService.OnTokensChanged` rather than being pushed into, which is what broke the dependency cycle that previously prevented it from refreshing at all.
+
+**Factory Pattern** for design-time context creation. `ApplicationDbContextFactory` serves EF Core migrations, entirely separate from the runtime DI pipeline.
+
+**Seeded Random Generation** for deterministic PixiJS field layouts. Decorations are placed by a seeded Lehmer generator, so the field looks identical across sessions and devices without storing a single position.
 
 ---
 
@@ -519,7 +553,7 @@ Measured and dropped. It costs the same per test as a real Postgres here, and it
 
 ### How isolation works
 
-- `PostgresFixture` drops and recreates `plantitask_test` once per run and builds the schema with `MigrateAsync`, so every run also proves all 21 migrations still apply from empty.
+- `PostgresFixture` drops and recreates `plantitask_test` once per run and builds the schema with `MigrateAsync`, so every run also proves all 20 migrations still apply from empty.
 - `DbTestBase` truncates every non-lookup table before each test, so a test only ever sees the seeded lookups plus rows it created itself.
 - Arrange, act and assert each get their own `DbContext`, so nothing passes on a change tracker instead of on the database.
 - `RedisFixture` uses database index 15 rather than a separate server, since the app uses 0 and Redis ships with 16. The index is asserted immediately before the flush rather than trusted from configuration, because `FlushDatabase` is irreversible.
@@ -561,6 +595,18 @@ Three tests in `AuditServiceTests` are named `KnownHole`. They document that `Ge
 
 One source change came out of the rebuild. `BackgroundJobService` takes `IBackgroundJobClient` and `IRecurringJobManager` instead of calling Hangfire's static facades, because a static call that reaches for `JobStorage.Current` is a global invisible dependency with nothing to substitute.
 
+### Tested Scenarios
+
+- Concurrent task moves with optimistic concurrency and the retry loop
+- Refresh token rotation, revocation chains and replay detection
+- Verification code and reset token expiry
+- Soft delete filtering and the write cascade
+- Audit rows surviving a caller rollback
+- Tree growth calculation at every band boundary
+- Cross-tenant denial on every group scoped method
+- Webhook idempotency across redelivered and forged events
+- Email template encoding in every user-supplied slot
+
 ---
 
 ## CI/CD
@@ -599,7 +645,10 @@ push to main
 - Google sign-in requiring a verified Google email, with username collision handling
 - Email verification with 6-digit codes cached in Redis, and password reset with hashed single-use tokens
 - Group creation with derived join codes, optional passwords, ownership transfer, and a role hierarchy of Owner, Manager, TeamLead, Member
-- Interactive PixiJS field where trees represent groups, with drag-to-rearrange and seven growth stages tied to completion
+- Interactive PixiJS canvas field where trees represent groups
+- Drag-and-drop tree repositioning with localStorage persistence
+- Seed planting flow: drag from inventory, click field, create group
+- Tree growth stages tied to task completion percentage (7 stages from EmptySoil to FloweringTree)
 - Kanban board with:
   - Drag-and-drop task reordering, both within a column and across columns
   - Optimistic concurrency with automatic retry, up to 3 attempts
@@ -615,7 +664,7 @@ push to main
 - Entitlements endpoint exposing plan, limits and current usage together, so a quota is visible before it refuses an upload
 - Overdue digests, due-soon reminders with cancellable scheduled jobs, and a weekly notification cleanup on Hangfire
 - Notification preferences per type and per channel, with an in-app and email split
-- Dashboard statistics, completion trends and per-group charts
+- Dashboard statistics (tasks by status, completion trends, member workload) with per-group charts
 - Audit logging on a separate connection, so a rolled-back transaction still leaves its trail
 - Rate limiting: 60/min general, 15/min auth, 10 per 5 min on verification
 - Dark mode
@@ -809,25 +858,89 @@ docker compose up -d --build
 
 ## What I Learned Building This
 
-**Mocks can only confirm what you told them.** The biggest single lesson of this stretch. A mocked `DbContext` cannot see query filters, transactions or `ExecuteUpdate`, which is precisely where the tenancy bugs live, and a test data builder that invents its own role ids grades every authorization assertion against ranks that do not exist. Deleting the whole harness and rebuilding on a real Postgres found bugs the green suite had been hiding.
+A journey through production-grade .NET, and then a second journey through rewriting most of it once real usage and real reasoning exposed what the first pass got wrong.
 
-**Two copies of a number will drift.** The role rank lived in an enum, a column, a constants class and a hardcoded frontend copy. The premium limits lived on the user row and in a job that maintained them. The JWT settings had two independent readers. Every one produced a real bug where two parts of the system disagreed. The fix is always the same shape: one place owns it, everyone else derives.
+**Backend Architecture**
+- Implemented Clean Architecture with strict dependency rules, learning how to structure an application so it stays testable as it grows
+- Weighed the Repository pattern against direct `DbContext` access and chose pragmatism over dogma
+- Learned that architectural decisions should be driven by actual needs, not theoretical purity, and that the same applies in reverse: `User.HasActivePremium` was added to avoid an anemic domain model and had to be walked back, because a compiled `Func` is invisible to EF and every query needing that rule ended up hand-writing its own copy
+- Discovered that the strongest architectural move is usually deletion. Extracting `Plantitask.Contracts` removed an entire class of frontend/backend drift, and removing the premium columns removed a whole background job along with them
 
-**Derived beats stored, when the derivation is cheap.** Premium expiry stopped needing a nightly job the moment expiry became "is `EndsAt` in the past" instead of "has the job flipped the boolean yet". Storage usage is a `SUM` rather than a counter, because a counter has to be decremented by a code path whose failure is deliberately swallowed.
+**Concurrency and Race Conditions**
+- Discovered subtle EF Core bugs like change tracker accumulation during retry loops, fixed with `ChangeTracker.Clear()`
+- Implemented retry-with-fresh-data instead of Microsoft's merge strategy after analyzing the complexity trade-offs
+- Understood why sequential data like Kanban ordering behaves like a bank transfer rather than a document edit, so it cannot be safely merged
+- Learned that a code guard and a database constraint are not interchangeable. `JoinGroupAsync` checked for duplicate membership in code, but code guards race and only the unique index is the real guarantee
+- Learned the same lesson again at the payment layer: two concurrent webhook deliveries can both read "no grant" before either inserts, so idempotency had to become a partial unique index rather than an application check
 
-**Enforce invariants where they cannot be forgotten.** Timestamps in a `SaveChanges` override rather than in forty call sites. UTC in a model-wide converter rather than per endpoint. Uniqueness in an index rather than in a code guard that races. A rule applied at the boundary holds for the code that has not been written yet.
+**The Result Pattern Journey**
+- Started with exception-based error handling, then discovered the Result pattern and refactored the entire codebase onto `Result<T>`
+- Learned to design APIs that make error handling explicit and force callers to handle both paths
+- Mirrored it in the frontend with `ServiceResult<T>` for a consistent experience across the stack
+- Later learned that the *status code* is part of that design too, and is a protocol rather than politeness. Returning 200 to a PayPal webhook that failed to process is how a payment silently vanishes, and returning 403 to a refresh failure tells the client the wrong thing to do next
 
-**Some decisions get reversed, and that is the process working.** Parent-aware query filters were the right-looking answer to orphaned children and lasted one day, until writing down why they were safe surfaced the join on every read and the rows no retention job could find. Being able to say why the replacement is better is only possible because the first attempt was reasoned about out loud.
+**Authentication and Security**
+- Built a complete JWT system with refresh token rotation from scratch, including silent renewal through a `DelegatingHandler`
+- Learned to detect token reuse via the `ReplacedByToken` chain, and later that rotation must *mark* rather than delete, because deleting makes a replay indistinguishable from an unknown token and reuse detection goes quiet with nothing failing
+- Discovered that BCrypt cannot be used for a lookup key at all, since its embedded salt means the same token hashes differently every time. That single misunderstanding sat in the codebase from the beginning
+- Learned that security is often about what the system *reveals*, not just what it permits. Unknown emails now burn the same BCrypt work as wrong passwords, all four refresh failures return one message, and logout succeeds on a token that is not yours so it cannot be used as an oracle
+- Learned that entropy comes from the source, not the format. Join codes looked like a 1.1 trillion keyspace but derived from `DateTime.Ticks`, which advances in system timer steps of 1ms to 15.6ms rather than 100ns
 
-**Status codes are a protocol, not politeness.** Answering 200 to a PayPal webhook you failed to process is how a payment silently vanishes. Answering 403 to a refresh failure tells the client the wrong thing to do next.
+**Redis Integration**
+- Learned why Redis beats in-memory caching for token storage, and implemented verification codes with TTL expiry
+- Discovered Redis as a SignalR backplane for scaling real-time features across servers
+- Learned that TTL semantics have sharp edges: a hash write against an expired key silently recreates it with no expiry, which would have left an address permanently marked verified
 
-**Scope is a real thing, and locks live inside it.** A `SemaphoreSlim` in a Scoped WASM service cannot protect localStorage, because localStorage sits above every tab and the service does not. Getting that wrong logged users out of every device for the crime of having two tabs open.
+**SignalR Real-Time Communication**
+- Built real-time delivery over hubs, learned to authenticate WebSocket connections with JWT, and handled reconnection
+- Learned that claim mapping is a trap. `MapInboundClaims` rewrote `sub`, so the hub's lookup silently found nothing and only worked because of a duplicate claim. Deleting that duplicate broke the hub with no error at all
+- Learned that anonymous objects on a hub are drift waiting to happen, which is why the four Kanban event shapes are typed and shared now
 
-**Caching is a distributed system.** An `immutable` header on a file whose name never changes is a promise you cannot keep, and the browser and the CDN will both hold you to it for a year.
+**Testing**
+- Learning to mock `DbContext` was the hardest early challenge, and the eventual lesson was that it was the wrong goal. A mocked `DbSet` cannot see query filters, transactions or `ExecuteUpdate`, which is exactly where the tenancy bugs live
+- Discovered that a test harness can report green while grading against fiction. `TestDataBuilder` invented role ids of 1, 2, 3, 4 instead of the real 25, 50, 75, 100, so every authorization assertion was measured against ranks that do not exist
+- Deleted the entire harness and rebuilt on a real Postgres and a real Redis. Coverage went from a critical-path subset to the whole service layer, and the rebuild immediately surfaced bugs the old green suite had been hiding
+- Learned to evaluate a test tool by what it cannot catch. SQLite was measured and rejected because stripping the concurrency token would have left the retry loop permanently untested while the suite still passed
+- Learned that a denial test needs two shapes, an outsider and an owner of the wrong group, because only the second catches an authorization check that forgot to scope itself
 
-**Infrastructure bugs hide behind green checkmarks.** A deploy pipeline that built the wrong directory, and a build context that dragged the host's `obj/` into the image, both reported success while doing the wrong thing. Anything that can silently succeed deserves the same scrutiny as anything that can fail.
+**Query Optimization**
+- Avoided N+1 by projecting to DTOs in the database, moving computation into SQL
+- Learned that `Include` and `Select` answer different questions: navigation access inside a projection already generates the join, so `Include` alongside it is pure overfetch, and `Include` earns its place only when the entity is tracked and mutated
+- Learned that the fix has its own trap, since a projection leaves navigations unpopulated and moves where the null check has to sit
+- Learned that an index can dictate query shape. The `pg_trgm` GIN index only accelerates `ILIKE`, so the query had to move off `LOWER()` and `Contains` before the index was worth anything
+- Found bugs while optimizing that had nothing to do with performance, including a group statistics trend that had rendered as zeros since the day it was written
 
-**Write the reasoning down.** The commit log for this stretch carries the why next to the what, and more than once the act of writing out why a change was safe is what revealed that it was not.
+**Frontend with Blazor and PixiJS**
+- Learned to integrate a canvas rendering engine with Blazor through JS interop while keeping the component model intact
+- Built custom event systems to decouple components and avoid prop drilling
+- Learned that DI scope is a real boundary with real consequences. A `SemaphoreSlim` in a Scoped WASM service cannot protect localStorage, because localStorage is shared across tabs and the service is not, so two open tabs logged the user out of every device
+- Learned to reach for the platform primitive when the language one does not fit the scope. `navigator.locks` has exactly the scope that shares localStorage
+- Learned that caching is a distributed system. An `immutable` header on a file whose name never changes is a promise you cannot keep, and the browser and CDN will hold you to it for a year
+
+**Email Integration**
+- Implemented a swappable provider with Resend over SMTP in production, and learned to design templates that survive different clients
+- Learned that every user-supplied slot is an injection point, not just the first, which is why eight templates are each tested with a script tag in every slot
+- Learned that logs leak. Email subjects carried verification codes until they stopped being logged
+
+**Background Jobs with Hangfire**
+- Learned how Hangfire schedules and executes work, and how to make jobs resilient to restarts
+- Learned that "fire and forget" describes the job, not the handoff. The returned job id has to be persisted before the save, or cancellation silently becomes dead code
+- Learned that idempotency has to be designed, not hoped for. Hangfire retries, so the digest needed a dedicated log table to guarantee one notification and one email across repeated runs
+- Learned that the best background job is the one you can delete. Premium expiry stopped needing a nightly sweep the moment expiry became "is `EndsAt` in the past" rather than "has the job flipped the boolean yet"
+
+**Infrastructure and Delivery**
+- Learned that infrastructure bugs hide behind green checkmarks. A deploy pipeline that synced the wrong directory and a build context that dragged the host's `obj/` into the image both reported success while doing the wrong thing
+- Learned that a test suite only gates a deploy if it sits between the build and the `up`, and that datastores a suite will `DROP` and `FLUSH` belong on loopback and on ports outside the ephemeral range
+
+**Development Philosophy**
+- Embraced "make it work, make it right, make it fast", and learned that the "make it right" pass is where most of the real learning lives
+- Learned that SOLID principles are guidelines rather than rules, and that pragmatism beats perfectionism
+- Learned to enforce invariants where they cannot be forgotten: timestamps in a `SaveChanges` override rather than forty call sites, UTC in a model-wide converter rather than per endpoint, uniqueness in an index rather than a code guard
+- Learned that being wrong quickly and in writing is cheaper than being wrong slowly. Parent-aware query filters survived exactly one day, and only because writing down why they were safe revealed that they were not
+- Learned to write the reasoning next to the change. More than once, explaining why something was safe is what proved it was not
+
+**The Biggest Lesson**
+Professional engineering is about making informed trade-offs, not writing perfect code. But the corollary took a rewrite to learn: a trade-off you cannot see is not a trade-off, it is a bug waiting. Almost every serious problem in this project came from two copies of one fact quietly disagreeing, a mock confirming only what it was told, or a system reporting success while doing the wrong thing. The work is not just shipping value, it is making sure the system cannot lie to you about whether it worked.
 
 ---
 
