@@ -49,20 +49,30 @@ public class CurrentUserService : ICurrentUserService
                      ?? c.FirstOrDefault(x => x.Type == ClaimTypes.Surname)?.Value,
         };
 
+        // The profile carries identity only since 2026-08-17. Premium state comes from the
+        // entitlements endpoint, and the two are fetched together so the header waits for one
+        // round trip rather than two.
         try
         {
-            var result = await _profileService.GetProfileAsync();
-            if (result.Success && result.Data is not null)
+            var profileTask = _profileService.GetProfileAsync();
+            var planTask = _profileService.GetEntitlementsAsync();
+            await Task.WhenAll(profileTask, planTask);
+
+            var profile = profileTask.Result;
+            if (profile.Success && profile.Data is not null)
+                info.ProfilePicturePath = profile.Data.ProfilePicturePath;
+
+            var plan = planTask.Result;
+            if (plan.Success && plan.Data is not null)
             {
-                info.ProfilePicturePath = result.Data.ProfilePicturePath;
-                info.IsPremium = result.Data.IsPremium;
-                info.SubscriptionType = result.Data.SubscriptionType;
-                info.PremiumExpiresAt = result.Data.PremiumExpiresAt;
+                info.IsPremium = plan.Data.IsPremium;
+                info.SubscriptionType = plan.Data.SubscriptionType;
+                info.PremiumExpiresAt = plan.Data.ExpiresAt;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CurrentUserService] GetProfileAsync failed: {ex.Message}");
+            Console.WriteLine($"[CurrentUserService] profile or entitlements load failed: {ex.Message}");
         }
 
         _cached = info;

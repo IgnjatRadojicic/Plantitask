@@ -6,6 +6,7 @@ using Plantitask.Web.Models;
 using Plantitask.Core.DTO.Users;
 using Plantitask.Core.DTO.Paypal;
 using Plantitask.Core.DTO.Auth;
+using Plantitask.Core.DTO.Plans;
 namespace Plantitask.Web.Services;
 
 public class UserProfileService : BaseApiService, IUserProfileService
@@ -14,6 +15,9 @@ public class UserProfileService : BaseApiService, IUserProfileService
 
     public Task<ServiceResult<UserProfileDto>> GetProfileAsync()
         => GetAsync<UserProfileDto>("api/user/profile");
+
+    public Task<ServiceResult<EntitlementsDto>> GetEntitlementsAsync()
+        => GetAsync<EntitlementsDto>("api/user/profile/entitlements");
 
     public Task<ServiceResult<UserProfileDto>> UpdateProfileAsync(UpdateUserProfileDto dto)
         => PutAsync<UserProfileDto>("api/user/profile", dto);
