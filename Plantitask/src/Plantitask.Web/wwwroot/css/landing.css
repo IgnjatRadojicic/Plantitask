@@ -59,7 +59,7 @@
     padding: 14px 80px;
     background: var(--c-nav-scrolled);
     backdrop-filter: blur(12px);
-    box-shadow: 0 2px 20px var(--c-black-a15);
+    box-shadow: 0 2px 20px var(--c-shadow-a15);
 }
 
 .landing-nav-scrolled .landing-logo {
@@ -155,7 +155,7 @@
     background: var(--c-primary);
     border: none;
     border-radius: 4px;
-    color: var(--c-white);
+    color: var(--c-on-brand);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -261,7 +261,7 @@
 
 .landing-feature-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 30px var(--c-black-a06);
+    box-shadow: 0 8px 30px var(--c-shadow-a06);
     border-color: var(--c-primary);
 }
 
@@ -322,7 +322,7 @@
     display: block;
     font-size: 1.1rem;
     font-weight: 700;
-    color: var(--c-white);
+    color: var(--c-on-dark);
     letter-spacing: 2px;
     margin-bottom: 8px;
 }
@@ -349,7 +349,7 @@
     font-family: var(--font-body);
     font-size: 0.8rem;
     font-weight: 600;
-    color: var(--c-white);
+    color: var(--c-on-dark);
     text-transform: uppercase;
     letter-spacing: 1.5px;
     margin-bottom: 6px;

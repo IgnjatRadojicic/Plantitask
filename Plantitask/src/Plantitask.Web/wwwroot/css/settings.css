@@ -231,7 +231,7 @@
     font-family: var(--font-heading);
     font-size: 1.3rem;
     font-weight: 700;
-    color: var(--c-white);
+    color: var(--c-on-brand);
 }
 
 .ds-profile-avatar-loading {
@@ -249,7 +249,7 @@
     height: 26px;
     border-radius: 50%;
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -539,7 +539,7 @@
     border: none;
     border-radius: 4px;
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
     font-family: var(--font-body);
     font-size: 0.85rem;
     font-weight: 600;
@@ -772,7 +772,7 @@
     justify-content: space-between;
     gap: 16px;
     padding: 12px 16px;
-    background: var(--c-text-darkest, #1a1a2e);
+    background: var(--c-surface-inverse);
     border-radius: 6px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
 }
@@ -781,7 +781,7 @@
     font-family: var(--font-body);
     font-size: 0.85rem;
     font-weight: 500;
-    color: #fff;
+    color: var(--c-on-dark);
 }
 
 .ds-unsaved-actions {
@@ -815,7 +815,7 @@
     font-family: var(--font-body);
     font-size: 0.82rem;
     font-weight: 700;
-    color: #fff;
+    color: var(--c-on-brand);
     cursor: pointer;
     padding: 6px 20px;
     border-radius: 4px;

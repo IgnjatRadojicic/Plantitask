@@ -23,7 +23,7 @@
     border: none;
     border-radius: 50%;
     background: transparent;
-    color: var(--c-white);
+    color: var(--c-on-dark);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -38,7 +38,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
-    background: var(--c-primary);
+    background: var(--c-topbar-bg);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--c-black-a06);
@@ -78,7 +78,7 @@
 .kanban-group-name {
     font-size: 1rem;
     font-weight: 700;
-    color: var(--c-white);
+    color: var(--c-on-dark);
     line-height: 1.2;
 }
 
@@ -111,15 +111,15 @@
     border-radius: 24px;
     font-family: var(--font-body);
     font-size: 0.85rem;
-    background: var(--c-white);
+    background: var(--c-surface-raised);
     color: var(--c-text-dark);
-    border: 1.5px solid rgba(255,255,255,0.3);
+    border: 1.5px solid var(--c-topbar-field-border);
     outline: none;
     transition: border-color var(--t-fast);
 }
 .kanban-search:focus {
-    border-color: var(--c-white);
-    box-shadow: 0 0 0 3px rgba(255,255,255,0.25);
+    border-color: var(--c-topbar-field-focus);
+    box-shadow: 0 0 0 3px var(--c-topbar-field-ring);
 }
 
 
@@ -190,7 +190,7 @@
 
 .kanban-nav-btn:hover {
     border-color: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-dark);
 }
 
 .kanban-nav-btn-accent {
@@ -202,7 +202,7 @@
 .kanban-nav-btn-accent:hover {
     background: var(--c-primary-dark);
     border-color: var(--c-primary-dark);
-    color: var(--c-white);
+    color: var(--c-on-brand);
 }
 
 .kanban-sidebar {
@@ -291,7 +291,7 @@
     position: absolute;
     inset: 0;
     z-index: 0;
-    opacity: 0.2;
+    opacity: var(--c-leaves-opacity);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M15 8c-3 0-6 4-6 8s4 7 6 7c-1-2-2-5-1-7 1-3 3-5 1-8z' fill='%239CC103'/%3E%3Cpath d='M15 8c3 0 6 4 6 8s-4 7-6 7c1-2 2-5 1-7-1-3-3-5-1-8z' fill='%237A9902'/%3E%3Cpath d='M45 35c-3 0-6 4-6 8s4 7 6 7c-1-2-2-5-1-7 1-3 3-5 1-8z' fill='%239CC103'/%3E%3Cpath d='M45 35c3 0 6 4 6 8s-4 7-6 7c1-2 2-5 1-7-1-3-3-5-1-8z' fill='%237A9902'/%3E%3Cpath d='M35 5c-2 0-4 3-4 6s3 5 4 5c-1-1-1-3-1-5 1-2 2-4 1-6z' fill='%239CC103'/%3E%3Cpath d='M35 5c2 0 4 3 4 6s-3 5-4 5c1-1 1-3 1-5-1-2-2-4-1-6z' fill='%237A9902'/%3E%3Cpath d='M8 42c-2 0-4 3-4 6s3 5 4 5c-1-1-1-3-1-5 1-2 2-4 1-6z' fill='%239CC103'/%3E%3Cpath d='M8 42c2 0 4 3 4 6s-3 5-4 5c1-1 1-3 1-5-1-2-2-4-1-6z' fill='%237A9902'/%3E%3Cpath d='M52 18c-2 0-3 2-3 4s2 4 3 4c0-1-1-2 0-4 0-1 1-3 0-4z' fill='%239CC103'/%3E%3Cpath d='M52 18c2 0 3 2 3 4s-2 4-3 4c0-1 1-2 0-4 0-1-1-3 0-4z' fill='%237A9902'/%3E%3C/svg%3E");
     background-repeat: repeat;
     pointer-events: none;
@@ -314,7 +314,7 @@
 .kanban-tree-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(255, 255, 255, 0.75);
+    background: var(--c-tree-overlay);
     z-index: 3;
     pointer-events: none;
 }
@@ -461,7 +461,7 @@
 
 .kanban-card:hover {
     border-color: var(--c-primary-a30);
-    box-shadow: 0 2px 12px var(--c-black-a08);
+    box-shadow: 0 2px 12px var(--c-shadow-a08);
     transform: translateY(-1px);
 }
 
@@ -491,7 +491,7 @@
     font-family: var(--font-body);
     font-size: 0.68rem;
     font-weight: 700;
-    color: var(--c-white);
+    color: var(--c-on-dark);
     padding: 2px 8px;
     border-radius: 4px;
     text-transform: uppercase;
@@ -573,7 +573,7 @@
 }
 
 .kanban-card-assignee span {
-    color: var(--c-white);
+    color: var(--c-on-dark);
     font-family: var(--font-heading);
     font-size: 0.6rem;
     font-weight: 700;
@@ -596,7 +596,7 @@
 .kanban-overlay {
     position: fixed;
     inset: 0;
-    background: var(--c-black-a30);
+    background: var(--c-scrim);
     z-index: 60;
     opacity: 0;
     visibility: hidden;
@@ -629,7 +629,7 @@
     max-width: calc(100vw - 48px);
     max-height: calc(100vh - 48px);
     border-radius: 12px;
-    box-shadow: 0 20px 60px var(--c-black-a18);
+    box-shadow: 0 20px 60px var(--c-shadow-a18);
     animation: taskDetailFadeIn 0.2s ease;
 }
 
@@ -640,7 +640,7 @@
     max-width: 100vw;
     height: 100vh;
     border-radius: 0;
-    box-shadow: -4px 0 24px var(--c-black-a10);
+    box-shadow: -4px 0 24px var(--c-shadow-a10);
     animation: slideInRight var(--t-spring-fast);
 }
 
@@ -678,7 +678,7 @@
     font-family: var(--font-body);
     font-size: 0.72rem;
     font-weight: 700;
-    color: var(--c-white);
+    color: var(--c-on-dark);
     padding: 4px 12px;
     border-radius: 4px;
     text-transform: uppercase;
