@@ -1,4 +1,7 @@
-﻿<MudThemeProvider Theme="_theme" />
+﻿@inject IThemeService Theme
+@implements IDisposable
+
+<MudThemeProvider Theme="_theme" IsDarkMode="Theme.IsDark" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -33,6 +36,16 @@
     </Router>
 </CascadingAuthenticationState>
 @code {
+    protected override void OnInitialized()
+    {
+        Theme.Initialize();
+        Theme.OnChanged += HandleThemeChanged;
+    }
+
+    private void HandleThemeChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Theme.OnChanged -= HandleThemeChanged;
+
     private readonly MudTheme _theme = new()
     {
         PaletteLight = new PaletteLight()
@@ -55,6 +68,38 @@
             Warning = "#F9A825",
             Error = "#D32F2F",
             Info = "#0288D1",
+        },
+        // Forest night, matching the [data-theme="dark"] block in _variables.css. Mud components
+        // read this palette and never the CSS tokens, so the two have to be kept in step by hand.
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#AED334",
+            PrimaryDarken = "#9CC103",
+            PrimaryLighten = "#C4E36A",
+            PrimaryContrastText = "#0F1411",
+            Secondary = "#A89274",
+            SecondaryDarken = "#8B7355",
+            SecondaryLighten = "#C4B196",
+            Tertiary = "#66BB6A",
+            Background = "#0F1411",
+            BackgroundGray = "#171D18",
+            Surface = "#171D18",
+            AppbarBackground = "#171D18",
+            AppbarText = "#E6EBE4",
+            DrawerBackground = "#171D18",
+            DrawerText = "#E6EBE4",
+            TextPrimary = "#E6EBE4",
+            TextSecondary = "#A7B0A5",
+            ActionDefault = "#A7B0A5",
+            LinesDefault = "#28312A",
+            LinesInputs = "#3A463D",
+            TableLines = "#28312A",
+            Divider = "#28312A",
+            DividerLight = "#1F2720",
+            Success = "#AED334",
+            Warning = "#FFB74D",
+            Error = "#EF5350",
+            Info = "#4FC3F7",
         },
         Typography = new Typography()
         {

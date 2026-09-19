@@ -4,7 +4,7 @@
 @inject ISnackbar Snackbar
 @inject ICurrentUserService CurrentUser
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
+@inject IThemeService Theme
 @using Plantitask.Core.DTO.Plans
 @implements IDisposable
 
@@ -80,19 +80,19 @@ else
             @* Dark mode is free for everyone as of 2026-08-16. It is table stakes rather than a
                perk, and the old gate was client side anyway so it never actually held. *@
             <div class="ds-theme-group" role="radiogroup" aria-labelledby="theme-label">
-                <button class="ds-theme-btn @(_currentTheme == "light" ? "ds-theme-btn-active" : "")"
+                <button class="ds-theme-btn @(!Theme.IsDark ? "ds-theme-btn-active" : "")"
                         role="radio"
-                        aria-checked="@(_currentTheme == "light" ? "true" : "false")"
+                        aria-checked="@(!Theme.IsDark ? "true" : "false")"
                         aria-label="Light theme"
-                        @onclick='() => SetTheme("light")'>
+                        @onclick="() => Theme.SetAsync(false)">
                     <MudIcon Icon="@Icons.Material.Outlined.LightMode" Size="Size.Small" />
                     <span>Light</span>
                 </button>
-                <button class="ds-theme-btn @(_currentTheme == "dark" ? "ds-theme-btn-active" : "")"
+                <button class="ds-theme-btn @(Theme.IsDark ? "ds-theme-btn-active" : "")"
                         role="radio"
-                        aria-checked="@(_currentTheme == "dark" ? "true" : "false")"
+                        aria-checked="@(Theme.IsDark ? "true" : "false")"
                         aria-label="Dark theme"
-                        @onclick='() => SetTheme("dark")'>
+                        @onclick="() => Theme.SetAsync(true)">
                     <MudIcon Icon="@Icons.Material.Outlined.DarkMode" Size="Size.Small" />
                     <span>Dark</span>
                 </button>
@@ -209,7 +209,6 @@ else
     private string _originalUserName = "";
     private string _originalFirstName = "";
     private string _originalLastName = "";
-    private string _currentTheme = "light";
 
     private bool _uploadingPicture;
 
@@ -232,14 +231,6 @@ else
             Snapshot();
         }
         _loading = false;
-
-        _currentTheme = await JS.InvokeAsync<string>("themeManager.get");
-    }
-
-    private async Task SetTheme(string theme)
-    {
-        _currentTheme = theme;
-        await JS.InvokeVoidAsync("themeManager.set", theme);
     }
 
     private async Task LoadPlanAsync()
