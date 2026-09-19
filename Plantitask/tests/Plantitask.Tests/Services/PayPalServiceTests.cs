@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Plantitask.Core.Constants;
 using Plantitask.Core.DTO.Paypal;
 using Plantitask.Core.Entities;
+using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Services;
 using Plantitask.Tests.Helpers;
@@ -40,11 +40,17 @@ namespace Plantitask.Tests.Services
                 """{"access_token":"tok-123","expires_in":32400}""");
         }
 
+        /// <summary>
+        /// The entitlement service shares the context because it only stages grants and
+        /// PayPalService owns the save. Giving it a context of its own would leave every staged
+        /// grant unsaved and every grant assertion failing for a reason that is not the code.
+        /// </summary>
         private PayPalService NewSut(IApplicationDbContext context) => new(
             context,
             new HttpClient(_http),
             Options.Create(Settings),
             new MemoryCache(new MemoryCacheOptions()),
+            TestServices.Entitlements(context),
             NullLogger<PayPalService>.Instance);
 
         private async Task SeedAsync()
@@ -53,25 +59,31 @@ namespace Plantitask.Tests.Services
             await db.SeedWorldAsync();
         }
 
-        private async Task<User> ReadUserAsync(Guid id)
+        private async Task<Guid> SeedGrantAsync(
+            Guid userId, string source, string payPalRef, DateTime? endsAt, DateTime? startsAt = null)
         {
             await using var db = NewContext();
-            return await db.Users.SingleAsync(u => u.Id == id);
+            return await db.SeedGrantAsync(userId, source, payPalRef, endsAt, startsAt);
         }
 
-        private async Task GrantPremiumAsync(
-            Guid userId, string type, DateTime? expiresAt, string? orderId = null, string? subscriptionId = null)
+        private async Task<List<UserPlanGrant>> ReadGrantsAsync(Guid userId)
         {
             await using var db = NewContext();
-            var user = await db.Users.SingleAsync(u => u.Id == userId);
-            user.IsPremium = true;
-            user.SubscriptionType = type;
-            user.PremiumStartedAt = DateTime.UtcNow.AddDays(-1);
-            user.PremiumExpiresAt = expiresAt;
-            user.PayPalOrderId = orderId;
-            user.PayPalSubscriptionId = subscriptionId;
-            user.MaxGroups = PlanLimits.PremiumMaxGroups;
-            await db.SaveChangesAsync();
+            return await db.UserPlanGrants
+                .Where(g => g.UserId == userId)
+                .OrderBy(g => g.StartsAt)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Asks the real resolver rather than restating its rule here, so these tests say what
+        /// the user ends up holding and EntitlementServiceTests owns how that is worked out.
+        /// </summary>
+        private async Task<bool> IsPremiumAsync(Guid userId)
+        {
+            await using var db = NewContext();
+            var result = await TestServices.Entitlements(db).GetEntitlementsAsync(userId);
+            return result.Value!.IsPremium;
         }
 
         private static string WebhookBody(
@@ -199,7 +211,7 @@ namespace Plantitask.Tests.Services
         }
 
         [Fact]
-        public async Task ActivateSubscriptionAsync_GrantsRecurringPremiumWhenPayPalSaysActive()
+        public async Task ActivateSubscriptionAsync_OpensARecurringGrantWhenPayPalSaysActive()
         {
             await SeedAsync();
 
@@ -210,12 +222,12 @@ namespace Plantitask.Tests.Services
 
             Assert.True(result.IsSuccess, result.Error?.Message);
 
-            var user = await ReadUserAsync(MemberId);
-            Assert.True(user.IsPremium);
-            Assert.Equal("recurring", user.SubscriptionType);
-            Assert.Null(user.PremiumExpiresAt);
-            Assert.Equal("I-SUB-1", user.PayPalSubscriptionId);
-            Assert.Equal(PlanLimits.PremiumMaxGroups, user.MaxGroups);
+            var grant = Assert.Single(await ReadGrantsAsync(MemberId));
+            Assert.Equal(GrantSource.PayPalSubscription, grant.Source);
+            Assert.Equal("I-SUB-1", grant.PayPalRef);
+            Assert.Null(grant.EndsAt);
+            Assert.Equal(MemberId, grant.GrantedBy);
+            Assert.True(await IsPremiumAsync(MemberId));
         }
 
         /// <summary>
@@ -236,20 +248,21 @@ namespace Plantitask.Tests.Services
             var result = await NewSut(act).ActivateSubscriptionAsync(MemberId, "I-SUB-1");
 
             Assert.True(result.IsFailure);
-            Assert.False((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.Empty(await ReadGrantsAsync(MemberId));
         }
 
         [Fact]
         public async Task ActivateSubscriptionAsync_IsANoOpWhenTheWebhookAlreadyGrantedTheSameSubscription()
         {
             await SeedAsync();
-            await GrantPremiumAsync(MemberId, "recurring", expiresAt: null, subscriptionId: "I-SUB-1");
+            await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1", endsAt: null);
 
             await using var act = NewContext();
             var result = await NewSut(act).ActivateSubscriptionAsync(MemberId, "I-SUB-1");
 
             Assert.True(result.IsSuccess);
             Assert.Equal(0, _http.CountOfRequestsTo(SubscriptionsPath));
+            Assert.Single(await ReadGrantsAsync(MemberId));
         }
 
         [Fact]
@@ -265,7 +278,7 @@ namespace Plantitask.Tests.Services
         }
 
         [Fact]
-        public async Task CaptureOrderAsync_GrantsThirtyDaysWhenTheOrderCompletesAndBelongsToTheBuyer()
+        public async Task CaptureOrderAsync_OpensAThirtyDayGrantWhenTheOrderCompletesAndBelongsToTheBuyer()
         {
             await SeedAsync();
 
@@ -278,13 +291,11 @@ namespace Plantitask.Tests.Services
             Assert.True(result.IsSuccess, result.Error?.Message);
             Assert.True(result.Value!.Success);
 
-            var user = await ReadUserAsync(MemberId);
-            Assert.True(user.IsPremium);
-            Assert.Equal("onetime", user.SubscriptionType);
-            Assert.Equal("ORDER-1", user.PayPalOrderId);
-            Assert.Equal(PlanLimits.PremiumMaxGroups, user.MaxGroups);
-            Assert.NotNull(user.PremiumExpiresAt);
-            Assert.Equal(DateTime.UtcNow.AddDays(30), user.PremiumExpiresAt!.Value, TimeSpan.FromMinutes(1));
+            var grant = Assert.Single(await ReadGrantsAsync(MemberId));
+            Assert.Equal(GrantSource.PayPalOneTime, grant.Source);
+            Assert.Equal("ORDER-1", grant.PayPalRef);
+            Assert.NotNull(grant.EndsAt);
+            Assert.Equal(DateTime.UtcNow.AddDays(30), grant.EndsAt!.Value, TimeSpan.FromMinutes(1));
         }
 
         /// <summary>
@@ -304,7 +315,7 @@ namespace Plantitask.Tests.Services
             var result = await NewSut(act).CaptureOrderAsync(MemberId, "ORDER-1");
 
             Assert.True(result.IsSuccess, result.Error?.Message);
-            Assert.True((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.True(await IsPremiumAsync(MemberId));
         }
 
         /// <summary>
@@ -327,7 +338,7 @@ namespace Plantitask.Tests.Services
 
             Assert.True(result.IsFailure);
             Assert.Equal("BadRequest", result.Error!.Code);
-            Assert.False((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.Empty(await ReadGrantsAsync(MemberId));
         }
 
         [Fact]
@@ -343,8 +354,8 @@ namespace Plantitask.Tests.Services
 
             Assert.True(result.IsFailure);
             Assert.Equal("Forbidden", result.Error!.Code);
-            Assert.False((await ReadUserAsync(MemberId)).IsPremium);
-            Assert.False((await ReadUserAsync(LeadId)).IsPremium);
+            Assert.Empty(await ReadGrantsAsync(MemberId));
+            Assert.Empty(await ReadGrantsAsync(LeadId));
         }
 
         [Fact]
@@ -361,14 +372,14 @@ namespace Plantitask.Tests.Services
             Assert.True(result.IsSuccess, result.Error?.Message);
             Assert.False(result.Value!.Success);
             Assert.Equal("PENDING", result.Value.Status);
-            Assert.False((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.Empty(await ReadGrantsAsync(MemberId));
         }
 
         [Fact]
         public async Task CaptureOrderAsync_IsIdempotentForAnOrderAlreadyCaptured()
         {
             await SeedAsync();
-            await GrantPremiumAsync(MemberId, "onetime", DateTime.UtcNow.AddDays(30), orderId: "ORDER-1");
+            await SeedGrantAsync(MemberId, GrantSource.PayPalOneTime, "ORDER-1", DateTime.UtcNow.AddDays(30));
 
             await using var act = NewContext();
             var result = await NewSut(act).CaptureOrderAsync(MemberId, "ORDER-1");
@@ -376,13 +387,35 @@ namespace Plantitask.Tests.Services
             Assert.True(result.IsSuccess, result.Error?.Message);
             Assert.True(result.Value!.Success);
             Assert.Equal(0, _http.CountOfRequestsTo("/capture"));
+            Assert.Single(await ReadGrantsAsync(MemberId));
+        }
+
+        /// <summary>
+        /// The old check compared against PayPalOrderId on the user, which the expiry job wiped
+        /// when the pass ran out, so the record that the order had been granted went with it.
+        /// Grant rows are ended and never deleted, so an order paid for once stays paid for once.
+        /// </summary>
+        [Fact]
+        public async Task CaptureOrderAsync_NeverGrantsTheSameOrderAgainAfterItsPassRanOut()
+        {
+            await SeedAsync();
+            await SeedGrantAsync(MemberId, GrantSource.PayPalOneTime, "ORDER-1",
+                endsAt: DateTime.UtcNow.AddDays(-1), startsAt: DateTime.UtcNow.AddDays(-31));
+
+            await using var act = NewContext();
+            var result = await NewSut(act).CaptureOrderAsync(MemberId, "ORDER-1");
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal(0, _http.CountOfRequestsTo("/capture"));
+            Assert.Single(await ReadGrantsAsync(MemberId));
+            Assert.False(await IsPremiumAsync(MemberId));
         }
 
         [Fact]
-        public async Task CancelSubscriptionAsync_RevokesEveryPremiumField()
+        public async Task CancelSubscriptionAsync_EndsTheSubscriptionGrantAndRecordsWhoCancelled()
         {
             await SeedAsync();
-            await GrantPremiumAsync(MemberId, "recurring", expiresAt: null, subscriptionId: "I-SUB-1");
+            await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1", endsAt: null);
 
             _http.Respond($"{SubscriptionsPath}/I-SUB-1/cancel", HttpStatusCode.NoContent, "{}");
 
@@ -390,26 +423,26 @@ namespace Plantitask.Tests.Services
             var result = await NewSut(act).CancelSubscriptionAsync(MemberId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal(1, _http.CountOfRequestsTo("/I-SUB-1/cancel"));
 
-            var user = await ReadUserAsync(MemberId);
-            Assert.False(user.IsPremium);
-            Assert.Null(user.SubscriptionType);
-            Assert.Null(user.PayPalSubscriptionId);
-            Assert.Null(user.PremiumExpiresAt);
-            Assert.Equal(PlanLimits.FreeMaxGroups, user.MaxGroups);
+            var grant = Assert.Single(await ReadGrantsAsync(MemberId));
+            Assert.NotNull(grant.EndsAt);
+            Assert.NotNull(grant.CancelledAt);
+            Assert.Equal(MemberId, grant.EndedBy);
+            Assert.False(await IsPremiumAsync(MemberId));
         }
 
         /// <summary>
-        /// The local revoke proceeds even when PayPal's cancel call fails, so a user is never
+        /// The local end proceeds even when PayPal's cancel call fails, so a user is never
         /// trapped in a subscription our side thinks is active. The stated cost is that PayPal
         /// may keep billing until somebody reads the warning, which is the open item in
         /// paypal-service.md K.
         /// </summary>
         [Fact]
-        public async Task CancelSubscriptionAsync_RevokesLocallyEvenWhenPayPalRefusesTheCancel()
+        public async Task CancelSubscriptionAsync_EndsLocallyEvenWhenPayPalRefusesTheCancel()
         {
             await SeedAsync();
-            await GrantPremiumAsync(MemberId, "recurring", expiresAt: null, subscriptionId: "I-SUB-1");
+            await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1", endsAt: null);
 
             _http.Respond($"{SubscriptionsPath}/I-SUB-1/cancel", HttpStatusCode.InternalServerError, "{}");
 
@@ -417,19 +450,19 @@ namespace Plantitask.Tests.Services
             var result = await NewSut(act).CancelSubscriptionAsync(MemberId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
-            Assert.False((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.False(await IsPremiumAsync(MemberId));
         }
 
         /// <summary>
-        /// A 30 day pass has no billing agreement behind it, so cancelling it contacts nobody and
-        /// the only thing a revoke could accomplish is deleting days the user already paid for.
-        /// Refusing is the fix, and the row must come back untouched.
+        /// A 30 day pass has no billing agreement behind it, so there is nothing for cancel to
+        /// end. It finds no subscription grant, contacts nobody and leaves the paid days alone.
         /// </summary>
         [Fact]
-        public async Task CancelSubscriptionAsync_RefusesAOneTimePassAndKeepsThePaidDays()
+        public async Task CancelSubscriptionAsync_RefusesWhenTheOnlyGrantIsAPassAndKeepsThePaidDays()
         {
             await SeedAsync();
-            await GrantPremiumAsync(MemberId, "onetime", DateTime.UtcNow.AddDays(10), orderId: "ORDER-1");
+            var passEndsAt = DateTime.UtcNow.AddDays(10);
+            await SeedGrantAsync(MemberId, GrantSource.PayPalOneTime, "ORDER-1", passEndsAt);
 
             await using var act = NewContext();
             var result = await NewSut(act).CancelSubscriptionAsync(MemberId);
@@ -438,10 +471,40 @@ namespace Plantitask.Tests.Services
             Assert.Equal("BadRequest", result.Error!.Code);
             Assert.Equal(0, _http.CountOfRequestsTo("/cancel"));
 
-            var user = await ReadUserAsync(MemberId);
-            Assert.True(user.IsPremium);
-            Assert.Equal("onetime", user.SubscriptionType);
-            Assert.True(user.PremiumExpiresAt > DateTime.UtcNow);
+            var pass = Assert.Single(await ReadGrantsAsync(MemberId));
+            Assert.Equal(passEndsAt, pass.EndsAt!.Value, TimeSpan.FromSeconds(1));
+            Assert.Null(pass.CancelledAt);
+            Assert.True(await IsPremiumAsync(MemberId));
+        }
+
+        /// <summary>
+        /// The guarantee the old one time special case was protecting, now held by the schema. A
+        /// pass bought during a live subscription is its own row, so cancelling the subscription
+        /// ends that row only and the days paid for through the pass keep running.
+        /// </summary>
+        [Fact]
+        public async Task CancelSubscriptionAsync_LeavesAPassBoughtAlongsideTheSubscriptionRunning()
+        {
+            await SeedAsync();
+            await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1", endsAt: null);
+            var passEndsAt = DateTime.UtcNow.AddDays(10);
+            await SeedGrantAsync(MemberId, GrantSource.PayPalOneTime, "ORDER-1", passEndsAt);
+
+            _http.Respond($"{SubscriptionsPath}/I-SUB-1/cancel", HttpStatusCode.NoContent, "{}");
+
+            await using var act = NewContext();
+            var result = await NewSut(act).CancelSubscriptionAsync(MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            var grants = await ReadGrantsAsync(MemberId);
+            var subscription = grants.Single(g => g.Source == GrantSource.PayPalSubscription);
+            var pass = grants.Single(g => g.Source == GrantSource.PayPalOneTime);
+
+            Assert.NotNull(subscription.CancelledAt);
+            Assert.Null(pass.CancelledAt);
+            Assert.Equal(passEndsAt, pass.EndsAt!.Value, TimeSpan.FromSeconds(1));
+            Assert.True(await IsPremiumAsync(MemberId));
         }
 
         [Fact]
@@ -457,32 +520,31 @@ namespace Plantitask.Tests.Services
         }
 
         [Fact]
-        public async Task GetPremiumStatusAsync_ReportsAnExpiredOneTimeAsNoLongerPremium()
+        public async Task GetPremiumStatusAsync_ReportsAnExpiredPassAsNoLongerPremium()
         {
             await SeedAsync();
-            await GrantPremiumAsync(MemberId, "onetime", DateTime.UtcNow.AddDays(-1), orderId: "ORDER-1");
+            await SeedGrantAsync(MemberId, GrantSource.PayPalOneTime, "ORDER-1",
+                endsAt: DateTime.UtcNow.AddDays(-1), startsAt: DateTime.UtcNow.AddDays(-31));
 
             await using var act = NewContext();
             var result = await NewSut(act).GetPremiumStatusAsync(MemberId);
 
             Assert.False(result.Value!.IsPremium);
-            Assert.False(result.Value.CanUseDarkMode);
-            Assert.Equal(PlanLimits.FreeMaxGroups, result.Value.MaxGroups);
+            Assert.Null(result.Value.SubscriptionType);
         }
 
         [Fact]
-        public async Task GetPremiumStatusAsync_ReportsALivePremiumWithItsLimits()
+        public async Task GetPremiumStatusAsync_ReportsALiveSubscription()
         {
             await SeedAsync();
-            await GrantPremiumAsync(MemberId, "recurring", expiresAt: null, subscriptionId: "I-SUB-1");
+            await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1", endsAt: null);
 
             await using var act = NewContext();
             var result = await NewSut(act).GetPremiumStatusAsync(MemberId);
 
             Assert.True(result.Value!.IsPremium);
-            Assert.True(result.Value.CanUseDarkMode);
-            Assert.Equal(PlanLimits.PremiumMaxGroups, result.Value.MaxGroups);
             Assert.Equal("recurring", result.Value.SubscriptionType);
+            Assert.Null(result.Value.ExpiresAt);
         }
 
         /// <summary>
@@ -502,7 +564,7 @@ namespace Plantitask.Tests.Services
 
             Assert.True(result.IsFailure);
             Assert.Equal("Unauthorized", result.Error!.Code);
-            Assert.False((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.Empty(await ReadGrantsAsync(MemberId));
 
             await using var assert = NewContext();
             Assert.Empty(await assert.ProcessedWebhookEvents.ToListAsync());
@@ -512,9 +574,7 @@ namespace Plantitask.Tests.Services
         public async Task HandleWebhookAsync_TreatsAVerificationCallThatBlowsUpAsAFailedSignature()
         {
             await SeedAsync();
-            _http.Throw(VerifyPath, new HttpRequestMessage().Content is null
-                ? new HttpRequestException("paypal unreachable")
-                : new HttpRequestException("paypal unreachable"));
+            _http.Throw(VerifyPath, new HttpRequestException("paypal unreachable"));
 
             var body = WebhookBody("EVT-1", "BILLING.SUBSCRIPTION.ACTIVATED", customId: MemberId.ToString());
 
@@ -526,7 +586,7 @@ namespace Plantitask.Tests.Services
         }
 
         [Fact]
-        public async Task HandleWebhookAsync_GrantsRecurringPremiumOnSubscriptionActivated()
+        public async Task HandleWebhookAsync_OpensARecurringGrantOnSubscriptionActivated()
         {
             await SeedAsync();
             SignatureVerifies();
@@ -539,10 +599,10 @@ namespace Plantitask.Tests.Services
 
             Assert.True(result.IsSuccess, result.Error?.Message);
 
-            var user = await ReadUserAsync(MemberId);
-            Assert.True(user.IsPremium);
-            Assert.Equal("recurring", user.SubscriptionType);
-            Assert.Equal("I-SUB-1", user.PayPalSubscriptionId);
+            var grant = Assert.Single(await ReadGrantsAsync(MemberId));
+            Assert.Equal(GrantSource.PayPalSubscription, grant.Source);
+            Assert.Equal("I-SUB-1", grant.PayPalRef);
+            Assert.Null(grant.EndsAt);
         }
 
         /// <summary>
@@ -557,19 +617,19 @@ namespace Plantitask.Tests.Services
             SignatureVerifies();
 
             var body = WebhookBody("EVT-1", "BILLING.SUBSCRIPTION.CANCELLED", resourceId: "I-SUB-1");
-            await GrantPremiumAsync(MemberId, "recurring", expiresAt: null, subscriptionId: "I-SUB-1");
+            await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1", endsAt: null);
 
             await using (var first = NewContext())
                 await NewSut(first).HandleWebhookAsync(body, WebhookHeaders());
 
-            Assert.False((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.False(await IsPremiumAsync(MemberId));
 
-            await GrantPremiumAsync(MemberId, "recurring", expiresAt: null, subscriptionId: "I-SUB-1");
+            await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1", endsAt: null);
 
             await using (var second = NewContext())
                 await NewSut(second).HandleWebhookAsync(body, WebhookHeaders());
 
-            Assert.True((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.True(await IsPremiumAsync(MemberId));
 
             await using var assert = NewContext();
             Assert.Single(await assert.ProcessedWebhookEvents.ToListAsync());
@@ -592,52 +652,62 @@ namespace Plantitask.Tests.Services
             Assert.Equal("BILLING.SUBSCRIPTION.ACTIVATED", processed.EventType);
         }
 
+        /// <summary>
+        /// EndedBy stays null because PayPal ended these and no person did, which is how the
+        /// history tells a webhook ending apart from a user pressing cancel.
+        /// </summary>
         [Theory]
         [InlineData("BILLING.SUBSCRIPTION.CANCELLED")]
         [InlineData("BILLING.SUBSCRIPTION.SUSPENDED")]
         [InlineData("BILLING.SUBSCRIPTION.EXPIRED")]
-        public async Task HandleWebhookAsync_RevokesOnEveryEndOfSubscriptionEvent(string eventType)
+        public async Task HandleWebhookAsync_EndsTheGrantOnEveryEndOfSubscriptionEvent(string eventType)
         {
             await SeedAsync();
             SignatureVerifies();
-            await GrantPremiumAsync(MemberId, "recurring", expiresAt: null, subscriptionId: "I-SUB-1");
+            await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1", endsAt: null);
 
             var body = WebhookBody("EVT-1", eventType, resourceId: "I-SUB-1");
 
             await using var act = NewContext();
             await NewSut(act).HandleWebhookAsync(body, WebhookHeaders());
 
-            var user = await ReadUserAsync(MemberId);
-            Assert.False(user.IsPremium);
-            Assert.Equal(PlanLimits.FreeMaxGroups, user.MaxGroups);
+            var grant = Assert.Single(await ReadGrantsAsync(MemberId));
+            Assert.NotNull(grant.EndsAt);
+            Assert.NotNull(grant.CancelledAt);
+            Assert.Null(grant.EndedBy);
+            Assert.False(await IsPremiumAsync(MemberId));
         }
 
         /// <summary>
-        /// A failed charge does not revoke. PayPal retries for several days and only sends one of
-        /// the ending events once it gives up, so revoking on the first bounce would take premium
-        /// from anyone whose card expired even though the retry usually succeeds.
+        /// A failed charge does not end anything. PayPal retries for several days and only sends
+        /// one of the ending events once it gives up, so ending on the first bounce would take
+        /// premium from anyone whose card expired even though the retry usually succeeds.
         /// </summary>
         [Fact]
-        public async Task HandleWebhookAsync_DoesNotRevokeOnASinglyFailedPayment()
+        public async Task HandleWebhookAsync_DoesNotEndTheGrantOnASinglyFailedPayment()
         {
             await SeedAsync();
             SignatureVerifies();
-            await GrantPremiumAsync(MemberId, "recurring", expiresAt: null, subscriptionId: "I-SUB-1");
+            await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1", endsAt: null);
 
             var body = WebhookBody("EVT-1", "BILLING.SUBSCRIPTION.PAYMENT.FAILED", resourceId: "I-SUB-1");
 
             await using var act = NewContext();
             await NewSut(act).HandleWebhookAsync(body, WebhookHeaders());
 
-            Assert.True((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.Null(Assert.Single(await ReadGrantsAsync(MemberId)).EndsAt);
         }
 
+        /// <summary>
+        /// An open grant has no end date to push out, so a monthly charge on a live subscription
+        /// has nothing to write.
+        /// </summary>
         [Fact]
-        public async Task HandleWebhookAsync_RefreshesPremiumOnASuccessfulRecurringCharge()
+        public async Task HandleWebhookAsync_AChargeOnALiveSubscriptionChangesNothing()
         {
             await SeedAsync();
             SignatureVerifies();
-            await GrantPremiumAsync(MemberId, "recurring", expiresAt: null, subscriptionId: "I-SUB-1");
+            var grantId = await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1", endsAt: null);
 
             var body = WebhookBody("EVT-1", "PAYMENT.SALE.COMPLETED", billingAgreementId: "I-SUB-1");
 
@@ -646,9 +716,40 @@ namespace Plantitask.Tests.Services
 
             Assert.True(result.IsSuccess, result.Error?.Message);
 
-            var user = await ReadUserAsync(MemberId);
-            Assert.True(user.IsPremium);
-            Assert.Equal("recurring", user.SubscriptionType);
+            var grant = Assert.Single(await ReadGrantsAsync(MemberId));
+            Assert.Equal(grantId, grant.Id);
+            Assert.Null(grant.EndsAt);
+        }
+
+        /// <summary>
+        /// A charge against a grant already closed means PayPal resumed billing after a
+        /// suspension. That opens a new grant and leaves the closed one as history rather than
+        /// rewriting it.
+        /// </summary>
+        [Fact]
+        public async Task HandleWebhookAsync_AChargeAfterASuspensionOpensANewGrantAndKeepsTheOldOne()
+        {
+            await SeedAsync();
+            SignatureVerifies();
+            var closedEndsAt = DateTime.UtcNow.AddDays(-5);
+            var closedId = await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, "I-SUB-1",
+                endsAt: closedEndsAt, startsAt: DateTime.UtcNow.AddDays(-40));
+
+            var body = WebhookBody("EVT-1", "PAYMENT.SALE.COMPLETED", billingAgreementId: "I-SUB-1");
+
+            await using var act = NewContext();
+            await NewSut(act).HandleWebhookAsync(body, WebhookHeaders());
+
+            var grants = await ReadGrantsAsync(MemberId);
+            Assert.Equal(2, grants.Count);
+
+            var closed = grants.Single(g => g.Id == closedId);
+            Assert.Equal(closedEndsAt, closed.EndsAt!.Value, TimeSpan.FromSeconds(1));
+
+            var reopened = grants.Single(g => g.Id != closedId);
+            Assert.Null(reopened.EndsAt);
+            Assert.Equal("I-SUB-1", reopened.PayPalRef);
+            Assert.True(await IsPremiumAsync(MemberId));
         }
 
         /// <summary>
@@ -657,7 +758,7 @@ namespace Plantitask.Tests.Services
         /// has their money.
         /// </summary>
         [Fact]
-        public async Task HandleWebhookAsync_GrantsOneTimePremiumWhenTheBrowserNeverCameBack()
+        public async Task HandleWebhookAsync_GrantsAPassWhenTheBrowserNeverCameBack()
         {
             await SeedAsync();
             SignatureVerifies();
@@ -668,11 +769,10 @@ namespace Plantitask.Tests.Services
             await using var act = NewContext();
             await NewSut(act).HandleWebhookAsync(body, WebhookHeaders());
 
-            var user = await ReadUserAsync(MemberId);
-            Assert.True(user.IsPremium);
-            Assert.Equal("onetime", user.SubscriptionType);
-            Assert.Equal("ORDER-1", user.PayPalOrderId);
-            Assert.NotNull(user.PremiumExpiresAt);
+            var grant = Assert.Single(await ReadGrantsAsync(MemberId));
+            Assert.Equal(GrantSource.PayPalOneTime, grant.Source);
+            Assert.Equal("ORDER-1", grant.PayPalRef);
+            Assert.NotNull(grant.EndsAt);
         }
 
         [Fact]
@@ -681,8 +781,8 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
             SignatureVerifies();
 
-            var alreadyExpiresAt = DateTime.UtcNow.AddDays(30);
-            await GrantPremiumAsync(MemberId, "onetime", alreadyExpiresAt, orderId: "ORDER-1");
+            var alreadyEndsAt = DateTime.UtcNow.AddDays(30);
+            await SeedGrantAsync(MemberId, GrantSource.PayPalOneTime, "ORDER-1", alreadyEndsAt);
 
             var body = WebhookBody("EVT-1", "PAYMENT.CAPTURE.COMPLETED",
                 resourceId: "ORDER-1", customId: MemberId.ToString());
@@ -690,8 +790,8 @@ namespace Plantitask.Tests.Services
             await using var act = NewContext();
             await NewSut(act).HandleWebhookAsync(body, WebhookHeaders());
 
-            var user = await ReadUserAsync(MemberId);
-            Assert.Equal(alreadyExpiresAt, user.PremiumExpiresAt!.Value, TimeSpan.FromSeconds(1));
+            var grant = Assert.Single(await ReadGrantsAsync(MemberId));
+            Assert.Equal(alreadyEndsAt, grant.EndsAt!.Value, TimeSpan.FromSeconds(1));
         }
 
         [Fact]
@@ -707,7 +807,7 @@ namespace Plantitask.Tests.Services
             var result = await NewSut(act).HandleWebhookAsync(body, WebhookHeaders());
 
             Assert.True(result.IsSuccess, result.Error?.Message);
-            Assert.False((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.Empty(await ReadGrantsAsync(MemberId));
         }
 
         [Fact]
@@ -737,7 +837,7 @@ namespace Plantitask.Tests.Services
             var result = await NewSut(act).HandleWebhookAsync(body, WebhookHeaders());
 
             Assert.True(result.IsSuccess, result.Error?.Message);
-            Assert.False((await ReadUserAsync(MemberId)).IsPremium);
+            Assert.Empty(await ReadGrantsAsync(MemberId));
 
             await using var assert = NewContext();
             Assert.Single(await assert.ProcessedWebhookEvents.ToListAsync());

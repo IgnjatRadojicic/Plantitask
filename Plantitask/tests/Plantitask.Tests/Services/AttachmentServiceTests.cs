@@ -42,7 +42,9 @@ namespace Plantitask.Tests.Services
                 context,
                 Mock.Of<IGroupCodeGenerator>(),
                 Mock.Of<IPasswordHasher>(),
+                TestServices.Entitlements(context),
                 NullLogger<GroupService>.Instance),
+            TestServices.Entitlements(context),
             NullLogger<AttachmentService>.Instance);
 
         private async Task SeedAsync()

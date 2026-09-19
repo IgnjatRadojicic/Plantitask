@@ -34,7 +34,7 @@ namespace Plantitask.Tests.Services
         }
 
         private GroupService NewSut(IApplicationDbContext context) => new(
-            context, _codes.Object, _hasher.Object, NullLogger<GroupService>.Instance);
+            context, _codes.Object, _hasher.Object, TestServices.Entitlements(context), NullLogger<GroupService>.Instance);
 
         private async Task SeedAsync()
         {
@@ -56,12 +56,31 @@ namespace Plantitask.Tests.Services
             await db.SaveChangesAsync();
         }
 
-        private async Task SetMaxGroupsAsync(Guid userId, int maxGroups)
+        /// <summary>
+        /// Adds groups the user owns until they belong to the given total. The limit comes from
+        /// the plan catalogue now and not from a column a test could lower, so reaching it means
+        /// really holding that many memberships.
+        /// </summary>
+        private async Task FillMembershipsToAsync(Guid userId, int total)
         {
             await using var db = NewContext();
-            var user = await db.Users.SingleAsync(u => u.Id == userId);
-            user.MaxGroups = maxGroups;
+            var current = await db.GroupMembers.CountAsync(gm => gm.UserId == userId);
+
+            for (var i = current; i < total; i++)
+            {
+                var groupId = Guid.NewGuid();
+                db.Groups.Add(TestData.Group(
+                    groupId, $"Filler {i}", groupId.ToString("N")[..8].ToUpperInvariant(), userId));
+                db.GroupMembers.Add(TestData.Membership(groupId, userId, GroupRole.Owner));
+            }
+
             await db.SaveChangesAsync();
+        }
+
+        private async Task SeedGrantAsync(Guid userId, string source, DateTime? endsAt)
+        {
+            await using var db = NewContext();
+            await db.SeedGrantAsync(userId, source, endsAt: endsAt);
         }
 
         private async Task<GroupMember?> ReadMembershipAsync(Guid userId, bool includeDeleted = false)
@@ -195,10 +214,10 @@ namespace Plantitask.Tests.Services
         }
 
         [Fact]
-        public async Task CreateGroupAsync_RefusesOnceTheUsersPlanLimitIsReached()
+        public async Task CreateGroupAsync_RefusesOnceTheFreePlanLimitIsReached()
         {
             await SeedAsync();
-            await SetMaxGroupsAsync(MemberId, 1);
+            await FillMembershipsToAsync(MemberId, 5);
 
             await using var act = NewContext();
             var result = await NewSut(act).CreateGroupAsync(
@@ -206,7 +225,43 @@ namespace Plantitask.Tests.Services
 
             Assert.True(result.IsFailure);
             Assert.Equal("Forbidden", result.Error!.Code);
-            Assert.Contains("limit of 1", result.Error.Message);
+            Assert.Contains("limit of 5", result.Error.Message);
+        }
+
+        [Fact]
+        public async Task CreateGroupAsync_APremiumGrantRaisesTheLimit()
+        {
+            await SeedAsync();
+            await FillMembershipsToAsync(MemberId, 5);
+            await SeedGrantAsync(MemberId, GrantSource.PayPalSubscription, endsAt: null);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateGroupAsync(
+                new CreateGroupDto { Name = "Sixth Tree" }, MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+        }
+
+        /// <summary>
+        /// The bug the grant model exists for. The cap used to be a stored copy that a nightly job
+        /// lowered, so for up to a day after a pass ran out enforcement still allowed ten. The cap
+        /// is resolved from the grant's end date now, so the moment it passes is the moment the
+        /// free limit applies.
+        /// </summary>
+        [Fact]
+        public async Task CreateGroupAsync_AnExpiredPassFallsBackToTheFreeLimitImmediately()
+        {
+            await SeedAsync();
+            await FillMembershipsToAsync(MemberId, 5);
+            await SeedGrantAsync(MemberId, GrantSource.PayPalOneTime, endsAt: DateTime.UtcNow.AddMinutes(-1));
+
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateGroupAsync(
+                new CreateGroupDto { Name = "Sixth Tree" }, MemberId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+            Assert.Contains("limit of 5", result.Error.Message);
         }
 
         [Fact]
@@ -433,7 +488,7 @@ namespace Plantitask.Tests.Services
         public async Task JoinGroupAsync_RefusesOnceTheUsersPlanLimitIsReached()
         {
             await SeedAsync();
-            await SetMaxGroupsAsync(OtherLeadId, 1);
+            await FillMembershipsToAsync(OtherLeadId, 5);
 
             await using var act = NewContext();
             var result = await NewSut(act).JoinGroupAsync(

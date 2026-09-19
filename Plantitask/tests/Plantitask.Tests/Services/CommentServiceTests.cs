@@ -22,6 +22,7 @@ namespace Plantitask.Tests.Services
                 context,
                 Mock.Of<IGroupCodeGenerator>(),
                 Mock.Of<IPasswordHasher>(),
+                TestServices.Entitlements(context),
                 NullLogger<GroupService>.Instance));
 
         /// <summary>The seeded world plus one task in Dev Team at the well known TaskId.</summary>

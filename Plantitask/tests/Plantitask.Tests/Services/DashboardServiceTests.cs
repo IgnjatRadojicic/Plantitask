@@ -20,6 +20,7 @@ namespace Plantitask.Tests.Services
                 context,
                 Mock.Of<IGroupCodeGenerator>(),
                 Mock.Of<IPasswordHasher>(),
+                TestServices.Entitlements(context),
                 NullLogger<GroupService>.Instance),
             NullLogger<DashboardService>.Instance);
 
