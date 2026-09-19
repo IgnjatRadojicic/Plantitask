@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Plantitask.Infrastructure.Data;
@@ -11,9 +12,11 @@ using Plantitask.Infrastructure.Data;
 namespace Plantitask.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260817202204_AddPlanCatalogAndGrants")]
+    partial class AddPlanCatalogAndGrants
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -781,9 +784,6 @@ namespace Plantitask.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<DateTime?>("FilePurgedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<long>("FileSize")
                         .HasColumnType("bigint");
 
@@ -804,9 +804,6 @@ namespace Plantitask.Infrastructure.Migrations
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("TaskId");
-
-                    b.HasIndex(new[] { "DeletedAt" }, "IX_TaskAttachments_PendingPurge")
-                        .HasFilter("\"IsDeleted\" = true AND \"FilePurgedAt\" IS NULL");
 
                     b.ToTable("TaskAttachments");
                 });

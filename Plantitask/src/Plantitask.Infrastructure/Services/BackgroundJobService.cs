@@ -79,8 +79,8 @@ namespace Plantitask.Infrastructure.Services
 
         /// <summary>
         /// Registers the three recurring jobs at startup: overdue check (daily 00:00 UTC),
-        /// one-time premium expiry (daily 01:00 UTC) and notification cleanup (weekly Sunday
-        /// 02:00 UTC). AddOrUpdate makes this idempotent across restarts.
+        /// and notification cleanup (weekly Sunday 02:00 UTC). AddOrUpdate makes this idempotent
+        /// across restarts.
         /// </summary>
         public void SetupRecurringJobs()
         {
@@ -94,13 +94,20 @@ namespace Plantitask.Infrastructure.Services
             job => job.CleanupOldNotifications(),
             Cron.Weekly(DayOfWeek.Sunday, hour: 2, minute: 0));
 
-            _recurringJobs.AddOrUpdate<PremiumBackgroundJob>(
-                "expire-onetime-premium",
-                job => job.ExpireOneTimePremiumAsync(),
-                Cron.Daily(hour: 1, minute: 0));
+            // expire-onetime-premium is gone. Premium now ends when a grant's EndsAt passes,
+            // which needs nothing to run, so there is no longer a window between a pass expiring
+            // and a job noticing during which the old limits were still being enforced.
+
+            // Every fifteen minutes rather than nightly because this interval is the window in
+            // which the storage quota disagrees with the disk. Deleting a tree frees quota at
+            // once; the bytes go when this runs.
+            _recurringJobs.AddOrUpdate<AttachmentPurgeJob>(
+                "purge-deleted-attachment-files",
+                job => job.PurgeDeletedAttachmentFilesAsync(),
+                "*/15 * * * *");
 
             _logger.LogInformation(
-                "Recurring jobs configured: check-overdue-tasks (daily 00:00 UTC), expire-onetime-premium (daily 01:00 UTC), cleanup-old-notifications (weekly Sun 02:00 UTC)");
+                "Recurring jobs configured: check-overdue-tasks (daily 00:00 UTC), purge-deleted-attachment-files (every 15 min), cleanup-old-notifications (weekly Sun 02:00 UTC)");
         }
 
         /// <summary>Runs the overdue digest immediately instead of waiting for midnight - a dev and support lever.</summary>

@@ -193,12 +193,12 @@ namespace Plantitask.Tests.Services
             Assert.Equal(registered.Count, registered.Distinct().Count());
             Assert.Contains("check-overdue-tasks", registered);
             Assert.Contains("cleanup-old-notifications", registered);
-            Assert.Contains("expire-onetime-premium", registered);
+            Assert.Contains("purge-deleted-attachment-files", registered);
         }
 
         [Theory]
         [InlineData("check-overdue-tasks", "0 0 * * *")]
-        [InlineData("expire-onetime-premium", "0 1 * * *")]
+        [InlineData("purge-deleted-attachment-files", "*/15 * * * *")]
         [InlineData("cleanup-old-notifications", "0 2 * * 0")]
         public void SetupRecurringJobs_UsesTheIntendedSchedule(string jobId, string expectedCron)
         {
@@ -229,8 +229,8 @@ namespace Plantitask.Tests.Services
                 byId["cleanup-old-notifications"].Method.Name);
 
             Assert.Equal(
-                nameof(PremiumBackgroundJob.ExpireOneTimePremiumAsync),
-                byId["expire-onetime-premium"].Method.Name);
+                nameof(AttachmentPurgeJob.PurgeDeletedAttachmentFilesAsync),
+                byId["purge-deleted-attachment-files"].Method.Name);
         }
     }
 }

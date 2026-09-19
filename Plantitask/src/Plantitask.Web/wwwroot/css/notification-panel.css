@@ -8,7 +8,7 @@
     max-height: calc(100vh - 100px);
     background: var(--c-bg-white);
     border-radius: 12px;
-    box-shadow: 0 12px 40px var(--c-black-a18);
+    box-shadow: 0 12px 40px var(--c-shadow-a18);
     border: 1px solid var(--c-border-light);
     z-index: 50;
     display: flex;

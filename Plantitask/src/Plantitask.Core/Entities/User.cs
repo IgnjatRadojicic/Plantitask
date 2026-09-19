@@ -1,10 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Plantitask.Core.Common;
-using Plantitask.Core.Specifications;
 
 namespace Plantitask.Core.Entities
 {
@@ -20,21 +19,13 @@ namespace Plantitask.Core.Entities
 
         public bool IsEmailConfirmed { get; set; } = false;
         public DateTime? LastLoginAt { get; set; }
-        
-        public int MaxGroups { get; set; } = 5;
 
-        public bool IsPremium { get; set; } = false; 
-        public DateTime? PremiumExpiresAt { get; set; }
-
-        public string? PayPalSubscriptionId { get; set; }
-        public string? PayPalOrderId { get; set; }
-        public string? SubscriptionType { get; set; }
-        public DateTime? PremiumStartedAt { get; set; }
-
-        // Compile isn't free must be a static property so it compiles once for the lifetime  of the app
-        private static readonly Func<User, bool> ActivePremiumCheck =
-                UserSpecifications.HasActivePremium.Compile();
-        public bool HasActivePremium => ActivePremiumCheck(this);
+        // Premium is not a column. MaxGroups, IsPremium, PremiumExpiresAt, PremiumStartedAt,
+        // SubscriptionType, PayPalSubscriptionId and PayPalOrderId all moved to UserPlanGrant on
+        // 2026-08-16, because a stored entitlement needs a correct writer at every payment
+        // transition and one of them was always going to be wrong. Ask IEntitlementService.
+        // There is deliberately no PlanGrants collection here: grants are queried through the
+        // DbSet so the filtering happens in SQL rather than by loading every grant ever held.
 
         public ICollection<GroupMember> GroupMemberships { get; set; } = new List<GroupMember>();
         public ICollection<Group> OwnedGroups { get; set; } = new List<Group>();

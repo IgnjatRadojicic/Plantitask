@@ -16,6 +16,7 @@ namespace Plantitask.Tests.Services
     public class AttachmentServiceTests : DbTestBase
     {
         private const string StoredKey = "attachments/8f14e45f-stored.png";
+        private const long FreeStorageBytes = 50L * 1024 * 1024;
 
         private static readonly byte[] PngBytes =
             [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D];
@@ -42,7 +43,9 @@ namespace Plantitask.Tests.Services
                 context,
                 Mock.Of<IGroupCodeGenerator>(),
                 Mock.Of<IPasswordHasher>(),
+                TestServices.Entitlements(context),
                 NullLogger<GroupService>.Instance),
+            TestServices.Entitlements(context),
             NullLogger<AttachmentService>.Instance);
 
         private async Task SeedAsync()
@@ -59,7 +62,8 @@ namespace Plantitask.Tests.Services
             Guid uploader,
             string fileName = "seeded.png",
             Guid? taskId = null,
-            DateTime? createdAt = null)
+            DateTime? createdAt = null,
+            long? fileSize = null)
         {
             await using var db = NewContext();
 
@@ -69,7 +73,7 @@ namespace Plantitask.Tests.Services
                 FileName = fileName,
                 FilePath = StoredKey,
                 ContentType = "image/png",
-                FileSize = PngBytes.Length,
+                FileSize = fileSize ?? PngBytes.Length,
                 CreatedBy = uploader
             };
 
@@ -212,6 +216,58 @@ namespace Plantitask.Tests.Services
 
             await using var assert = NewContext();
             Assert.Equal("image/png", (await assert.TaskAttachments.SingleAsync()).ContentType);
+        }
+
+        [Fact]
+        public async Task UploadAttachmentAsync_AcceptsAFileThatLandsExactlyOnTheStorageLimit()
+        {
+            await SeedAsync();
+            await SeedAttachmentAsync(MemberId, fileSize: FreeStorageBytes - PngBytes.Length);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UploadAttachmentAsync(TaskId, Png(), "photo.png", MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+        }
+
+        /// <summary>
+        /// The quota is checked before storage is touched, because a file refused after it was
+        /// written is a file we are still paying to keep.
+        /// </summary>
+        [Fact]
+        public async Task UploadAttachmentAsync_RefusesAFileOneByteOverTheLimitAndStoresNothing()
+        {
+            await SeedAsync();
+            await SeedAttachmentAsync(MemberId, fileSize: FreeStorageBytes - PngBytes.Length + 1);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UploadAttachmentAsync(TaskId, Png(), "photo.png", MemberId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forbidden", result.Error!.Code);
+
+            _storage.Verify(s => s.UploadFileAsync(
+                It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
+                Times.Never);
+
+            await using var assert = NewContext();
+            Assert.Equal(1, await assert.TaskAttachments.CountAsync());
+        }
+
+        /// <summary>
+        /// The quota belongs to the uploader and not to the tree, so a lead who has filled their
+        /// own allowance does not stop a member from uploading into the same task.
+        /// </summary>
+        [Fact]
+        public async Task UploadAttachmentAsync_CountsOnlyTheCallersOwnUploadsAgainstTheirQuota()
+        {
+            await SeedAsync();
+            await SeedAttachmentAsync(LeadId, fileSize: FreeStorageBytes);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UploadAttachmentAsync(TaskId, Png(), "photo.png", MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
         }
 
         [Fact]

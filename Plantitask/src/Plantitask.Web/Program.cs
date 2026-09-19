@@ -79,5 +79,6 @@ builder.Services.AddScoped<INotificationSignalRService, NotificationSignalRServi
 builder.Services.AddScoped<KanbanLayoutState>();
 builder.Services.AddScoped<IPayPalService, PayPalService>();
 builder.Services.AddScoped<ISettingsUIService, SettingsUIService>();
+builder.Services.AddScoped<IThemeService, ThemeService>();
 
 await builder.Build().RunAsync();

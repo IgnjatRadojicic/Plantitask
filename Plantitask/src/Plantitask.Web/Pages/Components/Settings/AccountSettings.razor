@@ -4,7 +4,8 @@
 @inject ISnackbar Snackbar
 @inject ICurrentUserService CurrentUser
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
+@using System.Globalization
+@using Plantitask.Core.DTO.Plans
 @implements IDisposable
 
 @if (_loading)
@@ -69,73 +70,60 @@ else
         </div>
     </section>
 
-    <!-- Theme -->
-    <section class="ds-card" aria-labelledby="theme-heading">
-        <h2 id="theme-heading" class="visually-hidden">Theme Preferences</h2>
+    <!-- Usage -->
+    <section class="ds-card" aria-labelledby="usage-heading">
+        <h2 id="usage-heading" class="ds-field-label" style="margin-bottom:12px;">Usage</h2>
 
-        <div class="ds-field">
-            <label class="ds-field-label" id="theme-label">Theme</label>
-
-            @if (_profile.IsPremium)
-            {
-                <div class="ds-theme-group" role="radiogroup" aria-labelledby="theme-label">
-                    <button class="ds-theme-btn @(_currentTheme == "light" ? "ds-theme-btn-active" : "")"
-                            role="radio"
-                            aria-checked="@(_currentTheme == "light" ? "true" : "false")"
-                            aria-label="Light theme"
-                            @onclick='() => SetTheme("light")'>
-                        <MudIcon Icon="@Icons.Material.Outlined.LightMode" Size="Size.Small" />
-                        <span>Light</span>
-                    </button>
-                    <button class="ds-theme-btn @(_currentTheme == "dark" ? "ds-theme-btn-active" : "")"
-                            role="radio"
-                            aria-checked="@(_currentTheme == "dark" ? "true" : "false")"
-                            aria-label="Dark theme"
-                            @onclick='() => SetTheme("dark")'>
-                        <MudIcon Icon="@Icons.Material.Outlined.DarkMode" Size="Size.Small" />
-                        <span>Dark</span>
-                    </button>
-                </div>
-            }
-            else
-            {
-                <div class="ds-theme-locked">
-                    <div class="ds-theme-group" role="radiogroup" aria-labelledby="theme-label">
-                        <button class="ds-theme-btn ds-theme-btn-active"
-                                role="radio"
-                                aria-checked="true"
-                                aria-label="Light theme (active)"
-                                disabled>
-                            <MudIcon Icon="@Icons.Material.Outlined.LightMode" Size="Size.Small" />
-                            <span>Light</span>
-                        </button>
-                        <button class="ds-theme-btn ds-theme-btn-disabled"
-                                role="radio"
-                                aria-checked="false"
-                                aria-label="Dark theme — requires Premium"
-                                aria-disabled="true"
-                                disabled>
-                            <MudIcon Icon="@Icons.Material.Outlined.DarkMode" Size="Size.Small" />
-                            <span>Dark</span>
-                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" class="ds-lock-icon" />
-                        </button>
+        @if (_plan is not null)
+        {
+            <div class="ds-usage">
+                <div>
+                    <div class="ds-usage-label">
+                        <span id="usage-trees-label">Trees</span>
+                        <span class="ds-usage-value">@_plan.GroupsUsed of @_plan.MaxGroups</span>
                     </div>
-                    <a href="/pricing"
-                       class="ds-premium-upsell-link"
-                       aria-label="Upgrade to Premium to unlock dark mode">
-                        <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Small" class="ds-premium-star" />
-                        <span>Upgrade to Premium to unlock Dark Mode</span>
-                    </a>
+                    <div class="ds-usage-track"
+                         role="progressbar"
+                         aria-labelledby="usage-trees-label"
+                         aria-valuemin="0"
+                         aria-valuemax="@_plan.MaxGroups"
+                         aria-valuenow="@_plan.GroupsUsed">
+                        <div class="ds-usage-fill ds-usage-fill-trees"
+                             style="width:@FillPercent(_plan.GroupsUsed, _plan.MaxGroups)%"></div>
+                    </div>
                 </div>
-            }
-        </div>
+
+                <div>
+                    <div class="ds-usage-label">
+                        <span id="usage-storage-label">Storage</span>
+                        <span class="ds-usage-value">
+                            @FormatMegabytes(_plan.StorageUsedBytes) of @FormatMegabytes(_plan.MaxStorageBytes)
+                        </span>
+                    </div>
+                    <div class="ds-usage-track"
+                         role="progressbar"
+                         aria-labelledby="usage-storage-label"
+                         aria-valuemin="0"
+                         aria-valuemax="@_plan.MaxStorageBytes"
+                         aria-valuenow="@_plan.StorageUsedBytes"
+                         aria-valuetext="@FormatMegabytes(_plan.StorageUsedBytes) of @FormatMegabytes(_plan.MaxStorageBytes)">
+                        <div class="ds-usage-fill ds-usage-fill-storage"
+                             style="width:@FillPercent(_plan.StorageUsedBytes, _plan.MaxStorageBytes)%"></div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <p class="ds-subscription-pitch">Usage could not be loaded right now.</p>
+        }
     </section>
 
     <!-- Subscription -->
     <section class="ds-card" aria-labelledby="subscription-heading">
         <h2 id="subscription-heading" class="ds-field-label" style="margin-bottom:12px;">Subscription</h2>
 
-        @if (_profile.IsPremium)
+        @if (_plan is { IsPremium: true })
         {
             <div class="ds-subscription-active">
                 <div class="ds-premium-badge" role="status" aria-label="Premium subscription active">
@@ -146,15 +134,15 @@ else
                 <dl class="ds-subscription-details">
                     <div class="ds-subscription-detail-row">
                         <dt>Plan</dt>
-                        <dd>@(_profile.SubscriptionType == "recurring" ? "Monthly Auto-Renew" : "30-Day Pass")</dd>
+                        <dd>@(_plan.SubscriptionType == "recurring" ? "Monthly Auto-Renew" : "30-Day Pass")</dd>
                     </div>
-                    @if (_profile.PremiumExpiresAt.HasValue)
+                    @if (_plan.ExpiresAt.HasValue)
                     {
                         <div class="ds-subscription-detail-row">
                             <dt>Expires</dt>
                             <dd>
-                                <time datetime="@_profile.PremiumExpiresAt.Value.ToString("yyyy-MM-dd")">
-                                    @_profile.PremiumExpiresAt.Value.ToString("MMMM d, yyyy")
+                                <time datetime="@_plan.ExpiresAt.Value.ToString("yyyy-MM-dd")">
+                                    @_plan.ExpiresAt.Value.ToString("MMMM d, yyyy")
                                 </time>
                             </dd>
                         </div>
@@ -163,7 +151,7 @@ else
 
                 @* A 30-Day Pass has no billing agreement to stop, so offering "cancel" would only
                    invite the user to throw away days they already paid for. *@
-                @if (_profile.SubscriptionType == "recurring")
+                @if (_plan.SubscriptionType == "recurring")
                 {
                     <button class="ds-btn-cancel"
                             aria-label="Cancel premium subscription"
@@ -193,13 +181,12 @@ else
         {
             <div class="ds-subscription-inactive">
                 <p class="ds-subscription-pitch">
-                    Unlock dark mode, a premium profile ring, and up to 10 groups.
+                    Unlock a premium profile ring and up to 10 groups.
                 </p>
                 <a href="/pricing"
-                   class="ds-btn-upgrade"
+                   class="ds-btn-primary"
                    aria-label="View premium plans and pricing">
-                    <MudIcon Icon="@Icons.Material.Outlined.Park" Size="Size.Small" />
-                    <span>View Premium Plans</span>
+                    View Premium Plans
                 </a>
             </div>
         }
@@ -230,6 +217,7 @@ else
 
 @code {
     private UserProfileDto _profile = new();
+    private EntitlementsDto? _plan;
     private bool _loading = true;
     private bool _cancelling;
 
@@ -239,7 +227,6 @@ else
     private string _originalUserName = "";
     private string _originalFirstName = "";
     private string _originalLastName = "";
-    private string _currentTheme = "light";
 
     private bool _uploadingPicture;
 
@@ -251,31 +238,37 @@ else
         SettingsUI.OnResetRequested += HandleReset;
 
         _loading = true;
-        var result = await ProfileService.GetProfileAsync();
+        var profileTask = ProfileService.GetProfileAsync();
+        var planTask = LoadPlanAsync();
+        await Task.WhenAll(profileTask, planTask);
+
+        var result = profileTask.Result;
         if (result.Success && result.Data is not null)
         {
             _profile = result.Data;
             Snapshot();
         }
         _loading = false;
-
-        _currentTheme = await JS.InvokeAsync<string>("themeManager.get");
-
-        // Sync premium status to JS theme manager
-        await JS.InvokeVoidAsync("themeManager.setPremiumStatus", _profile.IsPremium);
-
-        // Force light if non-premium somehow had dark saved
-        if (!_profile.IsPremium && _currentTheme == "dark")
-        {
-            _currentTheme = "light";
-            await JS.InvokeVoidAsync("themeManager.set_force", "light");
-        }
     }
 
-    private async Task SetTheme(string theme)
+    // Invariant culture on purpose. These strings land in CSS and aria values, and a culture
+    // that writes 12,5 instead of 12.5 would make the width rule invalid and the bar vanish.
+    private static string FillPercent(long used, long max)
     {
-        _currentTheme = theme;
-        await JS.InvokeVoidAsync("themeManager.set", theme);
+        if (max <= 0)
+            return "0";
+
+        var percent = Math.Clamp(used * 100.0 / max, 0, 100);
+        return percent.ToString("0.#", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatMegabytes(long bytes) =>
+        (bytes / (1024.0 * 1024.0)).ToString("0.#", CultureInfo.InvariantCulture) + " MB";
+
+    private async Task LoadPlanAsync()
+    {
+        var result = await ProfileService.GetEntitlementsAsync();
+        _plan = result.Success ? result.Data : null;
     }
 
     // ----- Premium -----
@@ -290,11 +283,9 @@ else
             var result = await PayPalService.CancelAsync();
             if (result.Success)
             {
-                _profile.IsPremium = false;
-                _profile.SubscriptionType = null;
-                _profile.PremiumExpiresAt = null;
-                _currentTheme = "light";
-                await JS.InvokeVoidAsync("themeManager.setPremiumStatus", false);
+                // Read back rather than assume free. A 30 day pass bought alongside the
+                // subscription is its own grant and is still running.
+                await LoadPlanAsync();
                 CurrentUser.ClearCache();
                 Snackbar.Add("Premium subscription cancelled", Severity.Info);
             }

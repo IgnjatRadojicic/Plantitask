@@ -138,7 +138,7 @@
     border: none;
     border-radius: 10px;
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
     font-family: var(--font-body);
     font-size: 0.82rem;
     font-weight: 600;
@@ -222,7 +222,7 @@
 }
 
 .members-role-card:hover {
-    box-shadow: 0 4px 16px var(--c-black-a06);
+    box-shadow: 0 4px 16px var(--c-shadow-a06);
 }
 
 .members-role-card-count {
@@ -311,7 +311,7 @@
     height: 36px;
     border-radius: 50%;
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -449,7 +449,7 @@
 .members-overlay {
     position: fixed;
     inset: 0;
-    background: var(--c-black-a30);
+    background: var(--c-scrim);
     z-index: 100;
     display: flex;
     align-items: center;
@@ -468,7 +468,7 @@
     padding: 28px 32px;
     width: 420px;
     max-width: calc(100vw - 32px);
-    box-shadow: 0 20px 60px var(--c-black-a18);
+    box-shadow: 0 20px 60px var(--c-shadow-a18);
     animation: membersDialogIn 0.2s ease;
 }
 

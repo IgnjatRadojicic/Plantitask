@@ -22,10 +22,14 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<TaskItem> Tasks { get; set; }
     public DbSet<TaskAttachment> TaskAttachments { get; set; }
 
+    public DbSet<PlanVersion> PlanVersions { get; set; }
+    public DbSet<UserPlanGrant> UserPlanGrants { get; set; }
+
     public DbSet<TaskStatusLookup> TaskStatuses { get; set; }
     public DbSet<TaskPriorityLookup> TaskPriorities { get; set; }
     public DbSet<TaskComment> TaskComments { get; set; }
     public DbSet<GroupRoleLookup> GroupRoles { get; set; }
+    public DbSet<PlanLookup> Plans { get; set; }
 
     public DbSet<Notification> Notifications { get; set; }
 
@@ -87,14 +91,76 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.Email).HasMaxLength(256).IsRequired();
             entity.Property(e => e.PasswordHash).HasMaxLength(500).IsRequired();
             entity.Property(e => e.FirstName).HasMaxLength(50);
-            entity.Property(e => e.MaxGroups).HasDefaultValue(5);
             entity.Property(e => e.LastName).HasMaxLength(50);
             entity.Property(e => e.ProfilePicturePath).HasMaxLength(500);
-            entity.Property(e => e.IsPremium).HasDefaultValue(false);
-            entity.Property(e => e.PayPalSubscriptionId).HasMaxLength(200);
-            entity.Property(e => e.PayPalOrderId).HasMaxLength(200);
-            entity.Property(e => e.SubscriptionType).HasMaxLength(20);
 
+        });
+
+        modelBuilder.Entity<PlanLookup>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // The id is assigned from PlanTier, never generated.
+            entity.Property(e => e.Id).ValueGeneratedNever();
+
+            entity.HasIndex(e => e.Name).IsUnique();
+
+            entity.Property(e => e.Name).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.DisplayName).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Color).HasMaxLength(20);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<PlanVersion>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => new { e.PlanId, e.Version }).IsUnique();
+
+            // Resolution always filters on published and effective, so index the way it reads.
+            entity.HasIndex(e => new { e.PlanId, e.PublishedAt, e.EffectiveFrom });
+
+            entity.HasOne(e => e.Plan)
+                .WithMany()
+                .HasForeignKey(e => e.PlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<UserPlanGrant>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => new { e.UserId, e.StartsAt, e.EndsAt });
+
+            // Serves AnyGrantForPayPalRefAsync, which looks across every grant open or closed
+            // because a captured order must never be granted twice even after it expires. The
+            // partial index below cannot serve that query: a partial index only applies to
+            // queries that repeat its predicate.
+            entity.HasIndex(e => e.PayPalRef);
+
+            // At most one open grant per PayPal reference. This is what makes a redelivered
+            // ACTIVATED webhook harmless: the second insert cannot land. Closed grants are
+            // excluded so re-subscribing on the same id later still works.
+            //
+            // Named explicitly. HasIndex is keyed on the property set, so a second unnamed call
+            // over PayPalRef would reconfigure the index above rather than add one.
+            entity.HasIndex(e => e.PayPalRef, "IX_UserPlanGrants_PayPalRef_Open")
+                .IsUnique()
+                .HasFilter("\"EndsAt\" IS NULL AND \"PayPalRef\" IS NOT NULL");
+
+            entity.Property(e => e.Source).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.PayPalRef).HasMaxLength(200);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.PlanVersion)
+                .WithMany()
+                .HasForeignKey(e => e.PlanVersionId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Group>(entity =>
@@ -208,7 +274,18 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             entity.HasIndex(e => e.TaskId);
 
-        
+            // The storage quota sums FileSize per uploader on every upload. It seeks rather than
+            // scans because the Uploader relationship below already indexes CreatedBy, so there
+            // is deliberately no explicit HasIndex here to duplicate it.
+
+            // AttachmentPurgeJob's worklist. Partial so the index holds only rows that still owe
+            // a file deletion, which in the steady state is none of them. Without it the job's
+            // every-fifteen-minutes check sequentially scans every attachment ever uploaded to
+            // prove there is nothing to do, forever. DeletedAt is the indexed column so the
+            // job's ORDER BY is served too and the sort disappears.
+            entity.HasIndex(e => e.DeletedAt, "IX_TaskAttachments_PendingPurge")
+                .HasFilter("\"IsDeleted\" = true AND \"FilePurgedAt\" IS NULL");
+
             entity.Property(e => e.FileName).HasMaxLength(255).IsRequired();
             entity.Property(e => e.FilePath).HasMaxLength(500).IsRequired();
             entity.Property(e => e.ContentType).HasMaxLength(100).IsRequired();

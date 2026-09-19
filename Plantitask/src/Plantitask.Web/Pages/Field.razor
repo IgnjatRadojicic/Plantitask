@@ -25,7 +25,7 @@
     @if (_errorMessage != null)
     {
         <div class="field-error">
-            <MudIcon Icon="@Icons.Material.Outlined.ErrorOutline" Size="Size.Large" Style="color:#D32F2F;" />
+            <MudIcon Icon="@Icons.Material.Outlined.ErrorOutline" Size="Size.Large" Color="Color.Error" />
             <p>@_errorMessage</p>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RetryLoad" Class="auth-btn">
                 Try Again
@@ -46,13 +46,13 @@
             <div class="field-plant-menu-items">
                 <div class="field-plant-item" @onclick="StartSeedDrag">
                     <div class="field-plant-item-icon">
-                        <MudIcon Icon="@Icons.Material.Outlined.Grass" Style="color:#9CC103;" />
+                        <MudIcon Icon="@Icons.Material.Outlined.Grass" Color="Color.Primary" />
                     </div>
                     <div class="field-plant-item-info">
                         <span class="field-plant-item-name text-sora">Basic Seed</span>
                         <span class="field-plant-item-desc">Drag onto field to plant</span>
                     </div>
-                    <MudIcon Icon="@Icons.Material.Outlined.DragIndicator" Size="Size.Small" Style="color:#BDBDBD;" />
+                    <MudIcon Icon="@Icons.Material.Outlined.DragIndicator" Size="Size.Small" Style="color:var(--c-text-faint);" />
                 </div>
             </div>
             <div class="field-plant-menu-hint">

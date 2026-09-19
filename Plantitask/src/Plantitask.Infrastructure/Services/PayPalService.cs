@@ -7,9 +7,9 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Plantitask.Core.Common;
-using Plantitask.Core.Constants;
 using Plantitask.Core.DTO.Paypal;
 using Plantitask.Core.Entities;
+using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Infrastructure.Services
@@ -29,6 +29,7 @@ namespace Plantitask.Infrastructure.Services
         private readonly HttpClient _http;
         private readonly PayPalSettings _settings;
         private readonly IMemoryCache _cache;
+        private readonly IEntitlementService _entitlements;
         private readonly ILogger<PayPalService> _logger;
 
         private static readonly JsonSerializerOptions _jsonOpts = new()
@@ -42,12 +43,14 @@ namespace Plantitask.Infrastructure.Services
             HttpClient http,
             IOptions<PayPalSettings> settings,
             IMemoryCache cache,
+            IEntitlementService entitlements,
             ILogger<PayPalService> logger)
         {
             _db = db;
             _http = http;
             _settings = settings.Value;
             _cache = cache;
+            _entitlements = entitlements;
             _logger = logger;
         }
 
@@ -153,11 +156,11 @@ namespace Plantitask.Infrastructure.Services
         /// </summary>
         public async Task<Result> ActivateSubscriptionAsync(Guid userId, string subscriptionId)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            if (user is null)
+            if (!await _db.Users.AnyAsync(u => u.Id == userId))
                 return Error.NotFound("User not found");
 
-            if (user.IsPremium && user.PayPalSubscriptionId == subscriptionId)
+            // The webhook twin may already have granted this exact subscription.
+            if (await _entitlements.FindOpenGrantByPayPalRefAsync(subscriptionId) is not null)
                 return Result.Success();
 
             var token = await GetAccessTokenAsync();
@@ -176,8 +179,14 @@ namespace Plantitask.Infrastructure.Services
             if (status != "ACTIVE")
                 return Error.BadRequest("Subscription is not active on PayPal");
 
-            GrantPremium(user, "recurring", expiresAt: null);
-            user.PayPalSubscriptionId = subscriptionId;
+            // No end date. A recurring grant stays open until a webhook closes it, which is what
+            // "PayPal is still charging" means.
+            var granted = await _entitlements.StageGrantAsync(
+                userId, PlanTier.Premium, endsAt: null,
+                GrantSource.PayPalSubscription, subscriptionId, grantedBy: userId);
+
+            if (granted.IsFailure)
+                return granted.Error!;
 
             await _db.SaveChangesAsync();
 
@@ -188,32 +197,30 @@ namespace Plantitask.Infrastructure.Services
         }
 
         /// <summary>
-        /// Cancels a recurring subscription at PayPal, then revokes locally. The revoke
+        /// Cancels a recurring subscription at PayPal, then ends the local grant. The end
         /// deliberately proceeds even when PayPal's cancel call fails so the user is never
         /// trapped - the cost is that PayPal may keep billing until someone notices the warning
         /// log. Known open item: that log should be an alert (paypal-service.md K).
-        /// One-time passes are refused rather than cancelled.
+        ///
+        /// A 30 day pass is now simply a different grant row, so cancelling a subscription
+        /// cannot touch it. The old special case that refused to cancel while a pass was live
+        /// exists to protect days already paid for, and the schema protects them instead.
         /// </summary>
         public async Task<Result> CancelSubscriptionAsync(Guid userId)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            if (user is null)
+            if (!await _db.Users.AnyAsync(u => u.Id == userId))
                 return Error.NotFound("User not found");
 
-            if (!user.IsPremium)
+            var grant = await _entitlements.FindActiveGrantAsync(userId, GrantSource.PayPalSubscription);
+
+            if (grant is null)
                 return Error.BadRequest("User does not have an active premium subscription");
 
-            // A one time pass has no billing agreement behind it, so there is nothing to cancel
-            // and revoking here would do nothing but delete days already paid for. The daily
-            // expire-onetime-premium job owns that end date.
-            if (user.SubscriptionType == "onetime")
-                return Error.BadRequest("A 30 day pass has nothing to cancel. It ends on its own.");
-
-            if (user.SubscriptionType == "recurring" && !string.IsNullOrEmpty(user.PayPalSubscriptionId))
+            if (!string.IsNullOrEmpty(grant.PayPalRef))
             {
                 var token = await GetAccessTokenAsync();
                 var httpReq = new HttpRequestMessage(HttpMethod.Post,
-                    $"{_settings.BaseUrl}/v1/billing/subscriptions/{user.PayPalSubscriptionId}/cancel");
+                    $"{_settings.BaseUrl}/v1/billing/subscriptions/{grant.PayPalRef}/cancel");
                 httpReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpReq.Content = new StringContent(
                     JsonSerializer.Serialize(new { reason = "User requested cancellation" }, _jsonOpts),
@@ -226,7 +233,7 @@ namespace Plantitask.Infrastructure.Services
                 }
             }
 
-            RevokePremium(user);
+            _entitlements.EndGrant(grant, cancelled: true, endedBy: userId);
             await _db.SaveChangesAsync();
 
             _logger.LogInformation("User {UserId} cancelled premium", userId);
@@ -306,11 +313,12 @@ namespace Plantitask.Infrastructure.Services
         /// </summary>
         public async Task<Result<CaptureOrderResponse>> CaptureOrderAsync(Guid userId, string orderId)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            if (user is null)
+            if (!await _db.Users.AnyAsync(u => u.Id == userId))
                 return Error.NotFound("User not found");
 
-            if (user.IsPremium && user.PayPalOrderId == orderId)
+            // Any grant at all for this order, expired or not. An order captured once must never
+            // be granted a second time, even after its thirty days have run out.
+            if (await _entitlements.AnyGrantForPayPalRefAsync(orderId))
             {
                 return new CaptureOrderResponse
                 {
@@ -370,8 +378,12 @@ namespace Plantitask.Infrastructure.Services
                 return Error.Forbidden("Order does not belong to this user");
             }
 
-            GrantPremium(user, "onetime", expiresAt: DateTime.UtcNow.AddDays(OneTimePremiumDays));
-            user.PayPalOrderId = orderId;
+            var granted = await _entitlements.StageGrantAsync(
+                userId, PlanTier.Premium, endsAt: DateTime.UtcNow.AddDays(OneTimePremiumDays),
+                GrantSource.PayPalOneTime, orderId, grantedBy: userId);
+
+            if (granted.IsFailure)
+                return granted.Error!;
 
             await _db.SaveChangesAsync();
 
@@ -387,38 +399,27 @@ namespace Plantitask.Infrastructure.Services
         }
 
         /// <summary>
-        /// A pure read. Expiring one time premium used to happen here, which meant a user who
-        /// never came back kept a stale row forever and two concurrent reads both wrote. The
-        /// expire-onetime-premium recurring job owns that now.
+        /// A pure read of subscription state. It carries no limits: those moved to the
+        /// entitlements endpoint so that a DTO describing who someone is stopped also trying to
+        /// describe what they may do.
         ///
-        /// The answer is still correct the moment premium lapses because HasActivePremium
-        /// computes it from PremiumExpiresAt rather than trusting the IsPremium column.
+        /// The answer is correct the moment premium lapses because it comes from the grant's end
+        /// date rather than from a boolean some job is responsible for flipping.
         /// </summary>
         public async Task<Result<PremiumStatusDto>> GetPremiumStatusAsync(Guid userId)
         {
-            var user = await _db.Users
-                .Where(u => u.Id == userId)
-                .Select(u => new
-                {
-                    IsActive = u.IsPremium
-                        && (!u.PremiumExpiresAt.HasValue || u.PremiumExpiresAt > DateTime.UtcNow),
-                    u.SubscriptionType,
-                    u.PremiumExpiresAt,
-                    u.PremiumStartedAt
-                })
-                .FirstOrDefaultAsync();
+            var result = await _entitlements.GetEntitlementsAsync(userId);
+            if (result.IsFailure)
+                return result.Error!;
 
-            if (user is null)
-                return Error.NotFound("User not found");
+            var entitlements = result.Value!;
 
             return new PremiumStatusDto
             {
-                IsPremium = user.IsActive,
-                SubscriptionType = user.SubscriptionType,
-                ExpiresAt = user.PremiumExpiresAt,
-                StartedAt = user.PremiumStartedAt,
-                CanUseDarkMode = user.IsActive,
-                MaxGroups = user.IsActive ? PlanLimits.PremiumMaxGroups : PlanLimits.FreeMaxGroups
+                IsPremium = entitlements.IsPremium,
+                SubscriptionType = entitlements.SubscriptionType,
+                ExpiresAt = entitlements.EndsAt,
+                StartedAt = entitlements.StartsAt
             };
         }
 
@@ -508,30 +509,46 @@ namespace Plantitask.Infrastructure.Services
             var customId = evt.Resource.CustomId;
             if (string.IsNullOrEmpty(customId) || !Guid.TryParse(customId, out var userId)) return;
 
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            if (user is null) return;
+            if (!await _db.Users.AnyAsync(u => u.Id == userId)) return;
 
-            GrantPremium(user, "recurring", expiresAt: null);
-            user.PayPalSubscriptionId = evt.Resource.Id;
+            // The browser return path may have granted this already.
+            if (await _entitlements.FindOpenGrantByPayPalRefAsync(evt.Resource.Id) is not null) return;
+
+            await _entitlements.StageGrantAsync(
+                userId, PlanTier.Premium, endsAt: null,
+                GrantSource.PayPalSubscription, evt.Resource.Id, grantedBy: userId);
         }
 
         /// <summary>
-        /// A successful recurring charge. Re-granting the same values keeps the row fresh and is
-        /// naturally idempotent, which is exactly what a redelivered webhook needs.
+        /// A successful recurring charge. An open grant has no end date to push out, so a renewal
+        /// on a live subscription is genuinely a no-op and a redelivered event changes nothing.
+        ///
+        /// The one case with work to do is a charge arriving against a grant we already closed,
+        /// which means PayPal resumed billing after a suspension. Reopening as a new grant keeps
+        /// the closed one as history rather than rewriting it.
         /// </summary>
         private async Task HandlePaymentCompleted(PayPalWebhookEvent evt)
         {
             var billingAgreementId = evt.Resource.BillingAgreementId;
             if (string.IsNullOrEmpty(billingAgreementId)) return;
 
-            var user = await _db.Users.FirstOrDefaultAsync(
-                u => u.PayPalSubscriptionId == billingAgreementId);
-            if (user is null) return;
+            if (await _entitlements.FindOpenGrantByPayPalRefAsync(billingAgreementId) is not null)
+                return;
 
-            GrantPremium(user, "recurring", expiresAt: null);
+            var previous = await _db.UserPlanGrants
+                .Where(g => g.PayPalRef == billingAgreementId)
+                .OrderByDescending(g => g.StartsAt)
+                .FirstOrDefaultAsync();
 
-            _logger.LogInformation("Recurring payment completed for user {UserId}, agreement {AgreementId}",
-                user.Id, billingAgreementId);
+            if (previous is null) return;
+
+            await _entitlements.StageGrantAsync(
+                previous.UserId, PlanTier.Premium, endsAt: null,
+                GrantSource.PayPalSubscription, billingAgreementId, grantedBy: previous.UserId);
+
+            _logger.LogInformation(
+                "Recurring payment resumed premium for user {UserId}, agreement {AgreementId}",
+                previous.UserId, billingAgreementId);
         }
 
         /// <summary>
@@ -540,8 +557,8 @@ namespace Plantitask.Infrastructure.Services
         /// redirect gets nothing while PayPal has their money and nothing anywhere notices.
         ///
         /// Recurring already had four events covering it. This is the equivalent for orders.
-        /// Whichever of the two paths arrives first wins and the other is a no op, because the
-        /// capture path stamps PayPalOrderId and this checks it.
+        /// Whichever of the two paths arrives first wins and the other is a no op, because both
+        /// record the order id on the grant and both check for it first.
         /// </summary>
         private async Task HandleOneTimeCaptureCompleted(PayPalWebhookEvent evt)
         {
@@ -552,16 +569,16 @@ namespace Plantitask.Infrastructure.Services
                 return;
             }
 
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            if (user is null)
+            if (!await _db.Users.AnyAsync(u => u.Id == userId))
                 return;
 
-            // The browser capture already granted this exact order, nothing to do.
-            if (user.PayPalOrderId == evt.Resource.Id && user.HasActivePremium)
+            // Granted already, by the browser capture or by a redelivery of this event.
+            if (await _entitlements.AnyGrantForPayPalRefAsync(evt.Resource.Id))
                 return;
 
-            GrantPremium(user, "onetime", expiresAt: DateTime.UtcNow.AddDays(OneTimePremiumDays));
-            user.PayPalOrderId = evt.Resource.Id;
+            await _entitlements.StageGrantAsync(
+                userId, PlanTier.Premium, endsAt: DateTime.UtcNow.AddDays(OneTimePremiumDays),
+                GrantSource.PayPalOneTime, evt.Resource.Id, grantedBy: userId);
 
             _logger.LogInformation(
                 "One time premium granted to user {UserId} from capture webhook for order {OrderId}",
@@ -574,11 +591,13 @@ namespace Plantitask.Infrastructure.Services
         /// </summary>
         private async Task HandleSubscriptionCancelled(PayPalWebhookEvent evt)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(
-                u => u.PayPalSubscriptionId == evt.Resource.Id);
-            if (user is null) return;
+            var grant = await _entitlements.FindOpenGrantByPayPalRefAsync(evt.Resource.Id);
+            if (grant is null) return;
 
-            RevokePremium(user);
+            // Ends the subscription grant only. A 30 day pass the same user bought is a separate
+            // row and keeps running, which is the days-already-paid-for guarantee.
+            // endedBy is null: PayPal ended this, no person did.
+            _entitlements.EndGrant(grant, cancelled: true, endedBy: null);
         }
 
         /// <summary>
@@ -589,12 +608,11 @@ namespace Plantitask.Infrastructure.Services
         /// </summary>
         private async Task HandlePaymentFailed(PayPalWebhookEvent evt)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(
-                u => u.PayPalSubscriptionId == evt.Resource.Id);
-            if (user is null) return;
+            var grant = await _entitlements.FindOpenGrantByPayPalRefAsync(evt.Resource.Id);
+            if (grant is null) return;
 
             _logger.LogWarning("Payment failed for user {UserId} subscription {SubId}, awaiting PayPal dunning outcome",
-                user.Id, evt.Resource.Id);
+                grant.UserId, evt.Resource.Id);
         }
 
         /// <summary>
@@ -673,34 +691,5 @@ namespace Plantitask.Infrastructure.Services
             return null;
         }
 
-        /// <summary>
-        /// Premium was granted in four places that each set the same six fields by hand while
-        /// revoking had a single implementation. That asymmetry is where a drift bug comes from
-        /// so grant now has one definition too. Pass null for expiresAt on recurring, which is
-        /// what HasActivePremium reads as active until PayPal says otherwise.
-        /// </summary>
-        private static void GrantPremium(User user, string subscriptionType, DateTime? expiresAt)
-        {
-            user.IsPremium = true;
-            user.SubscriptionType = subscriptionType;
-            user.PremiumStartedAt ??= DateTime.UtcNow;
-            user.PremiumExpiresAt = expiresAt;
-            user.MaxGroups = PlanLimits.PremiumMaxGroups;
-        }
-
-        /// <summary>
-        /// The single teardown: clears every premium column and resets MaxGroups to the free
-        /// plan. Absolute assignments on purpose - running it twice is the same as once.
-        /// </summary>
-        private static void RevokePremium(User user)
-        {
-            user.IsPremium = false;
-            user.PremiumStartedAt = null;
-            user.PremiumExpiresAt = null;
-            user.PayPalSubscriptionId = null;
-            user.PayPalOrderId = null;
-            user.SubscriptionType = null;
-            user.MaxGroups = PlanLimits.FreeMaxGroups;
-        }
     }
 }

@@ -66,8 +66,66 @@
     --c-glass-92:         rgba(255,255,255,0.92);
     --c-glass-95:         rgba(255,255,255,0.95);
 
+    /* Brand alphas the stylesheets already reference with a fallback. */
+    --c-primary-a04:      rgba(156,193,3,0.04);
+    --c-primary-a12:      rgba(156,193,3,0.12);
+
+    /* Text on colour. --c-white is the card surface and remaps to a dark card in dark mode, so
+       text that sits on a green fill or on a surface that is dark in both themes cannot use it
+       without going dark on dark. These two say what the text sits on instead. */
+    --c-on-brand:         #FFFFFF;
+    --c-on-dark:          #FFFFFF;
+
+    /* A surface one step above a card: inputs on a coloured bar, menus. */
+    --c-surface-raised:   #FFFFFF;
+
+    /* The dark bar in a light UI, like the unsaved changes prompt. */
+    --c-surface-inverse:  var(--c-text-darkest);
+
+    /* Shadows and scrims. The --c-black-aXX ramp flips to white in dark mode, which is right for
+       hairlines and hover tints and wrong for anything that should darken what is behind it. */
+    --c-shadow-a06:       rgba(0,0,0,0.06);
+    --c-shadow-a08:       rgba(0,0,0,0.08);
+    --c-shadow-a10:       rgba(0,0,0,0.1);
+    --c-shadow-a12:       rgba(0,0,0,0.12);
+    --c-shadow-a15:       rgba(0,0,0,0.15);
+    --c-shadow-a18:       rgba(0,0,0,0.18);
+    --c-shadow-a30:       rgba(0,0,0,0.3);
+    --c-scrim:            rgba(0,0,0,0.3);
+
+    --c-scrollbar-track:  #f5f5f5;
+    --c-scrollbar-thumb:  #ccc;
+
     /* Component-specific */
     --c-tab-inactive:     rgba(80,80,80,0.8);
+
+    --c-topbar-bg:           var(--c-primary);
+    --c-topbar-field-border: rgba(255,255,255,0.3);
+    --c-topbar-field-focus:  #FFFFFF;
+    --c-topbar-field-ring:   rgba(255,255,255,0.25);
+
+    --c-tree-overlay:     rgba(255,255,255,0.75);
+    --c-leaves-opacity:   0.2;
+    --c-card-outline:     transparent;
+    --c-premium-card-bg:  var(--c-bg-white);
+
+    /* Usage meters on the account page. Trees fill with the brand green, storage with the
+       earth brown the MudBlazor secondary palette already uses. */
+    --c-meter-track:      #FFFFFF;
+    --c-earth:            #8B7355;
+
+    --c-vine-blend:       multiply;
+    --c-vine-filter:      none;
+    --c-vine-strength:    1;
+
+    --c-loader-track:     #e8e8e8;
+    --c-loader-text:      #999;
+
+    /* The field is a PixiJS canvas and ignores every token above, so dark mode dims it as a
+       whole. A real night scene belongs in the engine and is parked for the frontend pass. */
+    --c-field-canvas-filter: none;
+
+    color-scheme: light;
 
     /* Typography */
     --font-body:          'DM Sans', sans-serif;
@@ -81,46 +139,57 @@
     --t-spring-fast:      0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Forest night. Near black with a faint green cast so the app still reads as a garden after
+   dark, decided 2026-09-19. This block remaps tokens and nothing else: a component selector in
+   here is the dark-mode-fixes.css pattern coming back. */
 [data-theme="dark"] {
-    /* Brand — keep primary green, slightly brighter for contrast */
-    --c-primary:          #9CC103;
-    --c-primary-dark:     #8FB504;
-    --c-primary-a06:      rgba(168,212,6,0.06);
-    --c-primary-a08:      rgba(168,212,6,0.08);
-    --c-primary-a10:      rgba(168,212,6,0.1);
-    --c-primary-a30:      rgba(168,212,6,0.3);
-    --c-primary-a40:      rgba(168,212,6,0.4);
-    --c-primary-a50:      rgba(168,212,6,0.5);
+    color-scheme: dark;
 
-    /* Error */
+    /* Brand brightens on dark for contrast. Text on it goes dark, the way Material pairs a
+       light primary with a dark on-primary. */
+    --c-primary:          #AED334;
+    --c-primary-dark:     #9CC103;
+    --c-primary-a04:      rgba(174,211,52,0.04);
+    --c-primary-a06:      rgba(174,211,52,0.06);
+    --c-primary-a08:      rgba(174,211,52,0.08);
+    --c-primary-a10:      rgba(174,211,52,0.1);
+    --c-primary-a12:      rgba(174,211,52,0.12);
+    --c-primary-a30:      rgba(174,211,52,0.3);
+    --c-primary-a40:      rgba(174,211,52,0.4);
+    --c-primary-a50:      rgba(174,211,52,0.5);
+
     --c-error:            #EF5350;
-    --c-error-a06:        rgba(239,83,80,0.06);
+    --c-error-a06:        rgba(239,83,80,0.08);
 
-    /* Neutrals — inverted */
-    --c-white:            #1E1E1E;
-    --c-text-darkest:     #ECECEC;
-    --c-text-dark:        #D4D4D4;
-    --c-text-mid:         #B0B0B0;
-    --c-text-body:        #9E9E9E;
-    --c-text-muted:       #787878;
-    --c-text-faint:       #555555;
-    --c-text-footer:      #888888;   /* 5.5:1 on the dark footer */
-    --c-text-footer-sub:  #8A8A8A;   /* was #777 — only 4.3:1, failed AA */
+    --c-on-brand:         #0F1411;
+    --c-on-dark:          #E6EBE4;
 
-    /* Backgrounds */
-    --c-bg-page:          #121212;
-    --c-bg-white:         #1E1E1E;
-    --c-bg-dark:          #0A0A0A;
-    --c-bg-field:         #4A6B2F;
-    --c-bg-loading:       rgba(18,18,18,0.95);
+    /* Neutrals */
+    --c-white:            #171D18;
+    --c-text-darkest:     #E6EBE4;
+    --c-text-dark:        #CFD6CC;
+    --c-text-mid:         #A7B0A5;
+    --c-text-body:        #929B90;
+    --c-text-muted:       #7B8479;
+    --c-text-faint:       #58625A;
+    --c-text-footer:      #8E978C;
+    --c-text-footer-sub:  #8A9388;
+
+    /* Surfaces */
+    --c-bg-page:          #0F1411;
+    --c-bg-white:         #171D18;
+    --c-surface-raised:   #1F2720;
+    --c-surface-inverse:  #2A342B;
+    --c-bg-dark:          #0A0D0B;
+    --c-bg-field:         #3B5528;
+    --c-bg-loading:       rgba(15,20,17,0.95);
     --c-bg-avatar:        #5C6B2A;
 
-    /* Borders */
-    --c-border:           #333333;
-    --c-border-light:     #2A2A2A;
-    --c-border-dark:      #444444;
+    --c-border:           #28312A;
+    --c-border-light:     #1F2720;
+    --c-border-dark:      #3A463D;
 
-    /* Black overlays — swap to white-based for dark surfaces */
+    /* Hairlines and hover tints lighten on a dark surface. */
     --c-black-a06:        rgba(255,255,255,0.06);
     --c-black-a08:        rgba(255,255,255,0.08);
     --c-black-a10:        rgba(255,255,255,0.1);
@@ -129,19 +198,53 @@
     --c-black-a18:        rgba(255,255,255,0.18);
     --c-black-a30:        rgba(255,255,255,0.3);
 
-    /* Glass surfaces — dark glass */
-    --c-glass-35:         rgba(30,30,30,0.35);
-    --c-glass-40:         rgba(30,30,30,0.4);
-    --c-glass-50:         rgba(30,30,30,0.5);
-    --c-glass-60:         rgba(30,30,30,0.6);
-    --c-glass-65:         rgba(30,30,30,0.65);
-    --c-glass-75:         rgba(30,30,30,0.75);
-    --c-glass-80:         rgba(30,30,30,0.8);
-    --c-glass-92:         rgba(30,30,30,0.92);
-    --c-glass-95:         rgba(30,30,30,0.95);
+    /* Shadows and scrims stay black and get stronger, since a faint shadow vanishes on dark. */
+    --c-shadow-a06:       rgba(0,0,0,0.3);
+    --c-shadow-a08:       rgba(0,0,0,0.35);
+    --c-shadow-a10:       rgba(0,0,0,0.4);
+    --c-shadow-a12:       rgba(0,0,0,0.45);
+    --c-shadow-a15:       rgba(0,0,0,0.5);
+    --c-shadow-a18:       rgba(0,0,0,0.55);
+    --c-shadow-a30:       rgba(0,0,0,0.6);
+    --c-scrim:            rgba(0,0,0,0.55);
 
-    /* Component-specific — --c-nav-scrolled / --c-signin-bg deliberately NOT
-       overridden here: they sit on the hero photo, which has no dark variant. */
-    --c-tab-inactive:     rgba(180,180,180,0.8);
+    --c-scrollbar-track:  #0F1411;
+    --c-scrollbar-thumb:  #3A463D;
+
+    /* Glass keeps its opacity ramp over the night card colour. */
+    --c-glass-35:         rgba(23,29,24,0.35);
+    --c-glass-40:         rgba(23,29,24,0.4);
+    --c-glass-50:         rgba(23,29,24,0.5);
+    --c-glass-60:         rgba(23,29,24,0.6);
+    --c-glass-65:         rgba(23,29,24,0.65);
+    --c-glass-75:         rgba(23,29,24,0.75);
+    --c-glass-80:         rgba(23,29,24,0.8);
+    --c-glass-92:         rgba(23,29,24,0.92);
+    --c-glass-95:         rgba(23,29,24,0.95);
+
+    /* Component-specific. --c-nav-scrolled and --c-signin-bg are deliberately not here: they
+       sit on the hero photo, which has no dark variant. */
+    --c-tab-inactive:     rgba(185,195,182,0.8);
+
+    --c-topbar-bg:           #26330F;
+    --c-topbar-field-border: rgba(255,255,255,0.1);
+    --c-topbar-field-focus:  var(--c-primary);
+    --c-topbar-field-ring:   rgba(174,211,52,0.2);
+
+    --c-tree-overlay:     rgba(23,29,24,0.45);
+    --c-leaves-opacity:   0.06;
+    --c-card-outline:     var(--c-border);
+    --c-premium-card-bg:  #1E2413;
+
+    --c-meter-track:      #0F1411;
+    --c-earth:            #A89274;
+
+    --c-vine-blend:       screen;
+    --c-vine-filter:      invert(1) brightness(0.5) sepia(1) hue-rotate(30deg) saturate(2);
+    --c-vine-strength:    0.17;
+
+    --c-loader-track:     #28312A;
+    --c-loader-text:      #7B8479;
+
+    --c-field-canvas-filter: brightness(0.62) saturate(0.8) hue-rotate(10deg);
 }
-

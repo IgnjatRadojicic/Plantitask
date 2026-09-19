@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Plantitask.Api.Extensions;
 using Plantitask.Core.DTO.Auth;
+using Plantitask.Core.DTO.Plans;
 using Plantitask.Core.DTO.Users;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Services;
@@ -17,19 +18,42 @@ public class UserProfileController : BaseApiController
 {
     private readonly IUserProfileService _profileService;
     private readonly IAuthService _authService;
+    private readonly IEntitlementService _entitlements;
 
-    public UserProfileController(IUserProfileService profileService, IAuthService authService)
+    public UserProfileController(
+        IUserProfileService profileService,
+        IAuthService authService,
+        IEntitlementService entitlements)
     {
         _profileService = profileService;
         _authService = authService;
+        _entitlements = entitlements;
     }
 
     [HttpGet]
     [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetProfile()
     {
         var userId = GetUserId();
         var result = await _profileService.GetProfileAsync(userId);
+        return result.ToActionResult();
+    }
+
+    /// <summary>
+    /// The caller's plan limits and current usage. The only endpoint that carries policy, so
+    /// identity payloads do not have to, and it ships usage next to the limits because a quota
+    /// the user cannot see is one that only shows up as a refused upload.
+    /// </summary>
+    [HttpGet("entitlements")]
+    [ProducesResponseType(typeof(EntitlementsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetEntitlements()
+    {
+        var userId = GetUserId();
+        var result = await _entitlements.GetUsageAsync(userId);
         return result.ToActionResult();
     }
 

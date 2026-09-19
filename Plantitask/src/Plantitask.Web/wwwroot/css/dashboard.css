@@ -18,21 +18,22 @@
     background-size: cover;
     background-repeat: no-repeat;
     background-position: top center;
-    opacity: 0.9;
+    opacity: calc(0.9 * var(--c-vine-strength));
     pointer-events: none;
     z-index: 0;
-    mix-blend-mode: multiply;
+    mix-blend-mode: var(--c-vine-blend);
+    filter: var(--c-vine-filter);
 }
 
 .dash-vine--left  { left: 0; }
 .dash-vine--right { right: 0; transform: scaleX(-1); }
 
 @media (max-width: 1500px) {
-    .dash-vine { opacity: 0.7; }
+    .dash-vine { opacity: calc(0.7 * var(--c-vine-strength)); }
 }
 
 @media (max-width: 1350px) {
-    .dash-vine { opacity: 0.4; }
+    .dash-vine { opacity: calc(0.4 * var(--c-vine-strength)); }
 }
 
 @media (max-width: 1200px) {
@@ -134,7 +135,7 @@
 }
 
 .dash-kpi-card:hover {
-    box-shadow: 0 4px 20px var(--c-black-a08);
+    box-shadow: 0 4px 20px var(--c-shadow-a08);
     border-color: var(--c-border);
     transform: translateY(-1px);
 }
@@ -185,7 +186,7 @@
 }
 
 .dash-card:hover {
-    box-shadow: 0 4px 24px var(--c-black-a06);
+    box-shadow: 0 4px 24px var(--c-shadow-a06);
 }
 
 .dash-card-header {
@@ -458,7 +459,7 @@
     height: 34px;
     border-radius: 50%;
     background: var(--c-bg-avatar);
-    color: var(--c-white);
+    color: var(--c-on-dark);
     font-size: 0.7rem;
     font-weight: 700;
     font-family: var(--font-heading);

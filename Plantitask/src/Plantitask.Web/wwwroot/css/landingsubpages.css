@@ -84,7 +84,7 @@
 .pricing-hero-title {
     font-size: 3rem;
     font-weight: 800;
-    color: var(--c-white);
+    color: var(--c-on-dark);
     line-height: 1.15;
     margin-bottom: 16px;
 }
@@ -125,10 +125,11 @@
 
 .pricing-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 40px var(--c-black-a08);
+    box-shadow: 0 12px 40px var(--c-shadow-a08);
 }
 
 .pricing-card-premium {
+    background: var(--c-premium-card-bg);
     border-color: var(--c-primary);
     box-shadow: 0 8px 30px var(--c-primary-a10);
 }
@@ -143,7 +144,7 @@
     left: 50%;
     transform: translateX(-50%);
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
     font-family: var(--font-body);
     font-size: 0.7rem;
     font-weight: 700;
@@ -259,7 +260,7 @@
 .pricing-btn-filled {
     border: 2px solid var(--c-primary);
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
 }
 
 .pricing-btn-filled:hover {
@@ -304,7 +305,7 @@
 }
 
 .pricing-faq-item:hover {
-    box-shadow: 0 4px 16px var(--c-black-a06);
+    box-shadow: 0 4px 16px var(--c-shadow-a06);
 }
 
 .pricing-faq-q {
@@ -337,7 +338,7 @@
 .news-hero-title {
     font-size: 3rem;
     font-weight: 800;
-    color: var(--c-white);
+    color: var(--c-on-dark);
     line-height: 1.15;
     margin-bottom: 16px;
 }
@@ -375,7 +376,7 @@
 .news-article-badge {
     display: inline-block;
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
     font-family: var(--font-body);
     font-size: 0.68rem;
     font-weight: 700;
@@ -501,7 +502,7 @@
     display: inline-block;
     padding: 12px 28px;
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
     border-radius: 8px;
     font-family: var(--font-body);
     font-size: 0.85rem;

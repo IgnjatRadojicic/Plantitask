@@ -121,6 +121,44 @@ namespace Plantitask.Tests.Helpers
                 .ExecuteUpdateAsync(s => s.SetProperty(e => e.CreatedAt, createdAt));
 
         /// <summary>
+        /// Inserts a grant with dates the test chooses, which StageGrantAsync cannot do because it
+        /// always starts a grant now. Pinned to version 1 of the plan, the one the migration
+        /// seeds, so a test that publishes a later version can still say which one its existing
+        /// customer bought. StartsAt defaults to a day ago so the grant is already running.
+        /// </summary>
+        public static async Task<Guid> SeedGrantAsync(
+            this ApplicationDbContext db,
+            Guid userId,
+            string source,
+            string? payPalRef = null,
+            DateTime? endsAt = null,
+            DateTime? startsAt = null,
+            PlanTier tier = PlanTier.Premium)
+        {
+            var versionId = await db.PlanVersions
+                .Where(v => v.PlanId == (int)tier)
+                .OrderBy(v => v.Version)
+                .Select(v => v.Id)
+                .FirstAsync();
+
+            var grant = new UserPlanGrant
+            {
+                UserId = userId,
+                PlanVersionId = versionId,
+                StartsAt = startsAt ?? DateTime.UtcNow.AddDays(-1),
+                EndsAt = endsAt,
+                Source = source,
+                PayPalRef = payPalRef,
+                GrantedBy = userId
+            };
+
+            db.UserPlanGrants.Add(grant);
+            await db.SaveChangesAsync();
+
+            return grant.Id;
+        }
+
+        /// <summary>
         /// Repoints an existing membership at another role. Rank boundary theories use this
         /// instead of reseeding so the rest of the world stays identical across cases.
         /// </summary>

@@ -62,13 +62,13 @@
 .field-nav-btn-accent {
     background: var(--c-primary);
     border-color: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
 }
 
 .field-nav-btn-accent:hover {
     background: var(--c-primary-dark);
     border-color: var(--c-primary-dark);
-    color: var(--c-white);
+    color: var(--c-on-brand);
 }
 
 /* Icon Buttons */
@@ -143,7 +143,7 @@
 }
 
 .field-profile-avatar span {
-    color: var(--c-white);
+    color: var(--c-on-dark);
     font-family: var(--font-heading);
     font-size: 0.75rem;
     font-weight: 700;
@@ -162,7 +162,7 @@
     border: none;
     cursor: pointer;
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
     border-radius: 0 0 10px 10px;
     display: flex;
     align-items: center;
@@ -203,7 +203,7 @@
 .field-nav-reveal-top {
     top: 0;
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
     border-radius: 0 0 10px 10px;
 }
 
@@ -268,7 +268,7 @@
     -webkit-backdrop-filter: blur(20px);
     border-radius: 50px;
     border: 1px solid var(--c-glass-40);
-    box-shadow: 0 4px 24px var(--c-black-a08);
+    box-shadow: 0 4px 24px var(--c-shadow-a08);
 }
 
 .field-nav-toggle-bottom {
@@ -326,7 +326,7 @@
     background: var(--c-glass-65);
     color: var(--c-primary);
     border: none;
-    box-shadow: 0 1px 4px var(--c-black-a06);
+    box-shadow: 0 1px 4px var(--c-shadow-a06);
 }
 
 .field-bottom-tab.active:hover {
@@ -353,7 +353,7 @@
     height: 100vh;
     background: var(--c-bg-white);
     z-index: 70;
-    box-shadow: -4px 0 24px var(--c-black-a10);
+    box-shadow: -4px 0 24px var(--c-shadow-a10);
     display: flex;
     flex-direction: column;
     animation: slideInRight var(--t-spring-fast);
@@ -424,7 +424,7 @@
     width: 280px;
     background: var(--c-bg-white);
     border-radius: 12px;
-    box-shadow: 0 8px 32px var(--c-black-a12);
+    box-shadow: 0 8px 32px var(--c-shadow-a12);
     z-index: 70;
     overflow: hidden;
     animation: fadeInDown var(--t-fast);
@@ -461,7 +461,7 @@
 }
 
 .field-profile-avatar-lg span {
-    color: var(--c-white);
+    color: var(--c-on-dark);
     font-family: var(--font-heading);
     font-size: 0.85rem;
     font-weight: 700;
@@ -521,7 +521,7 @@
 .field-overlay {
     position: fixed;
     inset: 0;
-    background: var(--c-black-a30);
+    background: var(--c-scrim);
     z-index: 60;
     opacity: 0;
     visibility: hidden;
@@ -545,7 +545,7 @@
     background: var(--c-bg-white);
     border-radius: 16px;
     padding: 32px;
-    box-shadow: 0 20px 60px var(--c-black-a18);
+    box-shadow: 0 20px 60px var(--c-shadow-a18);
     z-index: 70;
     opacity: 0;
     visibility: hidden;
@@ -574,6 +574,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    filter: var(--c-field-canvas-filter);
+    transition: filter var(--t-slow);
 }
 
 .field-canvas canvas {
@@ -615,7 +617,7 @@
     width: 280px;
     background: var(--c-bg-white);
     border-radius: 12px;
-    box-shadow: 0 8px 32px var(--c-black-a12);
+    box-shadow: 0 8px 32px var(--c-shadow-a12);
     z-index: 55;
     overflow: hidden;
     animation: fadeInDown var(--t-fast);
@@ -701,7 +703,7 @@
     background: var(--c-bg-white);
     border-radius: 16px;
     padding: 32px;
-    box-shadow: 0 16px 48px var(--c-black-a15);
+    box-shadow: 0 16px 48px var(--c-shadow-a15);
     z-index: 70;
     animation: fadeInDown 0.25s ease;
 }

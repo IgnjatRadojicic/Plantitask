@@ -8,6 +8,7 @@
 @inject INotificationService NotificationService
 @inject INotificationSignalRService NotificationSignalR
 @inject IDashboardService DashboardService
+@inject IThemeService Theme
 
 <MudLayout>
 
@@ -28,6 +29,10 @@
                 </button>
             </div>
             <div class="field-top-nav-right">
+                <button class="field-icon-btn" @onclick="ToggleTheme"
+                        title="@ThemeToggleLabel" aria-label="@ThemeToggleLabel">
+                    <MudIcon Icon="@(Theme.IsDark ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)" />
+                </button>
                 <button class="field-icon-btn" @onclick="ToggleNotifications" title="Notifications">
                     <MudBadge Content="@_unreadCount" Visible="@(_unreadCount > 0)" Color="Color.Error" Overlap="true">
                         <MudIcon Icon="@Icons.Material.Outlined.Notifications" />
@@ -84,7 +89,7 @@
                     else if (!_notifications.Any())
                     {
                         <div class="field-notification-empty">
-                            <MudIcon Icon="@Icons.Material.Outlined.NotificationsNone" Size="Size.Large" Style="color:#BDBDBD;" />
+                            <MudIcon Icon="@Icons.Material.Outlined.NotificationsNone" Size="Size.Large" Style="color:var(--c-text-faint);" />
                             <p>No notifications yet</p>
                         </div>
                     }
@@ -275,8 +280,12 @@
     private bool _initialLoadDone;
     private UserInfo _userInfo = new();
 
+    private string ThemeToggleLabel => Theme.IsDark ? "Switch to light mode" : "Switch to dark mode";
+
     protected override async Task OnInitializedAsync()
     {
+        Theme.OnChanged += HandleThemeChanged;
+
         _userInfo = await CurrentUser.GetCurrentUserAsync() ?? new();
 
         await LoadUnreadCount();
@@ -489,6 +498,10 @@
             await MarkAsRead(notification);
     }
 
+    private Task ToggleTheme() => Theme.ToggleAsync();
+
+    private void HandleThemeChanged() => InvokeAsync(StateHasChanged);
+
     private void ToggleTopNav()    => _topNavHidden    = !_topNavHidden;
     private void ToggleBottomNav() => _bottomNavHidden = !_bottomNavHidden;
 
@@ -585,6 +598,7 @@
 
     public void Dispose()
     {
+        Theme.OnChanged -= HandleThemeChanged;
         NotificationSignalR.OnNotificationReceived -= HandleIncomingNotification;
     }
 }

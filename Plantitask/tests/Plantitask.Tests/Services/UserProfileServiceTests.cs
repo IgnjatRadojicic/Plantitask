@@ -63,8 +63,6 @@ namespace Plantitask.Tests.Services
             Assert.True(result.IsSuccess, result.Error?.Message);
             Assert.Equal("member", result.Value!.UserName);
             Assert.Equal("member@example.com", result.Value.Email);
-            Assert.Equal(5, result.Value.MaxGroups);
-            Assert.False(result.Value.IsPremium);
         }
 
         [Fact]
@@ -77,50 +75,6 @@ namespace Plantitask.Tests.Services
 
             Assert.True(result.IsFailure);
             Assert.Equal("NotFound", result.Error!.Code);
-        }
-
-        /// <summary>
-        /// The projection computes IsPremium rather than reading the stored flag, so a premium
-        /// row whose expiry has passed reports itself as free even before the nightly job runs.
-        /// </summary>
-        [Fact]
-        public async Task GetProfileAsync_ReportsAnExpiredPremiumAsNoLongerPremium()
-        {
-            await SeedAsync();
-
-            await using (var db = NewContext())
-            {
-                var user = await db.Users.SingleAsync(u => u.Id == MemberId);
-                user.IsPremium = true;
-                user.SubscriptionType = "onetime";
-                user.PremiumExpiresAt = DateTime.UtcNow.AddDays(-1);
-                await db.SaveChangesAsync();
-            }
-
-            await using var act = NewContext();
-            var result = await NewSut(act).GetProfileAsync(MemberId);
-
-            Assert.False(result.Value!.IsPremium);
-        }
-
-        [Fact]
-        public async Task GetProfileAsync_ReportsALiveRecurringSubscriptionAsPremium()
-        {
-            await SeedAsync();
-
-            await using (var db = NewContext())
-            {
-                var user = await db.Users.SingleAsync(u => u.Id == MemberId);
-                user.IsPremium = true;
-                user.SubscriptionType = "subscription";
-                user.PremiumExpiresAt = null;
-                await db.SaveChangesAsync();
-            }
-
-            await using var act = NewContext();
-            var result = await NewSut(act).GetProfileAsync(MemberId);
-
-            Assert.True(result.Value!.IsPremium);
         }
 
         [Fact]

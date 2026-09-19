@@ -105,7 +105,7 @@
 }
 
 .stats-wheel-card:hover {
-    box-shadow: 0 4px 16px var(--c-black-a06);
+    box-shadow: 0 4px 16px var(--c-shadow-a06);
 }
 
 .stats-wheel-card canvas {
@@ -152,7 +152,7 @@
 }
 
 .stats-metric-card:hover {
-    box-shadow: 0 4px 16px var(--c-black-a06);
+    box-shadow: 0 4px 16px var(--c-shadow-a06);
 }
 
 .stats-metric-icon {
@@ -202,7 +202,7 @@
 }
 
 .stats-chart-card:hover {
-    box-shadow: 0 4px 16px var(--c-black-a06);
+    box-shadow: 0 4px 16px var(--c-shadow-a06);
 }
 
 .stats-chart-wide {
@@ -287,7 +287,7 @@
     height: 28px;
     border-radius: 50%;
     background: var(--c-primary);
-    color: var(--c-white);
+    color: var(--c-on-brand);
     display: flex;
     align-items: center;
     justify-content: center;
