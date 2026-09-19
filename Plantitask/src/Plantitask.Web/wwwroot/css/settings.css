@@ -202,7 +202,7 @@
 
 .ds-profile-card-left {
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 14px;
 }
 
@@ -277,11 +277,12 @@
     50% { box-shadow: 0 0 18px rgba(255, 215, 0, 0.5); }
 }
 
+/* The card body is pulled 36px up over the banner, so the name starts 8px below that line
+   instead of sitting on the green edge. */
 .ds-profile-card-info {
     display: flex;
     flex-direction: column;
-    padding-bottom: 2px;
-    padding-top: 18px;
+    padding-top: 44px;
 }
 
 .ds-profile-display-name {
@@ -395,72 +396,55 @@
     cursor: not-allowed;
 }
 
-.ds-theme-group {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.ds-theme-locked {
+.ds-usage {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 16px;
 }
 
-.ds-theme-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 18px;
-    border: 1.5px solid var(--c-border);
-    border-radius: 8px;
-    background: transparent;
-    font-family: var(--font-body);
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--c-text-mid);
-    cursor: pointer;
-    transition: all var(--t-fast);
-}
-
-.ds-theme-btn:hover {
-    border-color: var(--c-primary);
-    color: var(--c-primary);
-}
-
-.ds-theme-btn-active {
-    border-color: var(--c-primary);
-    background: var(--c-primary-a10);
-    color: var(--c-primary);
-}
-
-.ds-theme-btn-disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    position: relative;
-}
-
-.ds-lock-icon {
-    color: var(--c-primary);
-    margin-left: 2px;
-}
-
-.ds-premium-upsell-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+.ds-usage-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
     font-family: var(--font-body);
     font-size: 0.85rem;
     font-weight: 600;
-    color: #7A9902;
-    text-decoration: none;
-    padding: 6px 0;
-    transition: color var(--t-fast);
+    color: var(--c-text-dark);
 }
 
-.ds-premium-upsell-link:hover {
-    color: #B8860B;
-    text-decoration: underline;
+.ds-usage-value {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--c-text-muted);
+}
+
+.ds-usage-track {
+    height: 10px;
+    border-radius: 999px;
+    background: var(--c-meter-track);
+    border: 1px solid var(--c-border);
+    overflow: hidden;
+}
+
+.ds-usage-fill {
+    height: 100%;
+    border-radius: inherit;
+    animation: ds-usage-grow 0.8s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.ds-usage-fill-trees {
+    background: var(--c-primary);
+}
+
+.ds-usage-fill-storage {
+    background: var(--c-earth);
+}
+
+/* Only the start is declared, so each bar grows from empty to whatever width it was
+   rendered with. */
+@keyframes ds-usage-grow {
+    from { width: 0; }
 }
 
 .ds-premium-star {
@@ -520,6 +504,7 @@
 .ds-subscription-inactive {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 12px;
 }
 
@@ -543,6 +528,7 @@
     font-family: var(--font-body);
     font-size: 0.85rem;
     font-weight: 600;
+    text-decoration: none;
     cursor: pointer;
     transition: background var(--t-fast);
 }
@@ -608,30 +594,6 @@
 .ds-btn-cancel:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-}
-
-.ds-btn-upgrade {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    background: linear-gradient(135deg, var(--c-primary), #7A9902);
-    color: #1a1a1a;
-    border: none;
-    border-radius: 8px;
-    font-family: var(--font-heading);
-    font-size: 0.88rem;
-    font-weight: 700;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all var(--t-base);
-    width: fit-content;
-}
-
-.ds-btn-upgrade:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(255, 215, 0, 0.35);
-    color: #1a1a1a;
 }
 
 .ds-password-form {
@@ -834,10 +796,8 @@
     cursor: not-allowed;
 }
 
-.ds-theme-btn:focus-visible,
-.ds-btn-cancel:focus-visible,
-.ds-btn-upgrade:focus-visible,
-.ds-premium-upsell-link:focus-visible {
+.ds-btn-primary:focus-visible,
+.ds-btn-cancel:focus-visible {
     outline: 2px solid var(--c-primary);
     outline-offset: 2px;
 }
@@ -863,11 +823,12 @@
         animation: none;
     }
 
-    .ds-theme-btn,
-    .ds-btn-cancel,
-    .ds-btn-upgrade,
-    .ds-premium-upsell-link {
+    .ds-btn-cancel {
         transition: none;
+    }
+
+    .ds-usage-fill {
+        animation: none;
     }
 }
 
@@ -978,15 +939,10 @@
         text-align: center;
     }
 
-    .ds-theme-group {
-        gap: 8px;
-    }
-
     .ds-subscription-detail-row {
         font-size: 0.82rem;
     }
 
-    .ds-btn-upgrade,
     .ds-btn-cancel {
         width: 100%;
         justify-content: center;

@@ -109,6 +109,11 @@
     --c-card-outline:     transparent;
     --c-premium-card-bg:  var(--c-bg-white);
 
+    /* Usage meters on the account page. Trees fill with the brand green, storage with the
+       earth brown the MudBlazor secondary palette already uses. */
+    --c-meter-track:      #FFFFFF;
+    --c-earth:            #8B7355;
+
     --c-vine-blend:       multiply;
     --c-vine-filter:      none;
     --c-vine-strength:    1;
@@ -230,6 +235,9 @@
     --c-leaves-opacity:   0.06;
     --c-card-outline:     var(--c-border);
     --c-premium-card-bg:  #1E2413;
+
+    --c-meter-track:      #0F1411;
+    --c-earth:            #A89274;
 
     --c-vine-blend:       screen;
     --c-vine-filter:      invert(1) brightness(0.5) sepia(1) hue-rotate(30deg) saturate(2);

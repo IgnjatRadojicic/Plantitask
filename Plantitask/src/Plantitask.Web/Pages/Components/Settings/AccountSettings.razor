@@ -4,7 +4,7 @@
 @inject ISnackbar Snackbar
 @inject ICurrentUserService CurrentUser
 @inject NavigationManager Navigation
-@inject IThemeService Theme
+@using System.Globalization
 @using Plantitask.Core.DTO.Plans
 @implements IDisposable
 
@@ -70,34 +70,53 @@ else
         </div>
     </section>
 
-    <!-- Theme -->
-    <section class="ds-card" aria-labelledby="theme-heading">
-        <h2 id="theme-heading" class="visually-hidden">Theme Preferences</h2>
+    <!-- Usage -->
+    <section class="ds-card" aria-labelledby="usage-heading">
+        <h2 id="usage-heading" class="ds-field-label" style="margin-bottom:12px;">Usage</h2>
 
-        <div class="ds-field">
-            <label class="ds-field-label" id="theme-label">Theme</label>
+        @if (_plan is not null)
+        {
+            <div class="ds-usage">
+                <div>
+                    <div class="ds-usage-label">
+                        <span id="usage-trees-label">Trees</span>
+                        <span class="ds-usage-value">@_plan.GroupsUsed of @_plan.MaxGroups</span>
+                    </div>
+                    <div class="ds-usage-track"
+                         role="progressbar"
+                         aria-labelledby="usage-trees-label"
+                         aria-valuemin="0"
+                         aria-valuemax="@_plan.MaxGroups"
+                         aria-valuenow="@_plan.GroupsUsed">
+                        <div class="ds-usage-fill ds-usage-fill-trees"
+                             style="width:@FillPercent(_plan.GroupsUsed, _plan.MaxGroups)%"></div>
+                    </div>
+                </div>
 
-            @* Dark mode is free for everyone as of 2026-08-16. It is table stakes rather than a
-               perk, and the old gate was client side anyway so it never actually held. *@
-            <div class="ds-theme-group" role="radiogroup" aria-labelledby="theme-label">
-                <button class="ds-theme-btn @(!Theme.IsDark ? "ds-theme-btn-active" : "")"
-                        role="radio"
-                        aria-checked="@(!Theme.IsDark ? "true" : "false")"
-                        aria-label="Light theme"
-                        @onclick="() => Theme.SetAsync(false)">
-                    <MudIcon Icon="@Icons.Material.Outlined.LightMode" Size="Size.Small" />
-                    <span>Light</span>
-                </button>
-                <button class="ds-theme-btn @(Theme.IsDark ? "ds-theme-btn-active" : "")"
-                        role="radio"
-                        aria-checked="@(Theme.IsDark ? "true" : "false")"
-                        aria-label="Dark theme"
-                        @onclick="() => Theme.SetAsync(true)">
-                    <MudIcon Icon="@Icons.Material.Outlined.DarkMode" Size="Size.Small" />
-                    <span>Dark</span>
-                </button>
+                <div>
+                    <div class="ds-usage-label">
+                        <span id="usage-storage-label">Storage</span>
+                        <span class="ds-usage-value">
+                            @FormatMegabytes(_plan.StorageUsedBytes) of @FormatMegabytes(_plan.MaxStorageBytes)
+                        </span>
+                    </div>
+                    <div class="ds-usage-track"
+                         role="progressbar"
+                         aria-labelledby="usage-storage-label"
+                         aria-valuemin="0"
+                         aria-valuemax="@_plan.MaxStorageBytes"
+                         aria-valuenow="@_plan.StorageUsedBytes"
+                         aria-valuetext="@FormatMegabytes(_plan.StorageUsedBytes) of @FormatMegabytes(_plan.MaxStorageBytes)">
+                        <div class="ds-usage-fill ds-usage-fill-storage"
+                             style="width:@FillPercent(_plan.StorageUsedBytes, _plan.MaxStorageBytes)%"></div>
+                    </div>
+                </div>
             </div>
-        </div>
+        }
+        else
+        {
+            <p class="ds-subscription-pitch">Usage could not be loaded right now.</p>
+        }
     </section>
 
     <!-- Subscription -->
@@ -165,10 +184,9 @@ else
                     Unlock a premium profile ring and up to 10 groups.
                 </p>
                 <a href="/pricing"
-                   class="ds-btn-upgrade"
+                   class="ds-btn-primary"
                    aria-label="View premium plans and pricing">
-                    <MudIcon Icon="@Icons.Material.Outlined.Park" Size="Size.Small" />
-                    <span>View Premium Plans</span>
+                    View Premium Plans
                 </a>
             </div>
         }
@@ -232,6 +250,20 @@ else
         }
         _loading = false;
     }
+
+    // Invariant culture on purpose. These strings land in CSS and aria values, and a culture
+    // that writes 12,5 instead of 12.5 would make the width rule invalid and the bar vanish.
+    private static string FillPercent(long used, long max)
+    {
+        if (max <= 0)
+            return "0";
+
+        var percent = Math.Clamp(used * 100.0 / max, 0, 100);
+        return percent.ToString("0.#", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatMegabytes(long bytes) =>
+        (bytes / (1024.0 * 1024.0)).ToString("0.#", CultureInfo.InvariantCulture) + " MB";
 
     private async Task LoadPlanAsync()
     {
