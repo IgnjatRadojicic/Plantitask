@@ -11,6 +11,7 @@ using Plantitask.Core.Models;
 using Plantitask.Infrastructure.Security;
 using System.Net;
 using System.Security.Cryptography;
+using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Infrastructure.Services
 {

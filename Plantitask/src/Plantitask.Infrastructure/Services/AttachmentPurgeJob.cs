@@ -2,6 +2,7 @@ using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Interfaces;
+using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Infrastructure.Services
 {

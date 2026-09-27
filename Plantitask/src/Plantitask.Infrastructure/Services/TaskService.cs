@@ -10,6 +10,7 @@ using Plantitask.Core.Projections;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using System.Text.RegularExpressions;
+using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Infrastructure.Services
 {

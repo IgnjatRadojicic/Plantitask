@@ -2,6 +2,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Services;
+using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Tests.Helpers
 {

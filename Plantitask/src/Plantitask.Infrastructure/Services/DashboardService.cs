@@ -8,6 +8,7 @@ using Plantitask.Core.Interfaces;
 using Plantitask.Core.Domain;
 using Plantitask.Core.Projections;
 using Plantitask.Core.Validation;
+using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Infrastructure.Services
 {

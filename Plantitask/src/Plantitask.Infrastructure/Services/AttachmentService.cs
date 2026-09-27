@@ -8,6 +8,7 @@ using Plantitask.Core.DTO.Attachments;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Validation;
+using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Infrastructure.Services
 {
