@@ -4,6 +4,7 @@ using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
 using Plantitask.Core.DTO.Dashboard;
+using Plantitask.Core.SignalR;
 namespace Plantitask.Web.Services;
 
 public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
@@ -108,13 +109,13 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
 
     private void RegisterHandlers(HubConnection hub)
     {
-        hub.On<string, int, double>("TreeUpdated", async (groupId, newStage, completionPct) =>
+        hub.On<string, int, double>(HubEvents.TreeUpdated, async (groupId, newStage, completionPct) =>
         {
             if (OnTreeUpdated is not null)
                 await OnTreeUpdated.Invoke(groupId, newStage, completionPct);
         });
 
-        hub.On<FieldTreeDto>("TreeAdded", async (treeData) =>
+        hub.On<FieldTreeDto>(HubEvents.TreeAdded, async (treeData) =>
         {
             if (OnTreeAdded is not null)
                 await OnTreeAdded.Invoke(treeData);

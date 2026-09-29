@@ -4,6 +4,7 @@ using Plantitask.Web.Models;
 
 
 using Plantitask.Core.DTO.Notifications;
+using Plantitask.Core.SignalR;
 namespace Plantitask.Web.Services
 {
     public class NotificationSignalRService : INotificationSignalRService
@@ -113,7 +114,7 @@ namespace Plantitask.Web.Services
 
         private void RegisterHandlers(HubConnection hub)
         {
-            hub.On<NotificationDto>("ReceiveNotification", async (notification) =>
+            hub.On<NotificationDto>(HubEvents.ReceiveNotification, async (notification) =>
             {
                 if (OnNotificationReceived is not null)
                 {
