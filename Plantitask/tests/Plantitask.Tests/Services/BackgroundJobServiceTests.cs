@@ -92,23 +92,21 @@ namespace Plantitask.Tests.Services
         }
 
         /// <summary>
-        /// A due date arriving with an unspecified kind is treated as UTC rather than as local
-        /// time. Getting that wrong shifts every reminder by the server's offset, which is
+        /// A due moment that is not UTC is rejected rather than guessed at. Hangfire reads anything
+        /// else as server local time, which shifts the reminder by the server's offset and is
         /// invisible on a machine set to UTC and wrong everywhere else.
         /// </summary>
-        [Fact]
-        public async Task ScheduleTaskDueSoonNotification_TreatsAnUnspecifiedDueDateAsUtc()
+        [Theory]
+        [InlineData(DateTimeKind.Unspecified)]
+        [InlineData(DateTimeKind.Local)]
+        public async Task ScheduleTaskDueSoonNotification_RejectsANonUtcDueMoment(DateTimeKind kind)
         {
-            var unspecified = DateTime.SpecifyKind(
-                DateTime.UtcNow.AddDays(10), DateTimeKind.Unspecified);
+            var notUtc = DateTime.SpecifyKind(DateTime.UtcNow.AddDays(10), kind);
 
-            await _sut.ScheduleTaskDueSoonNotification(TaskId, UserId, unspecified);
+            await Assert.ThrowsAsync<ArgumentException>(
+                () => _sut.ScheduleTaskDueSoonNotification(TaskId, UserId, notUtc));
 
-            var (_, state) = SingleCreatedJob();
-            var scheduled = Assert.IsType<ScheduledState>(state);
-
-            var expected = DateTime.SpecifyKind(unspecified, DateTimeKind.Utc).AddHours(-24);
-            Assert.Equal(expected, scheduled.EnqueueAt, TimeSpan.FromSeconds(1));
+            _jobs.Verify(j => j.Create(It.IsAny<Job>(), It.IsAny<IState>()), Times.Never);
         }
 
         /// <summary>
