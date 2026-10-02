@@ -18,7 +18,7 @@ namespace Plantitask.Core.DTO.Tasks
         [Range(1, 4)]
         public int? PriorityId { get; set; }
 
-        public DateTime? DueDate { get; set; }
+        public DateOnly? DueDate { get; set; }
 
         public bool ClearDueDate { get; set; }
     }
