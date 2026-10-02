@@ -229,6 +229,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.HasIndex(e => e.Title)
                   .HasMethod("gin")
                   .HasOperators("gin_trgm_ops");
+            entity.HasIndex(e => e.Description)
+                  .HasMethod("gin")
+                  .HasOperators("gin_trgm_ops");
 
           
 
