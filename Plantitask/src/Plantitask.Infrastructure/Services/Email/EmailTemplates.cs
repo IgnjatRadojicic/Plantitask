@@ -218,12 +218,12 @@ namespace Plantitask.Infrastructure.Services.Email
         }
 
         /// <summary>The scheduled reminder that a task's due date is approaching.</summary>
-        public static string TaskDueSoon(string userName, string taskTitle, DateTime dueDate)
+        public static string TaskDueSoon(string userName, string taskTitle, DateOnly dueDate)
         {
             return BaseTemplate($@"
                 <h2 style='color:#4a7c2e; margin-top:0;'>Task Due Soon</h2>
                 <p>Hello {WebUtility.HtmlEncode(userName)},</p>
-                <p>Your task is due on <strong>{dueDate:MMMM dd, yyyy 'at' h:mm tt} UTC</strong>:</p>
+                <p>Your task is due on <strong>{dueDate:MMMM d, yyyy}</strong>:</p>
                 <div class='highlight' style='background-color:#f2f7e9; padding:16px; border-radius:6px; border-left:4px solid #7cb342; margin:12px 0;'>
                     {WebUtility.HtmlEncode(taskTitle)}
                 </div>

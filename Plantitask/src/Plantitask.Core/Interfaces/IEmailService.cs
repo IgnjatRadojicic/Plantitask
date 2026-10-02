@@ -10,7 +10,7 @@ namespace Plantitask.Core.Interfaces
         Task SendTaskCommentEmailAsync(string email, string userName, string commenterName, string taskTitle, string commentText);
         Task SendWelcomeEmailAsync(string email, string displayName);
         Task SendEmailVerificationCodeAsync(string email, string userName, string code);
-        Task SendTaskDueSoonEmailAsync(string email, string userName, string taskTitle, DateTime dueDate);
+        Task SendTaskDueSoonEmailAsync(string email, string userName, string taskTitle, DateOnly dueDate);
         Task SendTaskOverdueDigestEmailAsync(string email, string userName, int overdueCount, IReadOnlyList<OverdueTaskLine> worstTasks);
     }
 }

@@ -70,7 +70,7 @@ namespace Plantitask.Infrastructure.Services
         }
 
         /// <summary>The scheduled due-soon reminder mail.</summary>
-        public Task SendTaskDueSoonEmailAsync(string email, string userName, string taskTitle, DateTime dueDate)
+        public Task SendTaskDueSoonEmailAsync(string email, string userName, string taskTitle, DateOnly dueDate)
         {
             return _sender.SendAsync(new EmailMessage(
                 email,
