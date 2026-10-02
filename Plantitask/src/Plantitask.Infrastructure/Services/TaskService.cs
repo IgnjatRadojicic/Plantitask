@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
+using Plantitask.Core.Domain;
 using Plantitask.Core.DTO.Kanban;
 using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
@@ -86,12 +87,15 @@ namespace Plantitask.Infrastructure.Services
                 CreatedBy = userId,
             };
 
-            if (task.DueDate.HasValue && task.AssignedToId.HasValue)
+            if (task.DueDate.HasValue)
+                task.DueAt = await DueAtAsync(groupId, task.DueDate.Value);
+
+            if (task.DueAt.HasValue && task.AssignedToId.HasValue)
             {
                 try
                 {
                     task.DueSoonJobId = await _backgroundJobService.ScheduleTaskDueSoonNotification(
-                        task.Id, task.AssignedToId.Value, task.DueDate.Value);
+                        task.Id, task.AssignedToId.Value, task.DueAt.Value);
                 }
                 catch (Exception ex)
                 {
@@ -139,8 +143,8 @@ namespace Plantitask.Infrastructure.Services
 
                 if (filter.IsOverDue == true)
                 {
-                    query = query.Where(t => t.DueDate.HasValue &&
-                                            t.DueDate.Value < DateTime.UtcNow &&
+                    query = query.Where(t => t.DueAt.HasValue &&
+                                            t.DueAt.Value < DateTime.UtcNow &&
                                             t.StatusId != (int)TaskStatusItem.Completed);
                 }
 
@@ -224,9 +228,15 @@ namespace Plantitask.Infrastructure.Services
             }
 
             if (updateTaskDto.ClearDueDate)
+            {
                 task.DueDate = null;
+                task.DueAt = null;
+            }
             else if (updateTaskDto.DueDate.HasValue)
-                task.DueDate = updateTaskDto.DueDate.Value; 
+            {
+                task.DueDate = updateTaskDto.DueDate.Value;
+                task.DueAt = await DueAtAsync(task.GroupId, task.DueDate.Value);
+            }
 
             task.UpdatedBy = userId;
 
@@ -237,9 +247,9 @@ namespace Plantitask.Infrastructure.Services
 
             try
             {
-                task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
+                task.DueSoonJobId = task.DueAt.HasValue && task.AssignedToId.HasValue
                     ? await _backgroundJobService.ScheduleTaskDueSoonNotification(
-                        task.Id, task.AssignedToId.Value, task.DueDate.Value)
+                        task.Id, task.AssignedToId.Value, task.DueAt.Value)
                     : null;
             }
             catch (Exception ex)
@@ -428,9 +438,9 @@ namespace Plantitask.Infrastructure.Services
 
             try
             {
-                task.DueSoonJobId = task.DueDate.HasValue && task.AssignedToId.HasValue
+                task.DueSoonJobId = task.DueAt.HasValue && task.AssignedToId.HasValue
                     ? await _backgroundJobService.ScheduleTaskDueSoonNotification(
-                        task.Id, task.AssignedToId.Value, task.DueDate.Value)
+                        task.Id, task.AssignedToId.Value, task.DueAt.Value)
                     : null;
             }
             catch (Exception ex)
@@ -622,6 +632,7 @@ namespace Plantitask.Infrastructure.Services
                     AssignedToUserName = t.AssignedTo != null ? t.AssignedTo.UserName : null,
                     DisplayOrder = t.DisplayOrder,
                     DueDate = t.DueDate,
+                    DueAt = t.DueAt,
                     CommentCount = t.Comments.Count,
                     AttachmentCount = t.Attachments.Count
                 })
@@ -802,6 +813,17 @@ namespace Plantitask.Infrastructure.Services
             .MaxAsync(t => (int?)t.DisplayOrder) ?? -1;
 
             return maxOrder + 1;
+        }
+
+        private async Task<DateTime> DueAtAsync(Guid groupId, DateOnly dueDate)
+        {
+            var timeZoneId = await _context.Groups
+                .Where(g => g.Id == groupId)
+                .Select(g => g.TimeZoneId)
+                .SingleAsync();
+
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            return TimeZoneMath.LocalMidnightToUtc(dueDate.AddDays(1), zone);
         }
     }
 }
