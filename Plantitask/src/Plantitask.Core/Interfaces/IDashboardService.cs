@@ -10,7 +10,7 @@ namespace Plantitask.Core.Interfaces
 {
     public interface IDashboardService
     {
-        Task<Result<PersonalDashboardDto>> GetPersonalDashboardAsync(Guid userId);
+        Task<Result<PersonalDashboardDto>> GetPersonalDashboardAsync(Guid userId, string? timeZoneId);
         Task<Result<List<FieldTreeDto>>> GetFieldDataAsync(Guid userId);
         Task<Result<GroupStatisticsDto>> GetGroupStatisticsAsync(Guid groupId, Guid userId);
         Task<Result<FieldTreeDto>> GetGroupTreeProgressAsync(Guid groupId);

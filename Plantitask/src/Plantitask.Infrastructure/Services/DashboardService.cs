@@ -7,6 +7,7 @@ using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Domain;
 using Plantitask.Core.Projections;
+using Plantitask.Core.Validation;
 
 namespace Plantitask.Infrastructure.Services
 {
@@ -37,11 +38,15 @@ namespace Plantitask.Infrastructure.Services
         /// one bounded slice of relevant tasks rather than everything ever assigned, then sorts
         /// it into buckets in memory.
         /// </summary>
-        public async Task<Result<PersonalDashboardDto>> GetPersonalDashboardAsync(Guid userId)
+        public async Task<Result<PersonalDashboardDto>> GetPersonalDashboardAsync(Guid userId, string? timeZoneId)
         {
+            if (!TimeZoneRules.TryResolve(timeZoneId, out var zone))
+                return Error.BadRequest("Unknown time zone");
+
             var now = DateTime.UtcNow;
-            var todayEnd = now.Date.AddDays(1);
-            var weekEnd = now.Date.AddDays(7);
+            var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(now, zone));
+            var todayEnd = TimeZoneMath.LocalMidnightToUtc(localToday.AddDays(1), zone);
+            var weekEnd = TimeZoneMath.LocalMidnightToUtc(localToday.AddDays(7), zone);
             var sevenDaysAgo = now.AddDays(-7);
 
             var userGroupIds = await _context.GroupMembers
@@ -50,15 +55,16 @@ namespace Plantitask.Infrastructure.Services
                 .ToListAsync();
 
             const int TrendWindowDays = 30;
-            var trendStart = now.Date.AddDays(-(TrendWindowDays - 1));
+            var trendFirstDay = localToday.AddDays(-(TrendWindowDays - 1));
+            var trendStart = TimeZoneMath.LocalMidnightToUtc(trendFirstDay, zone);
 
             // One bounded slice instead of every task ever assigned: the open tasks that can
             // land in a due bucket, plus the completions the trend window can reach
             var relevantTasks = await _context.Tasks
                 .Where(t => t.AssignedToId == userId
                     && ((t.StatusId != (int)TaskStatusItem.Completed
-                            && t.DueDate.HasValue
-                            && t.DueDate.Value < weekEnd)
+                            && t.DueAt.HasValue
+                            && t.DueAt.Value <= weekEnd)
                         || (t.StatusId == (int)TaskStatusItem.Completed
                             && t.CompletedAt.HasValue
                             && t.CompletedAt.Value >= trendStart)))
@@ -67,19 +73,21 @@ namespace Plantitask.Infrastructure.Services
 
             var openWithDueDate = relevantTasks
                 .Where(t => t.CompletedAt == null)
-                .OrderBy(t => t.DueDate)
+                .OrderBy(t => t.DueAt)
                 .ToList();
 
+            // DueAt is the midnight a due day ends on so a deadline sitting exactly on a
+            // boundary belongs to the day before it, hence <= against each period end.
             var overdueTasks = openWithDueDate
-                .Where(t => t.DueDate!.Value < now)
+                .Where(t => t.DueAt!.Value <= now)
                 .ToList();
 
             var dueToday = openWithDueDate
-                .Where(t => t.DueDate!.Value >= now && t.DueDate.Value < todayEnd)
+                .Where(t => t.DueAt!.Value > now && t.DueAt.Value <= todayEnd)
                 .ToList();
 
             var dueThisWeek = openWithDueDate
-                .Where(t => t.DueDate!.Value >= todayEnd)
+                .Where(t => t.DueAt!.Value > todayEnd)
                 .ToList();
 
             var completedInTrendWindow = relevantTasks
@@ -118,15 +126,15 @@ namespace Plantitask.Infrastructure.Services
 
 
             var completedByDate = completedInTrendWindow
-                .GroupBy(t => t.CompletedAt!.Value.Date)
+                .GroupBy(t => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(t.CompletedAt!.Value, zone)))
                 .ToDictionary(g => g.Key, g => g.Count());
 
             var completionTrend = Enumerable.Range(0, TrendWindowDays)
-                .Select(i => trendStart.AddDays(i))
-                .Select(date => new TrendPointDto
+                .Select(i => trendFirstDay.AddDays(i))
+                .Select(day => new TrendPointDto
                 {
-                    Date = date,
-                    CompletedCount = completedByDate.GetValueOrDefault(date, 0)
+                    Date = day.ToDateTime(TimeOnly.MinValue),
+                    CompletedCount = completedByDate.GetValueOrDefault(day, 0)
                 })
                 .ToList();
 
@@ -234,7 +242,7 @@ namespace Plantitask.Infrastructure.Services
                     PriorityColor = t.Priority.Color,
                     t.AssignedToId,
                     AssigneeName = t.AssignedTo != null ? t.AssignedTo.UserName : null,
-                    t.DueDate,
+                    t.DueAt,
                     t.CompletedAt,
                     t.CreatedAt
                 })
@@ -245,8 +253,8 @@ namespace Plantitask.Infrastructure.Services
             var inProgressTasks = tasks.Count(t => t.StatusId == (int)TaskStatusItem.InProgress);
             var notStartedTasks = tasks.Count(t => t.StatusId == (int)TaskStatusItem.NotStarted);
             var underReviewTasks = tasks.Count(t => t.StatusId == (int)TaskStatusItem.UnderReview);
-            var overdueTasks = tasks.Count(t => t.DueDate.HasValue
-                && t.DueDate.Value < now
+            var overdueTasks = tasks.Count(t => t.DueAt.HasValue
+                && t.DueAt.Value <= now
                 && t.StatusId != (int)TaskStatusItem.Completed);
 
             var completionPercentage = TreeProgressCalculator.CalculateCompletion(totalTasks, completedTasks);
@@ -291,8 +299,8 @@ namespace Plantitask.Infrastructure.Services
                     UserName = g.Key.UserName,
                     AssignedCount = g.Count(t => t.StatusId != (int)TaskStatusItem.Completed),
                     CompletedCount = g.Count(t => t.StatusId == (int)TaskStatusItem.Completed),
-                    OverdueCount = g.Count(t => t.DueDate.HasValue
-                        && t.DueDate.Value < now
+                    OverdueCount = g.Count(t => t.DueAt.HasValue
+                        && t.DueAt.Value <= now
                         && t.StatusId != (int)TaskStatusItem.Completed)
                 })
                 .OrderByDescending(m => m.AssignedCount)
