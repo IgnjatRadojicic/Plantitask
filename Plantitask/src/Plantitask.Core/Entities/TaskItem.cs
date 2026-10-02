@@ -24,7 +24,8 @@ namespace Plantitask.Core.Entities
         public Guid? AssignedToId { get; set; }
         public TaskStatusLookup Status { get; set; } = null!;
         public TaskPriorityLookup Priority { get; set; } = null!;
-        public DateTime? DueDate { get; set; }
+        public DateOnly? DueDate { get; set; }
+        public DateTime? DueAt { get; set; }
         public DateTime? CompletedAt { get; set; }
 
         public int DisplayOrder { get; set; } = 0;

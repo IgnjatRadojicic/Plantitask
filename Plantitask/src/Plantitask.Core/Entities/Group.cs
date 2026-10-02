@@ -12,6 +12,7 @@ namespace Plantitask.Core.Entities
         public string Name { get; set; } = string.Empty;
         public string GroupCode { get; set; } = string.Empty;
         public string? PasswordHash { get; set; }
+        public string TimeZoneId { get; set; } = string.Empty;
         public Guid OwnerId { get; set; }
         public bool IsActive { get; set; } = true;
 

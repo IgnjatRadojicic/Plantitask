@@ -25,6 +25,7 @@ namespace Plantitask.Core.Projections
             AssignedToId = t.AssignedToId,
             AssignedToUserName = t.AssignedTo != null ? t.AssignedTo.UserName : null,
             DueDate = t.DueDate,
+            DueAt = t.DueAt,
             CompletedAt = t.CompletedAt,
             CreatedAt = t.CreatedAt,
             CreatedBy = t.CreatedBy,
@@ -43,6 +44,7 @@ namespace Plantitask.Core.Projections
             PriorityName = t.Priority.DisplayName,
             PriorityColor = t.Priority.Color,
             DueDate = t.DueDate,
+            DueAt = t.DueAt,
             CompletedAt = t.CompletedAt
         };
 
@@ -52,6 +54,7 @@ namespace Plantitask.Core.Projections
             Title = t.Title,
             StatusId = t.StatusId,
             DueDate = t.DueDate,
+            DueAt = t.DueAt,
             AssignedToId = t.AssignedToId,
             AssigneeEmail = t.AssignedTo != null ? t.AssignedTo.Email : null,
             AssigneeName = t.AssignedTo != null ? t.AssignedTo.UserName : null
