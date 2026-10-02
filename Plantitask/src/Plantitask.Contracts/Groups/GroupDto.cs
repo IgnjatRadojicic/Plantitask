@@ -13,6 +13,7 @@ namespace Plantitask.Core.DTO.Groups
         public string Name { get; set; } = string.Empty;
         public string GroupCode { get; set; } = string.Empty;
         public bool IsPasswordProtected { get; set; }
+        public string TimeZoneId { get; set; } = string.Empty;
         public int MemberCount { get; set; }
         public GroupRole UserRole { get; set; }
         public DateTime JoinedAt { get; set; }

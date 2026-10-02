@@ -14,6 +14,7 @@ namespace Plantitask.Core.DTO.Groups
         public Guid OwnerId { get; set; }
         public string OwnerName { get; set; } = string.Empty;
         public bool IsPasswordProtected { get; set; }
+        public string TimeZoneId { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public List<GroupMemberDto> Members { get; set; } = new();
     }
