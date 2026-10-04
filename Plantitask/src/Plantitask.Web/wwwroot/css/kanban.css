@@ -773,6 +773,13 @@
     margin-bottom: 4px;
 }
 
+.task-detail-due-local {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: var(--c-text-muted);
+}
+
 .task-detail-sidebar-divider {
     height: 1px;
     background: var(--c-border-light);
