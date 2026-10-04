@@ -107,7 +107,7 @@
                                     <div class="field-notification-item-message">@notification.Message</div>
                                     @if (notification.RelatedDate.HasValue)
                                     {
-                                        <div class="field-notification-item-when">@FormatLocal(notification.RelatedDate.Value)</div>
+                                        <div class="field-notification-item-when">Due @DeadlineDisplay.ToLocal(notification.RelatedDate.Value).ToString("MMM d 'at' HH:mm")</div>
                                     }
                                     <div class="field-notification-item-time">
                                         @if (!string.IsNullOrWhiteSpace(notification.ActorName))
@@ -141,7 +141,7 @@
                                                 {
                                                     <div class="field-notification-overdue-row" @onclick="() => GoToTaskGroup(task.GroupId, task.GroupName)">
                                                         <span class="field-notification-overdue-title">@task.Title</span>
-                                                        <span class="field-notification-overdue-days">@FormatOverdue(task.DueDate)</span>
+                                                        <span class="field-notification-overdue-days">@FormatOverdue(task.DueAt)</span>
                                                     </div>
                                                 }
                                             }
@@ -439,12 +439,12 @@
         Navigation.NavigateTo(GroupRoutes.Board(groupId, groupName));
     }
 
-    private static string FormatOverdue(DateTime? dueDate)
+    private static string FormatOverdue(DateTime? dueAt)
     {
-        if (dueDate is null)
+        if (dueAt is null)
             return string.Empty;
 
-        var days = (int)(DateTime.UtcNow - dueDate.Value).TotalDays;
+        var days = (int)(DateTime.UtcNow - dueAt.Value).TotalDays;
 
         if (days <= 0)
             return "overdue today";
@@ -578,13 +578,6 @@
         "TaskOverdue" => Icons.Material.Outlined.Warning,
         _ => Icons.Material.Outlined.Notifications
     };
-
-    private static string FormatLocal(DateTime utc)
-    {
-        var local = DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime();
-
-        return local.ToString("MMM d 'at' HH:mm");
-    }
 
     private static string FormatTimeAgo(DateTime createdAt)
     {

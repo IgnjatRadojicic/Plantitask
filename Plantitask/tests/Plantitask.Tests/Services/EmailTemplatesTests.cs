@@ -14,7 +14,7 @@ namespace Plantitask.Tests.Services
             "TaskAssignment" => EmailTemplates.TaskAssignment(Payload, Payload, Payload, Payload),
             "GroupInvitation" => EmailTemplates.GroupInvitation(Payload, Payload, Payload),
             "TaskComment" => EmailTemplates.TaskComment(Payload, Payload, Payload, Payload),
-            "TaskDueSoon" => EmailTemplates.TaskDueSoon(Payload, Payload, DateTime.UtcNow),
+            "TaskDueSoon" => EmailTemplates.TaskDueSoon(Payload, Payload, new DateOnly(2026, 9, 1)),
             "EmailVerification" => EmailTemplates.EmailVerification(Payload, Payload),
             "TaskOverdueDigest" => EmailTemplates.TaskOverdueDigest(
                 Payload, 3, [new OverdueTaskLine(Payload, 2)]),
@@ -92,14 +92,18 @@ namespace Plantitask.Tests.Services
         }
 
         [Fact]
-        public void TaskDueSoon_FormatsTheDueDateAsReadableUtc()
+        /// <summary>
+        /// An email cannot know where its reader is, so it shows the day that was picked and no
+        /// time of day that would only be right in one zone.
+        /// </summary>
+        public void TaskDueSoon_ShowsTheDueDayWithoutATime()
         {
-            var html = EmailTemplates.TaskDueSoon(
-                "ada", "Ship the release", new DateTime(2026, 9, 1, 14, 30, 0, DateTimeKind.Utc));
+            var html = EmailTemplates.TaskDueSoon("ada", "Ship the release", new DateOnly(2026, 9, 1));
 
-            Assert.Contains("September 01, 2026", html);
-            Assert.Contains("2:30 PM", html);
-            Assert.Contains("UTC", html);
+            Assert.Contains("September 1, 2026", html);
+            Assert.DoesNotContain("UTC", html);
+            Assert.DoesNotContain(" AM", html);
+            Assert.DoesNotContain(" PM", html);
         }
 
         [Fact]

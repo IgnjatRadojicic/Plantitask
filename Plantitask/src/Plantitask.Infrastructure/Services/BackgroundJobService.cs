@@ -45,18 +45,18 @@ namespace Plantitask.Infrastructure.Services
 
         /// <summary>
         /// Schedules the due-soon reminder at the assignee's preferred offset before the due
-        /// date. Returns the Hangfire JobId for the task row to keep (that is what makes
-        /// cancel-on-change possible), or null when the reminder time is already in the past.
+        /// moment. Throws when the moment is not UTC because Hangfire would read it as server
+        /// local time and that can only come from a caller bug. Returns the Hangfire JobId for the
+        /// task row to keep (that is what makes cancel-on-change possible), or null when the
+        /// reminder time is already in the past.
         /// </summary>
-        public async Task<string?> ScheduleTaskDueSoonNotification(Guid taskId, Guid userId, DateTime dueDate)
+        public async Task<string?> ScheduleTaskDueSoonNotification(Guid taskId, Guid userId, DateTime dueAt)
         {
-            int hours = await _notificationService.GetReminderHoursBeforeAsync(userId);
+            if (dueAt.Kind != DateTimeKind.Utc)
+                throw new ArgumentException("The due moment must be UTC", nameof(dueAt));
 
-            if (dueDate.Kind != DateTimeKind.Utc)
-            {
-                dueDate = DateTime.SpecifyKind(dueDate, DateTimeKind.Utc);
-            }
-            var reminderTime = dueDate.AddHours(-hours);
+            int hours = await _notificationService.GetReminderHoursBeforeAsync(userId);
+            var reminderTime = dueAt.AddHours(-hours);
 
 
 

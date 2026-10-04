@@ -1,4 +1,5 @@
-﻿using Plantitask.Web.Interfaces;
+﻿using Plantitask.Web.Helpers;
+using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
 using Plantitask.Core.DTO.Dashboard;
@@ -13,7 +14,8 @@ namespace Plantitask.Web.Services
 
         public async Task<ServiceResult<PersonalDashboardDto>> GetPersonalDashboardAsync()
         {
-            return await GetAsync<PersonalDashboardDto>("api/dashboard/personal");
+            var timeZoneId = Uri.EscapeDataString(BrowserTimeZone.Id);
+            return await GetAsync<PersonalDashboardDto>($"api/dashboard/personal?timeZoneId={timeZoneId}");
         }
 
         public async Task<ServiceResult<List<FieldTreeDto>>> GetFieldDataAsync()

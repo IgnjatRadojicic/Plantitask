@@ -12,7 +12,8 @@ namespace Plantitask.Core.DTO.Dashboard
         public string? StatusColor { get; set; }
         public string PriorityName { get; set; } = string.Empty;
         public string? PriorityColor { get; set; }
-        public DateTime? DueDate { get; set; }
+        public DateOnly? DueDate { get; set; }
+        public DateTime? DueAt { get; set; }
         public DateTime? CompletedAt { get; set; }
     }
 }

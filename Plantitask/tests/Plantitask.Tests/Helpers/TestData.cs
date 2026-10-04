@@ -30,6 +30,17 @@ namespace Plantitask.Tests.Helpers
     /// </summary>
     public static class TestData
     {
+        public const string GroupTimeZone = "Europe/Belgrade";
+
+        private static readonly TimeZoneInfo GroupZone = TimeZoneInfo.FindSystemTimeZoneById(GroupTimeZone);
+
+        /// <summary>
+        /// The day a due moment belongs to in the seeded group zone. A moment sitting exactly on
+        /// midnight ends the day before it, which is how TaskService derives DueAt.
+        /// </summary>
+        public static DateOnly DueDayFor(DateTime dueAt) =>
+            DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(dueAt.AddTicks(-1), GroupZone));
+
         public static User User(Guid id, string name) => new()
         {
             Id = id,
@@ -43,6 +54,7 @@ namespace Plantitask.Tests.Helpers
             Id = id,
             Name = name,
             GroupCode = code,
+            TimeZoneId = GroupTimeZone,
             OwnerId = ownerId,
             CreatedBy = ownerId
         };
@@ -62,7 +74,7 @@ namespace Plantitask.Tests.Helpers
             TaskStatusItem status = TaskStatusItem.NotStarted,
             TaskPriority priority = TaskPriority.Medium,
             Guid? assignedTo = null,
-            DateTime? dueDate = null,
+            DateTime? dueAt = null,
             int displayOrder = 0,
             Guid? id = null) => new()
             {
@@ -73,7 +85,8 @@ namespace Plantitask.Tests.Helpers
                 StatusId = (int)status,
                 PriorityId = (int)priority,
                 AssignedToId = assignedTo,
-                DueDate = dueDate,
+                DueDate = dueAt.HasValue ? DueDayFor(dueAt.Value) : null,
+                DueAt = dueAt,
                 DisplayOrder = displayOrder,
                 CreatedBy = createdBy
             };

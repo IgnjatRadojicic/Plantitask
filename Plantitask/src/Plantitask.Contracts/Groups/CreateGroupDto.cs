@@ -16,5 +16,8 @@ namespace Plantitask.Core.DTO.Groups
         [StringLength(24, MinimumLength = 8, ErrorMessage = "Password must atleast be 8 characters long")]
         public string? Password { get; set; }
 
+        [Required(ErrorMessage = "Time zone is required")]
+        [StringLength(64)]
+        public string TimeZoneId { get; set; } = string.Empty;
     }
 }

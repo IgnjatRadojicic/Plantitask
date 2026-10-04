@@ -80,10 +80,10 @@ namespace Plantitask.Infrastructure.Services
                     UserId = userId,
                     Type = NotificationType.TaskDueSoon,
                     Title = "Task Due Soon",
-                    Message = $"Task '{task.Title}' is due soon",
+                    Message = $"Task '{task.Title}' is due on {task.DueDate!.Value:MMM d}",
                     RelatedEntityId = task.Id,
                     RelatedEntityType = "Task",
-                    RelatedDate = task.DueDate!.Value,
+                    RelatedDate = task.DueAt!.Value,
                 });
 
                 await _context.SaveChangesAsync();
@@ -124,8 +124,8 @@ namespace Plantitask.Infrastructure.Services
 
             var overdueTasks = await _context.Tasks
                 .Where(t => t.StatusId != (int)TaskStatusItem.Completed
-                 && t.DueDate.HasValue
-                 && t.DueDate.Value < now
+                 && t.DueAt.HasValue
+                 && t.DueAt.Value < now
                  && t.AssignedToId != null)
                 .Select(TaskProjections.ToReminder)
                 .ToListAsync();
@@ -161,8 +161,8 @@ namespace Plantitask.Infrastructure.Services
                     UserId = g.Key,
                     Email = g.First().AssigneeEmail,
                     UserName = g.First().AssigneeName,
-                    Tasks = g.OrderBy(t => t.DueDate!.Value)
-                             .Select(t => new OverdueTaskLine(t.Title, (now - t.DueDate!.Value).Days))
+                    Tasks = g.OrderBy(t => t.DueAt!.Value)
+                             .Select(t => new OverdueTaskLine(t.Title, (now - t.DueAt!.Value).Days))
                              .ToList()
                 })
                 .ToList();

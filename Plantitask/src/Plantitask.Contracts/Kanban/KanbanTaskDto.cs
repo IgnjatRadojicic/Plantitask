@@ -16,7 +16,8 @@ public class KanbanTaskDto
     public string? AssignedToUserName { get; set; }
 
     public int DisplayOrder { get; set; }
-    public DateTime? DueDate { get; set; }
+    public DateOnly? DueDate { get; set; }
+    public DateTime? DueAt { get; set; }
 
     public int CommentCount { get; set; }
     public int AttachmentCount { get; set; }

@@ -5,6 +5,7 @@ using Plantitask.Core.DTO.Groups;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.Validation;
 
 namespace Plantitask.Infrastructure.Services
 {
@@ -65,6 +66,8 @@ namespace Plantitask.Infrastructure.Services
         /// </summary>
         public async Task<Result<GroupDto>> CreateGroupAsync(CreateGroupDto createGroupDto, Guid userId)
         {
+            if (!TimeZoneRules.TryResolve(createGroupDto.TimeZoneId, out var zone))
+                return Error.BadRequest("Unknown time zone");
 
             var limitError = await CheckGroupLimitAsync(userId);
             if (limitError != null)
@@ -81,6 +84,7 @@ namespace Plantitask.Infrastructure.Services
                 Name = createGroupDto.Name,
                 GroupCode = groupCode,
                 PasswordHash = passwordHash,
+                TimeZoneId = zone.Id,
                 IsActive = true,
                 OwnerId = userId,
                 CreatedBy = userId,
@@ -109,6 +113,7 @@ namespace Plantitask.Infrastructure.Services
                 Name = group.Name,
                 GroupCode = group.GroupCode,
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
+                TimeZoneId = group.TimeZoneId,
                 MemberCount = 1,
                 UserRole = GroupRole.Owner,
             };
@@ -135,6 +140,7 @@ namespace Plantitask.Infrastructure.Services
                     g.Name,
                     g.GroupCode,
                     g.PasswordHash,
+                    g.TimeZoneId,
                     g.IsActive,
                 })
                 .FirstOrDefaultAsync();
@@ -207,6 +213,7 @@ namespace Plantitask.Infrastructure.Services
                 Name = groupData.Name,
                 GroupCode = groupData.GroupCode,
                 IsPasswordProtected = !string.IsNullOrEmpty(groupData.PasswordHash),
+                TimeZoneId = groupData.TimeZoneId,
                 MemberCount = memberCount,
                 UserRole = GroupRole.Member,
             };
@@ -227,6 +234,7 @@ namespace Plantitask.Infrastructure.Services
                     Name = gm.Group.Name,
                     GroupCode = gm.Group.GroupCode,
                     IsPasswordProtected = !string.IsNullOrEmpty(gm.Group.PasswordHash),
+                    TimeZoneId = gm.Group.TimeZoneId,
                     MemberCount = gm.Group.Members.Count,
                     UserRole = (GroupRole)gm.RoleId,
                     JoinedAt = gm.CreatedAt,
@@ -250,6 +258,7 @@ namespace Plantitask.Infrastructure.Services
                     g.Name,
                     g.GroupCode,
                     g.PasswordHash,
+                    g.TimeZoneId,
                     g.OwnerId,
                     OwnerName = g.Owner.UserName,
                 })
@@ -281,6 +290,7 @@ namespace Plantitask.Infrastructure.Services
                 Name = group.Name,
                 GroupCode = group.GroupCode,
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
+                TimeZoneId = group.TimeZoneId,
                 OwnerId = group.OwnerId,
                 OwnerName = group.OwnerName,
                 Members = members
@@ -331,6 +341,7 @@ namespace Plantitask.Infrastructure.Services
                 Name = group.Name,
                 GroupCode = group.GroupCode,
                 IsPasswordProtected = !string.IsNullOrEmpty(group.PasswordHash),
+                TimeZoneId = group.TimeZoneId,
                 MemberCount = memberCount,
                 UserRole = callerRole.Value,
             };

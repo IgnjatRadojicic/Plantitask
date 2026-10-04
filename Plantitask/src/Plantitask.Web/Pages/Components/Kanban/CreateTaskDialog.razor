@@ -111,7 +111,7 @@
         if (_submitting) return;
         _submitting = true;
 
-        _model.DueDate = _dueDate;
+        _model.DueDate = _dueDate.HasValue ? DateOnly.FromDateTime(_dueDate.Value) : null;
         _model.AssignedToUserId = _selectedAssigneeId;
 
         var result = await TaskService.CreateTaskAsync(GroupId, _model);
@@ -131,6 +131,7 @@
                 AssignedToId = task.AssignedToId,
                 AssignedToUserName = task.AssignedToUserName,
                 DueDate = task.DueDate,
+                DueAt = task.DueAt,
                 DisplayOrder = 0,
                 CommentCount = 0,
                 AttachmentCount = task.AttachmentCount

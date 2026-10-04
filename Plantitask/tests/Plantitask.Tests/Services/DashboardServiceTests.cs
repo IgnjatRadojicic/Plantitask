@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Plantitask.Core.Domain;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Enums;
 using Plantitask.Core.Interfaces;
@@ -47,7 +48,7 @@ namespace Plantitask.Tests.Services
             Guid? groupId = null,
             TaskStatusItem status = TaskStatusItem.InProgress,
             TaskPriority priority = TaskPriority.Medium,
-            DateTime? dueDate = null,
+            DateTime? dueAt = null,
             DateTime? completedAt = null,
             DateTime? createdAt = null)
         {
@@ -56,7 +57,7 @@ namespace Plantitask.Tests.Services
             var task = TestData.Task(
                 groupId ?? GroupId, LeadId,
                 title: title, status: status, priority: priority,
-                assignedTo: assignedTo, dueDate: dueDate);
+                assignedTo: assignedTo, dueAt: dueAt);
 
             task.CompletedAt = completedAt;
 
@@ -97,12 +98,12 @@ namespace Plantitask.Tests.Services
         {
             await SeedAsync();
 
-            await SeedTaskAsync("Overdue", MemberId, dueDate: DateTime.UtcNow.AddHours(-1));
-            await SeedTaskAsync("Today", MemberId, dueDate: LaterToday());
-            await SeedTaskAsync("This week", MemberId, dueDate: DateTime.UtcNow.Date.AddDays(2));
+            await SeedTaskAsync("Overdue", MemberId, dueAt: DateTime.UtcNow.AddHours(-1));
+            await SeedTaskAsync("Today", MemberId, dueAt: LaterToday());
+            await SeedTaskAsync("This week", MemberId, dueAt: DateTime.UtcNow.Date.AddDays(2));
 
             await using var act = NewContext();
-            var result = await NewSut(act).GetPersonalDashboardAsync(MemberId);
+            var result = await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC");
 
             Assert.True(result.IsSuccess, result.Error?.Message);
             var dashboard = result.Value!;
@@ -121,10 +122,10 @@ namespace Plantitask.Tests.Services
         {
             await SeedAsync();
 
-            await SeedTaskAsync("Next month", MemberId, dueDate: DateTime.UtcNow.AddDays(30));
+            await SeedTaskAsync("Next month", MemberId, dueAt: DateTime.UtcNow.AddDays(30));
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
 
             Assert.Empty(dashboard.OverdueTasks);
             Assert.Empty(dashboard.DueToday);
@@ -138,11 +139,11 @@ namespace Plantitask.Tests.Services
 
             await SeedTaskAsync("Done but late", MemberId,
                 status: TaskStatusItem.Completed,
-                dueDate: DateTime.UtcNow.AddDays(-2),
+                dueAt: DateTime.UtcNow.AddDays(-2),
                 completedAt: DateTime.UtcNow.AddDays(-1));
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
 
             Assert.Empty(dashboard.OverdueTasks);
             Assert.Single(dashboard.RecentlyCompleted);
@@ -153,11 +154,11 @@ namespace Plantitask.Tests.Services
         {
             await SeedAsync();
 
-            await SeedTaskAsync("Mine", MemberId, dueDate: DateTime.UtcNow.AddHours(-1));
-            await SeedTaskAsync("Somebody elses", LeadId, dueDate: DateTime.UtcNow.AddHours(-1));
+            await SeedTaskAsync("Mine", MemberId, dueAt: DateTime.UtcNow.AddHours(-1));
+            await SeedTaskAsync("Somebody elses", LeadId, dueAt: DateTime.UtcNow.AddHours(-1));
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
 
             Assert.Equal("Mine", Assert.Single(dashboard.OverdueTasks).Title);
         }
@@ -177,7 +178,7 @@ namespace Plantitask.Tests.Services
                 status: TaskStatusItem.Completed, completedAt: DateTime.UtcNow.AddDays(-14));
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
 
             Assert.Equal("Finished yesterday", Assert.Single(dashboard.RecentlyCompleted).Title);
             Assert.Equal(2, dashboard.CompletionTrend.Sum(p => p.CompletedCount));
@@ -193,7 +194,7 @@ namespace Plantitask.Tests.Services
                 status: TaskStatusItem.Completed, completedAt: DateTime.UtcNow.AddDays(-3));
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
 
             Assert.Equal(30, dashboard.CompletionTrend.Count);
             Assert.Equal(29, dashboard.CompletionTrend.Count(p => p.CompletedCount == 0));
@@ -208,7 +209,7 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
 
             Assert.Equal(DateTime.UtcNow.Date.AddDays(-29), dashboard.CompletionTrend.First().Date);
             Assert.Equal(DateTime.UtcNow.Date, dashboard.CompletionTrend.Last().Date);
@@ -223,13 +224,13 @@ namespace Plantitask.Tests.Services
         {
             await SeedAsync();
 
-            await SeedTaskAsync("Far future", MemberId, dueDate: DateTime.UtcNow.AddDays(90));
+            await SeedTaskAsync("Far future", MemberId, dueAt: DateTime.UtcNow.AddDays(90));
             await SeedTaskAsync("No due date", MemberId);
             await SeedTaskAsync("Ancient completion", MemberId,
                 status: TaskStatusItem.Completed, completedAt: DateTime.UtcNow.AddDays(-200));
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
 
             Assert.Equal(2, dashboard.TotalAssignedTasks);
             Assert.Equal(1, dashboard.TotalCompletedTasks);
@@ -247,7 +248,7 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
 
             Assert.Equal(0, dashboard.TotalAssignedTasks);
             Assert.Equal(0, dashboard.TotalCompletedTasks);
@@ -263,8 +264,8 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
 
-            Assert.Equal(1, (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!.GroupCount);
-            Assert.Equal(0, (await NewSut(act).GetPersonalDashboardAsync(OutsiderId)).Value!.GroupCount);
+            Assert.Equal(1, (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!.GroupCount);
+            Assert.Equal(0, (await NewSut(act).GetPersonalDashboardAsync(OutsiderId, "UTC")).Value!.GroupCount);
         }
 
         [Fact]
@@ -279,7 +280,7 @@ namespace Plantitask.Tests.Services
             await SeedAuditAsync(OtherGroupId, "Another group", now);
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
 
             Assert.Equal(
                 new[] { "Newest", "Middle", "Oldest" },
@@ -296,7 +297,7 @@ namespace Plantitask.Tests.Services
                 await SeedAuditAsync(GroupId, $"Action {i}", now.AddMinutes(-i));
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
 
             Assert.Equal(15, dashboard.RecentActivity.Count);
             Assert.Equal("Action 0", dashboard.RecentActivity.First().Action);
@@ -309,7 +310,7 @@ namespace Plantitask.Tests.Services
             await SeedAuditAsync(GroupId, "Something", DateTime.UtcNow);
 
             await using var act = NewContext();
-            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(OutsiderId)).Value!;
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(OutsiderId, "UTC")).Value!;
 
             Assert.Empty(dashboard.RecentActivity);
         }
@@ -457,10 +458,10 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
 
             var past = DateTime.UtcNow.AddDays(-2);
-            await SeedTaskAsync("Still open", dueDate: past);
+            await SeedTaskAsync("Still open", dueAt: past);
             await SeedTaskAsync("Finished late", status: TaskStatusItem.Completed,
-                dueDate: past, completedAt: DateTime.UtcNow.AddDays(-1));
-            await SeedTaskAsync("Not due yet", dueDate: DateTime.UtcNow.AddDays(5));
+                dueAt: past, completedAt: DateTime.UtcNow.AddDays(-1));
+            await SeedTaskAsync("Not due yet", dueAt: DateTime.UtcNow.AddDays(5));
             await SeedTaskAsync("No due date");
 
             await using var act = NewContext();
@@ -515,7 +516,7 @@ namespace Plantitask.Tests.Services
             await SeedTaskAsync("Lead one", LeadId);
             await SeedTaskAsync("Member one", MemberId);
             await SeedTaskAsync("Member two", MemberId);
-            await SeedTaskAsync("Member overdue", MemberId, dueDate: DateTime.UtcNow.AddDays(-1));
+            await SeedTaskAsync("Member overdue", MemberId, dueAt: DateTime.UtcNow.AddDays(-1));
             await SeedTaskAsync("Member done", MemberId,
                 status: TaskStatusItem.Completed, completedAt: DateTime.UtcNow);
             await SeedTaskAsync("Nobody's");
@@ -660,6 +661,70 @@ namespace Plantitask.Tests.Services
             Assert.Equal(TreeStage.EmptySoil, result.Value.CurrentTreeStage);
             Assert.Equal(0, result.Value.TotalTasks);
             Assert.Equal(2, result.Value.MemberCount);
+        }
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("Mars/Olympus")]
+        public async Task GetPersonalDashboardAsync_WithAnUnusableZone_ReturnsBadRequest(string? timeZoneId)
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetPersonalDashboardAsync(MemberId, timeZoneId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("BadRequest", result.Error!.Code);
+        }
+
+        /// <summary>
+        /// Today ends at the viewer's midnight, not at utc midnight. A deadline sitting exactly on
+        /// that midnight is the end of today so it belongs to today, and one a minute later does not.
+        /// </summary>
+        [Theory]
+        [InlineData("Europe/Belgrade")]
+        [InlineData("Asia/Tokyo")]
+        [InlineData("America/New_York")]
+        public async Task GetPersonalDashboardAsync_SplitsTodayAndThisWeekAtTheViewersMidnight(string timeZoneId)
+        {
+            await SeedAsync();
+
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone));
+            var todayEnd = TimeZoneMath.LocalMidnightToUtc(localToday.AddDays(1), zone);
+
+            await SeedTaskAsync("Ends with today", MemberId, dueAt: todayEnd);
+            await SeedTaskAsync("Just after today", MemberId, dueAt: todayEnd.AddMinutes(1));
+
+            await using var act = NewContext();
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, timeZoneId)).Value!;
+
+            Assert.Equal("Ends with today", Assert.Single(dashboard.DueToday).Title);
+            Assert.Equal("Just after today", Assert.Single(dashboard.DueThisWeek).Title);
+        }
+
+        /// <summary>
+        /// One minute after Tokyo's midnight is still the previous day in utc. The trend has to
+        /// count it on the day the viewer finished it.
+        /// </summary>
+        [Fact]
+        public async Task GetPersonalDashboardAsync_CountsCompletionsOnTheViewersDay()
+        {
+            await SeedAsync();
+
+            var tokyo = TimeZoneInfo.FindSystemTimeZoneById("Asia/Tokyo");
+            var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tokyo));
+            var completedAt = TimeZoneMath.LocalMidnightToUtc(localToday, tokyo).AddMinutes(1);
+
+            await SeedTaskAsync("Finished after midnight", MemberId,
+                status: TaskStatusItem.Completed, completedAt: completedAt);
+
+            await using var act = NewContext();
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "Asia/Tokyo")).Value!;
+
+            var today = dashboard.CompletionTrend.Last();
+            Assert.Equal(localToday.ToDateTime(TimeOnly.MinValue), today.Date);
+            Assert.Equal(1, today.CompletedCount);
         }
     }
 }

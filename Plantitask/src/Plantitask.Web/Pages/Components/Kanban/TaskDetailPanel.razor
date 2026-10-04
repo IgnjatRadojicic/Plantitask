@@ -123,11 +123,15 @@
 
                 <div class="task-detail-sidebar-field">
                     <label>Due Date</label>
-                    <MudDatePicker Date="@_task.DueDate"
+                    <MudDatePicker Date="@_task.DueDate?.ToDateTime(TimeOnly.MinValue)"
                                    DateChanged="HandleDueDateChange"
                                    Variant="Variant.Outlined"
                                    Clearable="true"
                                    Placeholder="None" />
+                    @if (_task.DueAt.HasValue)
+                    {
+                        <span class="task-detail-due-local">Due @DeadlineDisplay.ToLocal(_task.DueAt.Value).ToString("MMM d 'at' HH:mm")</span>
+                    }
                 </div>
 
                 <div class="task-detail-sidebar-divider"></div>
@@ -298,12 +302,13 @@
 
         var result = await TaskService.UpdateTaskAsync(TaskId, new UpdateTaskDto 
         { 
-            DueDate = newDate.HasValue ? DateTime.SpecifyKind(newDate.Value, DateTimeKind.Utc) : null,  
+            DueDate = newDate.HasValue ? DateOnly.FromDateTime(newDate.Value) : null,
             ClearDueDate = !newDate.HasValue
         });
         if (result.Success && result.Data is not null)
         {
             _task.DueDate = result.Data.DueDate;
+            _task.DueAt = result.Data.DueAt;
             await OnTaskUpdated.InvokeAsync(_task);
         }
         else

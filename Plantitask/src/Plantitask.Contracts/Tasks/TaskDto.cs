@@ -22,7 +22,8 @@ namespace Plantitask.Core.DTO.Tasks
         public Guid? AssignedToId { get; set; }
         public string? AssignedToUserName { get; set; }
 
-        public DateTime? DueDate { get; set; }
+        public DateOnly? DueDate { get; set; }
+        public DateTime? DueAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public DateTime CreatedAt { get; set; }
 

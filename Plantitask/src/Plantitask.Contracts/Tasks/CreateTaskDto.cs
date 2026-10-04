@@ -20,7 +20,7 @@ namespace Plantitask.Core.DTO.Tasks
         [Range(1, 4)]
         public int PriorityId { get; set; } = 2;
 
-        public DateTime? DueDate { get; set; }
+        public DateOnly? DueDate { get; set; }
 
         public Guid? AssignedToUserId { get; set; }
     }

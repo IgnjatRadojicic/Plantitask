@@ -22,10 +22,12 @@ namespace Plantitask.Api.Controllers
 
         [HttpGet("personal")]
         [ProducesResponseType(typeof(PersonalDashboardDto), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetPersonalDashboard()
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetPersonalDashboard([FromQuery] string? timeZoneId)
         {
             var userId = GetUserId();
-            var result = await _dashboardService.GetPersonalDashboardAsync(userId);
+            var result = await _dashboardService.GetPersonalDashboardAsync(userId, timeZoneId);
             return result.ToActionResult();
         }
 

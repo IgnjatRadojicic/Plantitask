@@ -21,11 +21,11 @@
     }
     <div class="kanban-card-footer">
         <div class="kanban-card-footer-left">
-            @if (Task.DueDate.HasValue)
+            @if (Task.DueAt.HasValue)
             {
                 <span class="kanban-card-due @(Task.IsOverdue() ? "kanban-card-due-overdue" : "")">
                     <MudIcon Icon="@Icons.Material.Outlined.CalendarToday" Size="Size.Small" />
-                    @Task.DueDate.Value.ToString("MMM d")
+                    @DeadlineDisplay.ToLocal(Task.DueAt.Value).ToString("MMM d")
                 </span>
             }
         </div>

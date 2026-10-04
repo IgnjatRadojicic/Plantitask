@@ -89,6 +89,7 @@
         }
 
         _isBusy = true;
+        _model.TimeZoneId = BrowserTimeZone.Id;
 
         var result = await GroupService.CreateGroupAsync(_model);
 
