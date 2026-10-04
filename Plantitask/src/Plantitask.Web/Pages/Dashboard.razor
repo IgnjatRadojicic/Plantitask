@@ -93,7 +93,7 @@
                                             @task.PriorityName
                                         </span>
                                         <span class="dash-task-time dash-task-time--red">
-                                            @GetRelativeTime(task.DueDate)
+                                            @GetRelativeTime(task.DueAt.HasValue ? DeadlineDisplay.ToLocal(task.DueAt.Value) : null)
                                         </span>
                                     </div>
                                 </div>
@@ -129,7 +129,7 @@
                                             @task.PriorityName
                                         </span>
                                         <span class="dash-task-time">
-                                            @(task.DueDate.HasValue ? task.DueDate.Value.ToString("h:mm tt") : "")
+                                            @(task.DueAt.HasValue ? DeadlineDisplay.ToLocal(task.DueAt.Value).ToString("HH:mm") : "")
                                         </span>
                                     </div>
                                 </div>
@@ -186,8 +186,8 @@
                                     </span>
                                     <span class="dash-task-time @(isOverdueTab ? "dash-task-time--red" : "")">
                                         @(isOverdueTab
-                                            ? GetRelativeTime(task.DueDate)
-                                            : task.DueDate.HasValue ? task.DueDate.Value.ToString("h:mm tt") : "")
+                                            ? GetRelativeTime(task.DueAt.HasValue ? DeadlineDisplay.ToLocal(task.DueAt.Value) : null)
+                                            : task.DueAt.HasValue ? DeadlineDisplay.ToLocal(task.DueAt.Value).ToString("HH:mm") : "")
                                     </span>
                                 </div>
                             </div>
@@ -225,7 +225,7 @@
                                     </span>
                                 </span>
                                 <span class="dash-table-date">
-                                    @(task.DueDate.HasValue ? task.DueDate.Value.ToString("ddd MMM d") : "—")
+                                    @(task.DueAt.HasValue ? DeadlineDisplay.ToLocal(task.DueAt.Value).ToString("ddd MMM d") : "—")
                                 </span>
                             </div>
                         }
@@ -433,6 +433,6 @@
         if (diff.TotalHours   < 24) return $"{(int)diff.TotalHours}h ago";
         if (diff.TotalDays    < 2)  return "yesterday";
         if (diff.TotalDays    < 7)  return $"{(int)diff.TotalDays} days ago";
-        return dt.Value.ToString("MMM d");
+        return dt.Value.ToLocalTime().ToString("MMM d");
     }
 }

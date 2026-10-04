@@ -107,7 +107,7 @@
                                     <div class="field-notification-item-message">@notification.Message</div>
                                     @if (notification.RelatedDate.HasValue)
                                     {
-                                        <div class="field-notification-item-when">@FormatLocal(notification.RelatedDate.Value)</div>
+                                        <div class="field-notification-item-when">Due @DeadlineDisplay.ToLocal(notification.RelatedDate.Value).ToString("MMM d 'at' HH:mm")</div>
                                     }
                                     <div class="field-notification-item-time">
                                         @if (!string.IsNullOrWhiteSpace(notification.ActorName))
@@ -578,13 +578,6 @@
         "TaskOverdue" => Icons.Material.Outlined.Warning,
         _ => Icons.Material.Outlined.Notifications
     };
-
-    private static string FormatLocal(DateTime utc)
-    {
-        var local = DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime();
-
-        return local.ToString("MMM d 'at' HH:mm");
-    }
 
     private static string FormatTimeAgo(DateTime createdAt)
     {
