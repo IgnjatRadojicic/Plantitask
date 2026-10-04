@@ -8,9 +8,11 @@ namespace Plantitask.Web.Helpers;
 
 public static class DtoViewExtensions
 {
+    // Same rule as the backend queries. The backend decides when the deadline is (DueAt) and this
+    // only compares it with the clock on each render, so a card dragged to Completed clears at once.
     public static bool IsOverdue(this KanbanTaskDto task) =>
-        task.DueDate.HasValue
-        && task.DueDate.Value.Date < DateTime.UtcNow.Date
+        task.DueAt.HasValue
+        && task.DueAt.Value <= DateTime.UtcNow
         && task.StatusId != (int)TaskStatusItem.Completed;
 
     public static string FileSizeDisplay(this AttachmentDto attachment) => attachment.FileSize switch
