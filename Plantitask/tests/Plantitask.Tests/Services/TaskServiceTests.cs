@@ -4,6 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Org.BouncyCastle.Pqc.Crypto.Lms;
+using Plantitask.Core.Domain;
 using Plantitask.Core.DTO.Kanban;
 using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
@@ -53,24 +54,32 @@ namespace Plantitask.Tests.Services
             TaskPriority priority = TaskPriority.Medium,
             Guid? assignedTo = null,
             Guid? createdBy = null,
-            DateTime? dueDate = null,
+            DateTime? dueAt = null,
             DateTime? completedAt = null)
         {
             await using var db = NewContext();
             var task = TestData.Task(
                 GroupId, createdBy ?? LeadId,
                 status: status, priority: priority,
-                assignedTo: assignedTo, dueDate: dueDate, id: TaskId);
+                assignedTo: assignedTo, dueAt: dueAt, id: TaskId);
             task.CompletedAt = completedAt;
             db.Tasks.Add(task);
             await db.SaveChangesAsync();
         }
 
+        private static readonly TimeZoneInfo GroupZone = TimeZoneInfo.FindSystemTimeZoneById(TestData.GroupTimeZone);
+
+        private static DateOnly GroupDayFromToday(int days) =>
+            DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, GroupZone)).AddDays(days);
+
+        private static DateTime EndOfDayInGroup(DateOnly day) =>
+            TimeZoneMath.LocalMidnightToUtc(day.AddDays(1), GroupZone);
+
         private static CreateTaskDto NewTaskDto(
             string title = "Write the tests",
             int priorityId = (int)TaskPriority.Medium,
             Guid? assignedTo = null,
-            DateTime? dueDate = null) => new()
+            DateOnly? dueDate = null) => new()
             {
                 Title = title,
                 Description = "Description",
@@ -210,8 +219,9 @@ namespace Plantitask.Tests.Services
         {
             await SeedAsync();
 
-            var dueDate = DateTime.UtcNow.AddDays(3);
-            _jobs.Setup(j => j.ScheduleTaskDueSoonNotification(It.IsAny<Guid>(), MemberId, dueDate))
+            var dueDate = GroupDayFromToday(3);
+            var dueAt = EndOfDayInGroup(dueDate);
+            _jobs.Setup(j => j.ScheduleTaskDueSoonNotification(It.IsAny<Guid>(), MemberId, dueAt))
                 .ReturnsAsync("hangfire-job-1");
 
             await using var act = NewContext();
@@ -221,7 +231,7 @@ namespace Plantitask.Tests.Services
             Assert.True(result.IsSuccess, result.Error?.Message);
 
             _jobs.Verify(j => j.ScheduleTaskDueSoonNotification(
-                It.IsAny<Guid>(), MemberId, dueDate), Times.Once);
+                It.IsAny<Guid>(), MemberId, dueAt), Times.Once);
 
             await using var assert = NewContext();
             Assert.Equal("hangfire-job-1", (await assert.Tasks.SingleAsync()).DueSoonJobId);
@@ -235,7 +245,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var result = await NewSut(act).CreateTaskAsync(
-                GroupId, NewTaskDto(dueDate: DateTime.UtcNow.AddDays(3)), LeadId);
+                GroupId, NewTaskDto(dueDate: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3))), LeadId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
 
@@ -381,11 +391,11 @@ namespace Plantitask.Tests.Services
             await using (var db = NewContext())
             {
                 db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "Overdue",
-                    status: TaskStatusItem.InProgress, dueDate: past));
+                    status: TaskStatusItem.InProgress, dueAt: past));
                 db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "OverdueButDone",
-                    status: TaskStatusItem.Completed, dueDate: past));
+                    status: TaskStatusItem.Completed, dueAt: past));
                 db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "NotDueYet",
-                    status: TaskStatusItem.InProgress, dueDate: DateTime.UtcNow.AddDays(5)));
+                    status: TaskStatusItem.InProgress, dueAt: DateTime.UtcNow.AddDays(5)));
                 db.Tasks.Add(TestData.Task(GroupId, LeadId, title: "NoDueDate"));
                 await db.SaveChangesAsync();
             }
@@ -541,19 +551,21 @@ namespace Plantitask.Tests.Services
         public async Task UpdateTaskAsync_ClearDueDateWinsOverAnySuppliedDate()
         {
             await SeedAsync();
-            await SeedTaskAsync(dueDate: DateTime.UtcNow.AddDays(4));
+            await SeedTaskAsync(dueAt: DateTime.UtcNow.AddDays(4));
 
             await using var act = NewContext();
             var result = await NewSut(act).UpdateTaskAsync(TaskId, new UpdateTaskDto
             {
-                DueDate = DateTime.UtcNow.AddDays(9),
+                DueDate = GroupDayFromToday(9),
                 ClearDueDate = true
             }, LeadId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
 
             await using var assert = NewContext();
-            Assert.Null((await assert.Tasks.SingleAsync()).DueDate);
+            var task = await assert.Tasks.SingleAsync();
+            Assert.Null(task.DueDate);
+            Assert.Null(task.DueAt);
         }
 
         [Fact]
@@ -583,7 +595,7 @@ namespace Plantitask.Tests.Services
         public async Task UpdateTaskAsync_SchedulesTheNewReminderBeforeCancellingTheOldOne()
         {
             await SeedAsync();
-            await SeedTaskAsync(assignedTo: MemberId, dueDate: DateTime.UtcNow.AddDays(2));
+            await SeedTaskAsync(assignedTo: MemberId, dueAt: DateTime.UtcNow.AddDays(2));
 
             await using (var db = NewContext())
             {
@@ -592,9 +604,9 @@ namespace Plantitask.Tests.Services
             }
 
             var calls = new List<string>();
-            var newDueDate = DateTime.UtcNow.AddDays(6);
+            var newDueDate = GroupDayFromToday(6);
 
-            _jobs.Setup(j => j.ScheduleTaskDueSoonNotification(TaskId, MemberId, newDueDate))
+            _jobs.Setup(j => j.ScheduleTaskDueSoonNotification(TaskId, MemberId, EndOfDayInGroup(newDueDate)))
                 .Callback(() => calls.Add("schedule"))
                 .ReturnsAsync("new-job");
             _jobs.Setup(j => j.CancelScheduledJob("old-job"))
@@ -620,7 +632,7 @@ namespace Plantitask.Tests.Services
         public async Task UpdateTaskAsync_WhenSchedulingThrows_StillSavesTheEditAndKeepsTheOldReminder()
         {
             await SeedAsync();
-            await SeedTaskAsync(assignedTo: MemberId, dueDate: DateTime.UtcNow.AddDays(2));
+            await SeedTaskAsync(assignedTo: MemberId, dueAt: DateTime.UtcNow.AddDays(2));
 
             await using (var db = NewContext())
             {
@@ -1274,6 +1286,91 @@ namespace Plantitask.Tests.Services
             readBySecond.Title = "written by second caller";
 
             await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => second.SaveChangesAsync());
+        }
+        /// <summary>
+        /// The deadline is the midnight that ends the due day in the group zone. Belgrade is UTC+2
+        /// in July and UTC+1 in January, so a fixed offset would get one of the two wrong.
+        /// </summary>
+        [Theory]
+        [InlineData("2027-07-15", "2027-07-15T22:00:00")]
+        [InlineData("2027-01-15", "2027-01-15T23:00:00")]
+        public async Task CreateTaskAsync_StoresTheDueMomentAtTheEndOfTheDueDayInTheGroupZone(string dueDay, string expectedUtc)
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateTaskAsync(
+                GroupId, NewTaskDto(dueDate: DateOnly.Parse(dueDay)), LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            var task = await assert.Tasks.SingleAsync();
+            Assert.Equal(DateOnly.Parse(dueDay), task.DueDate);
+            Assert.Equal(DateTime.Parse(expectedUtc), task.DueAt);
+        }
+
+        [Fact]
+        public async Task UpdateTaskAsync_ChangingTheDueDayRecomputesTheDueMoment()
+        {
+            await SeedAsync();
+            await SeedTaskAsync(dueAt: EndOfDayInGroup(GroupDayFromToday(2)));
+
+            var newDueDate = GroupDayFromToday(5);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).UpdateTaskAsync(
+                TaskId, new UpdateTaskDto { DueDate = newDueDate }, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+
+            await using var assert = NewContext();
+            var task = await assert.Tasks.SingleAsync();
+            Assert.Equal(newDueDate, task.DueDate);
+            Assert.Equal(EndOfDayInGroup(newDueDate), task.DueAt);
+        }
+
+        /// <summary>
+        /// The bug this deadline model exists to fix. The due day used to be stored as utc
+        /// midnight at its start, so a task was already overdue for the whole of its own due day.
+        /// </summary>
+        [Fact]
+        public async Task GetGroupTasksAsync_ATaskDueTodayIsNotOverdue()
+        {
+            await SeedAsync();
+
+            await using (var create = NewContext())
+            {
+                var created = await NewSut(create).CreateTaskAsync(
+                    GroupId, NewTaskDto(dueDate: GroupDayFromToday(0)), LeadId);
+                Assert.True(created.IsSuccess, created.Error?.Message);
+            }
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetGroupTasksAsync(
+                GroupId, new TaskFilterDto { IsOverDue = true }, LeadId);
+
+            Assert.Equal(0, result.Value!.TotalCount);
+        }
+
+        /// <summary>
+        /// The board projection picks its columns by hand, so leaving DueAt out would still compile
+        /// and the card would never show as overdue.
+        /// </summary>
+        [Fact]
+        public async Task GetKanbanBoardAsync_CarriesTheDueMoment()
+        {
+            await SeedAsync();
+            var dueAt = EndOfDayInGroup(GroupDayFromToday(3));
+            await SeedTaskAsync(dueAt: dueAt);
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetKanbanBoardAsync(GroupId, LeadId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            var card = result.Value!.Columns.SelectMany(c => c.Tasks).Single();
+            Assert.Equal(dueAt, card.DueAt);
+            Assert.Equal(GroupDayFromToday(3), card.DueDate);
         }
     }
 }

@@ -143,7 +143,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var result = await NewSut(act).CreateGroupAsync(
-                new CreateGroupDto { Name = "New Team" }, OutsiderId);
+                new CreateGroupDto { Name = "New Team", TimeZoneId = "Europe/Belgrade" }, OutsiderId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
             Assert.Equal(GroupRole.Owner, result.Value!.UserRole);
@@ -166,7 +166,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var result = await NewSut(act).CreateGroupAsync(
-                new CreateGroupDto { Name = "Locked Team", Password = "supersecret" }, OutsiderId);
+                new CreateGroupDto { Name = "Locked Team", Password = "supersecret", TimeZoneId = "Europe/Belgrade" }, OutsiderId);
 
             Assert.True(result.Value!.IsPasswordProtected);
 
@@ -191,7 +191,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var result = await NewSut(act).CreateGroupAsync(
-                new CreateGroupDto { Name = "New Team" }, OutsiderId);
+                new CreateGroupDto { Name = "New Team", TimeZoneId = "Europe/Belgrade" }, OutsiderId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
             Assert.Equal(GeneratedCode, result.Value!.GroupCode);
@@ -210,7 +210,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             await Assert.ThrowsAsync<InvalidOperationException>(
-                () => NewSut(act).CreateGroupAsync(new CreateGroupDto { Name = "New Team" }, OutsiderId));
+                () => NewSut(act).CreateGroupAsync(new CreateGroupDto { Name = "New Team", TimeZoneId = "Europe/Belgrade" }, OutsiderId));
         }
 
         [Fact]
@@ -221,7 +221,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var result = await NewSut(act).CreateGroupAsync(
-                new CreateGroupDto { Name = "One Too Many" }, MemberId);
+                new CreateGroupDto { Name = "One Too Many", TimeZoneId = "Europe/Belgrade" }, MemberId);
 
             Assert.True(result.IsFailure);
             Assert.Equal("Forbidden", result.Error!.Code);
@@ -237,7 +237,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var result = await NewSut(act).CreateGroupAsync(
-                new CreateGroupDto { Name = "Sixth Tree" }, MemberId);
+                new CreateGroupDto { Name = "Sixth Tree", TimeZoneId = "Europe/Belgrade" }, MemberId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
         }
@@ -257,7 +257,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var result = await NewSut(act).CreateGroupAsync(
-                new CreateGroupDto { Name = "Sixth Tree" }, MemberId);
+                new CreateGroupDto { Name = "Sixth Tree", TimeZoneId = "Europe/Belgrade" }, MemberId);
 
             Assert.True(result.IsFailure);
             Assert.Equal("Forbidden", result.Error!.Code);
@@ -271,7 +271,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var result = await NewSut(act).CreateGroupAsync(
-                new CreateGroupDto { Name = "Ghost Team" }, Guid.NewGuid());
+                new CreateGroupDto { Name = "Ghost Team", TimeZoneId = "Europe/Belgrade" }, Guid.NewGuid());
 
             Assert.True(result.IsFailure);
             Assert.Equal("NotFound", result.Error!.Code);
@@ -1083,6 +1083,64 @@ namespace Plantitask.Tests.Services
             var survivor = Assert.Single(await assert.Tasks.ToListAsync());
             Assert.Equal("Theirs", survivor.Title);
             Assert.Single(await assert.Groups.Where(g => g.Id == OtherGroupId).ToListAsync());
+        }
+        /// <summary>
+        /// Zone lookup ignores case, so the stored value has to be the canonical id rather than
+        /// whatever spelling the client sent. Postgres and the browser expect the canonical form.
+        /// </summary>
+        [Fact]
+        public async Task CreateGroupAsync_StoresTheCanonicalZoneId()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateGroupAsync(
+                new CreateGroupDto { Name = "New Team", TimeZoneId = "europe/belgrade" }, OutsiderId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal("Europe/Belgrade", result.Value!.TimeZoneId);
+
+            await using var assert = NewContext();
+            Assert.Equal("Europe/Belgrade", (await assert.Groups.SingleAsync(g => g.GroupCode == GeneratedCode)).TimeZoneId);
+        }
+
+        /// <summary>
+        /// A Windows id resolves in .NET but not in Postgres or the browser, so it is refused at
+        /// the door along with ids that resolve nowhere.
+        /// </summary>
+        [Theory]
+        [InlineData("Mars/Olympus")]
+        [InlineData("Central Europe Standard Time")]
+        [InlineData("")]
+        public async Task CreateGroupAsync_WithAnUnusableZone_ReturnsBadRequestAndCreatesNothing(string timeZoneId)
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).CreateGroupAsync(
+                new CreateGroupDto { Name = "New Team", TimeZoneId = timeZoneId }, OutsiderId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("BadRequest", result.Error!.Code);
+
+            await using var assert = NewContext();
+            Assert.False(await assert.Groups.AnyAsync(g => g.GroupCode == GeneratedCode));
+        }
+
+        /// <summary>
+        /// The details projection picks its columns by hand, so a missing TimeZoneId would still
+        /// compile and quietly come back empty. The Kanban board reads the zone from here.
+        /// </summary>
+        [Fact]
+        public async Task GetGroupDetailsAsync_ReturnsTheGroupZone()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var result = await NewSut(act).GetGroupDetailsAsync(GroupId, MemberId);
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal(TestData.GroupTimeZone, result.Value!.TimeZoneId);
         }
     }
 }

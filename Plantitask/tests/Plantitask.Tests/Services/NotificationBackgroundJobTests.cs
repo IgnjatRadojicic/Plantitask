@@ -42,14 +42,14 @@ namespace Plantitask.Tests.Services
         private async Task SeedTaskAsync(
             Guid id,
             Guid? assignedTo,
-            DateTime? dueDate,
+            DateTime? dueAt,
             TaskStatusItem status = TaskStatusItem.InProgress,
             string title = "Ship the release")
         {
             await using var db = NewContext();
             db.Tasks.Add(TestData.Task(
                 GroupId, LeadId, title: title, status: status,
-                assignedTo: assignedTo, dueDate: dueDate, id: id));
+                assignedTo: assignedTo, dueAt: dueAt, id: id));
             await db.SaveChangesAsync();
         }
 
@@ -63,8 +63,9 @@ namespace Plantitask.Tests.Services
         public async Task SendTaskDueSoonNotification_CreatesTheNotificationAndSendsTheEmail()
         {
             await SeedAsync();
-            var dueDate = DateTime.UtcNow.AddHours(6);
-            await SeedTaskAsync(TaskId, MemberId, dueDate);
+            var dueAt = DateTime.UtcNow.AddHours(6);
+            var dueDay = TestData.DueDayFor(dueAt);
+            await SeedTaskAsync(TaskId, MemberId, dueAt);
 
             await using var act = NewContext();
             await NewSut(act).SendTaskDueSoonNotification(TaskId);
@@ -75,8 +76,13 @@ namespace Plantitask.Tests.Services
             Assert.Equal(TaskId, notification.RelatedEntityId);
             Assert.Contains("Ship the release", notification.Message);
 
+            // The date column holds the moment for the client to convert while the text names the
+            // day because the panel would otherwise read the end of Oct 5 as Oct 6 00:00.
+            Assert.Equal(dueAt, notification.RelatedDate!.Value, TimeSpan.FromMilliseconds(1));
+            Assert.Contains($"due on {dueDay:MMM d}", notification.Message);
+
             _email.Verify(e => e.SendTaskDueSoonEmailAsync(
-                "member@example.com", "member", "Ship the release", It.IsAny<DateTime>()), Times.Once);
+                "member@example.com", "member", "Ship the release", dueDay), Times.Once);
         }
 
         [Fact]
@@ -112,7 +118,7 @@ namespace Plantitask.Tests.Services
         public async Task SendTaskDueSoonNotification_SkipsATaskThatWasUnassignedSinceScheduling()
         {
             await SeedAsync();
-            await SeedTaskAsync(TaskId, assignedTo: null, dueDate: DateTime.UtcNow.AddHours(6));
+            await SeedTaskAsync(TaskId, assignedTo: null, dueAt: DateTime.UtcNow.AddHours(6));
 
             await using var act = NewContext();
             await NewSut(act).SendTaskDueSoonNotification(TaskId);
@@ -137,7 +143,7 @@ namespace Plantitask.Tests.Services
             Assert.Empty(await ReadNotificationsAsync());
 
             _email.Verify(e => e.SendTaskDueSoonEmailAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>()), Times.Once);
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateOnly>()), Times.Once);
         }
 
         [Fact]
@@ -169,7 +175,7 @@ namespace Plantitask.Tests.Services
 
             _email
                 .Setup(e => e.SendTaskDueSoonEmailAsync(
-                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>()))
+                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateOnly>()))
                 .ThrowsAsync(new Plantitask.Core.Common.EmailSendException("provider down"));
 
             await using var act = NewContext();
@@ -303,7 +309,7 @@ namespace Plantitask.Tests.Services
         {
             await SeedAsync();
             await SeedTaskAsync(Guid.NewGuid(), MemberId, DateTime.UtcNow.AddDays(5), title: "Future");
-            await SeedTaskAsync(Guid.NewGuid(), MemberId, dueDate: null, title: "No due date");
+            await SeedTaskAsync(Guid.NewGuid(), MemberId, dueAt: null, title: "No due date");
 
             await using var act = NewContext();
             await NewSut(act).CheckOverdueTasksAndNotify();
@@ -315,7 +321,7 @@ namespace Plantitask.Tests.Services
         public async Task CheckOverdueTasksAndNotify_IgnoresOverdueTasksWithNobodyAssigned()
         {
             await SeedAsync();
-            await SeedTaskAsync(TaskId, assignedTo: null, dueDate: DateTime.UtcNow.AddDays(-2));
+            await SeedTaskAsync(TaskId, assignedTo: null, dueAt: DateTime.UtcNow.AddDays(-2));
 
             await using var act = NewContext();
             await NewSut(act).CheckOverdueTasksAndNotify();

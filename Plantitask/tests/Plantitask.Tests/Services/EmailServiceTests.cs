@@ -91,7 +91,7 @@ namespace Plantitask.Tests.Services
         public async Task SendTaskDueSoonEmailAsync_NamesTheTaskInTheSubject()
         {
             await _sut.SendTaskDueSoonEmailAsync(
-                "user@example.com", "ada", "Ship the release", new DateTime(2026, 9, 1, 14, 30, 0, DateTimeKind.Utc));
+                "user@example.com", "ada", "Ship the release", new DateOnly(2026, 9, 1));
 
             Assert.Equal("Task Due Soon: Ship the release", Sent.Subject);
             Assert.Equal("task due soon", Sent.EmailType);
@@ -148,7 +148,7 @@ namespace Plantitask.Tests.Services
             await _sut.SendTaskAssignmentEmailAsync("a@example.com", "ada", "t", "g", "lead");
             await _sut.SendGroupInvitationEmailAsync("a@example.com", "lead", "g", "CODE1234");
             await _sut.SendTaskCommentEmailAsync("a@example.com", "ada", "lead", "t", "c");
-            await _sut.SendTaskDueSoonEmailAsync("a@example.com", "ada", "t", DateTime.UtcNow);
+            await _sut.SendTaskDueSoonEmailAsync("a@example.com", "ada", "t", new DateOnly(2026, 9, 1));
             await _sut.SendEmailVerificationCodeAsync("a@example.com", "ada", "123456");
             await _sut.SendTaskOverdueDigestEmailAsync("a@example.com", "ada", 1, [new OverdueTaskLine("t", 1)]);
 
