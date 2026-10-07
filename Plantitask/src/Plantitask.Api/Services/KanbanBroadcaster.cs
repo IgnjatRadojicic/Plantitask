@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Plantitask.Api.Hubs;
 using Plantitask.Core.DTO.Kanban;
+using Plantitask.Core.SignalR;
 using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Services
@@ -25,7 +26,7 @@ namespace Plantitask.Api.Services
         {
             await _hubContext.Clients
                 .Group($"kanban-{groupId}")
-                .SendAsync("TaskMoved", new KanbanTaskMovedEvent
+                .SendAsync(HubEvents.TaskMoved, new KanbanTaskMovedEvent
                 {
                     TaskId = taskId,
                     OldStatusId = oldStatusId,
@@ -40,7 +41,7 @@ namespace Plantitask.Api.Services
         {
             await _hubContext.Clients
                 .Group($"kanban-{groupId}")
-                .SendAsync("TaskCreated", new KanbanTaskCreatedEvent
+                .SendAsync(HubEvents.TaskCreated, new KanbanTaskCreatedEvent
                 {
                     TaskId = taskId,
                     StatusId = statusId,
@@ -53,7 +54,7 @@ namespace Plantitask.Api.Services
         {
             await _hubContext.Clients
                 .Group($"kanban-{groupId}")
-                .SendAsync("TaskDeleted", new KanbanTaskDeletedEvent
+                .SendAsync(HubEvents.TaskDeleted, new KanbanTaskDeletedEvent
                 {
                     TaskId = taskId,
                     StatusId = statusId,
@@ -66,7 +67,7 @@ namespace Plantitask.Api.Services
         {
             await _hubContext.Clients
                 .Group($"kanban-{groupId}")
-                .SendAsync("TaskUpdated", new KanbanTaskUpdatedEvent
+                .SendAsync(HubEvents.TaskUpdated, new KanbanTaskUpdatedEvent
                 {
                     TaskId = taskId,
                     UpdatedByUserId = updatedByUserId

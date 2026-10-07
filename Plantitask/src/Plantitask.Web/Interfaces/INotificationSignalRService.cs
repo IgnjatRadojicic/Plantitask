@@ -7,8 +7,8 @@ public interface INotificationSignalRService : IAsyncDisposable
 {
     event Func<NotificationDto, Task>? OnNotificationReceived;
     Task ConnectAsync();
-    Task JoinGroupRoomAsync(string groupId);
-    Task LeaveGroupRoomAsync(string groupId);
+    Task JoinGroupRoomAsync(Guid groupId);
+    Task LeaveGroupRoomAsync(Guid groupId);
     Task DisconnectAsync();
     bool IsConnected { get; }
 }

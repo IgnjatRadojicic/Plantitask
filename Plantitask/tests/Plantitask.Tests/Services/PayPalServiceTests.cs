@@ -11,6 +11,7 @@ using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Services;
 using Plantitask.Tests.Helpers;
 using static Plantitask.Tests.Helpers.TestIds;
+using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Tests.Services
 {

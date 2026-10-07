@@ -1,28 +1,28 @@
-﻿
-using System.Net;
-
 namespace Plantitask.Core.Common
 {
-    public record Error(string Code, string Message, HttpStatusCode StatusCode)
+    public record Error(ErrorType Type, string Message)
     {
+        public string Code => Type.ToString();
+
         public static Error NotFound(string message) =>
-            new("NotFound", message, HttpStatusCode.NotFound);
+            new(ErrorType.NotFound, message);
 
         public static Error Unauthorized(string message) =>
-            new("Unauthorized", message, HttpStatusCode.Unauthorized);
+            new(ErrorType.Unauthorized, message);
+
         public static Error BadRequest(string message) =>
-            new("BadRequest", message, HttpStatusCode.BadRequest);
+            new(ErrorType.BadRequest, message);
 
         public static Error Forbidden(string message) =>
-            new("Forbidden", message, HttpStatusCode.Forbidden);
+            new(ErrorType.Forbidden, message);
 
         public static Error Validation(string message) =>
-            new("Validation", message, HttpStatusCode.UnprocessableEntity);
+            new(ErrorType.Validation, message);
 
         public static Error Conflict(string message) =>
-            new("Conflict", message, HttpStatusCode.Conflict);
+            new(ErrorType.Conflict, message);
 
         public static Error Internal(string message) =>
-            new("Internal", message, HttpStatusCode.InternalServerError);
+            new(ErrorType.Internal, message);
     }
 }

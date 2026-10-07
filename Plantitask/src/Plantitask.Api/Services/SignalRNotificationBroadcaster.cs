@@ -2,6 +2,7 @@
 using Plantitask.Api.Hubs;
 using Plantitask.Api.Interfaces;
 using Plantitask.Core.DTO.Notifications;
+using Plantitask.Core.SignalR;
 using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Services;
@@ -32,7 +33,7 @@ public class SignalRNotificationBroadcaster : INotificationBroadcaster
         {
             await _hubContext.Clients
                 .Group($"user_{notification.UserId}")
-                .SendAsync("ReceiveNotification", notification);
+                .SendAsync(HubEvents.ReceiveNotification, notification);
 
             _logger.LogInformation(
                 "Notification broadcast to user {UserId} via SignalR: {Title}",
@@ -53,7 +54,7 @@ public class SignalRNotificationBroadcaster : INotificationBroadcaster
         {
             await _hubContext.Clients
                 .Group($"group_{groupId}")
-                .SendAsync("ReceiveNotification", notification);
+                .SendAsync(HubEvents.ReceiveNotification, notification);
 
             _logger.LogInformation(
                 "Notification broadcast to group {GroupId} via SignalR: {Title}",

@@ -2,6 +2,7 @@
 using Plantitask.Api.Hubs;
 using Plantitask.Api.Interfaces;
 using Plantitask.Core.Interfaces;
+using Plantitask.Core.SignalR;
 
 namespace Plantitask.Api.Services;
 
@@ -48,7 +49,7 @@ public class TreeProgressBroadcaster : ITreeProgressBroadcaster
 
             await _hub.Clients
                 .Group($"group_{groupId}")
-                .SendAsync("TreeUpdated",
+                .SendAsync(HubEvents.TreeUpdated,
                     groupId.ToString(),
                     (int)tree.CurrentTreeStage,
                     tree.CompletionPercentage);

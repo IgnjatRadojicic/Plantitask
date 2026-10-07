@@ -4,6 +4,7 @@ using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
 using Plantitask.Core.DTO.Dashboard;
+using Plantitask.Core.SignalR;
 namespace Plantitask.Web.Services;
 
 public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
@@ -12,7 +13,7 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
     private readonly ISessionService _session;
     private readonly IConfiguration _configuration;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
-    private HashSet<string> _joinedGroupIds = new();
+    private HashSet<Guid> _joinedGroupIds = new();
 
     public event Func<string, int, double, Task>? OnTreeUpdated;
     public event Func<FieldTreeDto, Task>? OnTreeAdded;
@@ -74,7 +75,7 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
         }
     }
 
-    public async Task JoinGroupRoomsAsync(IEnumerable<string> groupIds)
+    public async Task JoinGroupRoomsAsync(IEnumerable<Guid> groupIds)
     {
         if (_hub is null || _hub.State != HubConnectionState.Connected) return;
 
@@ -108,13 +109,13 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
 
     private void RegisterHandlers(HubConnection hub)
     {
-        hub.On<string, int, double>("TreeUpdated", async (groupId, newStage, completionPct) =>
+        hub.On<string, int, double>(HubEvents.TreeUpdated, async (groupId, newStage, completionPct) =>
         {
             if (OnTreeUpdated is not null)
                 await OnTreeUpdated.Invoke(groupId, newStage, completionPct);
         });
 
-        hub.On<FieldTreeDto>("TreeAdded", async (treeData) =>
+        hub.On<FieldTreeDto>(HubEvents.TreeAdded, async (treeData) =>
         {
             if (OnTreeAdded is not null)
                 await OnTreeAdded.Invoke(treeData);

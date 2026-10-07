@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Plantitask.Core.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 
 namespace Plantitask.Api.Hubs;
@@ -7,10 +8,12 @@ namespace Plantitask.Api.Hubs;
 [Authorize]
 public class NotificationHub : Hub
 {
+    private readonly IGroupService _groupService;
     private readonly ILogger<NotificationHub> _logger;
 
-    public NotificationHub(ILogger<NotificationHub> logger)
+    public NotificationHub(IGroupService groupService, ILogger<NotificationHub> logger)
     {
+        _groupService = groupService;
         _logger = logger;
     }
 
@@ -39,17 +42,31 @@ public class NotificationHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task JoinGroupRoom(string groupId)
+    public async Task JoinGroupRoom(Guid groupId)
     {
+        if (!await _groupService.IsUserMemberAsync(groupId, GetUserId()))
+            throw new HubException("You are not a member of this group");
+
         await Groups.AddToGroupAsync(Context.ConnectionId, $"group_{groupId}");
         _logger.LogInformation("Connection {ConnectionId} joined group {GroupId}",
             Context.ConnectionId, groupId);
     }
 
-    public async Task LeaveGroupRoom(string groupId)
+    // Leaving is ungated on purpose. A member removed from a group must still be able to
+    // drop the room and nobody is harmed by leaving one they were never in.
+    public async Task LeaveGroupRoom(Guid groupId)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"group_{groupId}");
         _logger.LogInformation("Connection {ConnectionId} left group {GroupId}",
             Context.ConnectionId, groupId);
+    }
+
+    private Guid GetUserId()
+    {
+        var sub = Context.User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+        return Guid.TryParse(sub, out var userId)
+            ? userId
+            : throw new HubException("Unauthenticated");
     }
 }

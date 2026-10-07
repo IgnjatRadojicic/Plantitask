@@ -36,8 +36,20 @@ namespace Plantitask.Api.Extensions
 
         private static IActionResult ToErrorResponse(Error error)
         {
-            var body = new { status = (int)error.StatusCode, message = error.Message };
-            return new ObjectResult(body) { StatusCode = (int)error.StatusCode };
+            // An unmapped ErrorType becomes a 500 so adding one means updating this switch by hand.
+            var status = error.Type switch
+            {
+                ErrorType.NotFound => StatusCodes.Status404NotFound,
+                ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+                ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+                ErrorType.BadRequest => StatusCodes.Status400BadRequest,
+                ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
+                ErrorType.Conflict => StatusCodes.Status409Conflict,
+                _ => StatusCodes.Status500InternalServerError
+            };
+
+            var body = new { status, message = error.Message };
+            return new ObjectResult(body) { StatusCode = status };
         }
     }
 }

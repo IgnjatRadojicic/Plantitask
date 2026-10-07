@@ -4,6 +4,7 @@ using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
 using Plantitask.Core.DTO.Kanban;
+using Plantitask.Core.SignalR;
 namespace Plantitask.Web.Services;
 
 public class KanbanSignalRService : IKanbanSignalRService
@@ -106,31 +107,31 @@ public class KanbanSignalRService : IKanbanSignalRService
 
     private void RegisterHandlers(HubConnection hub)
     {
-        hub.On<KanbanTaskMovedEvent>("TaskMoved", async moved =>
+        hub.On<KanbanTaskMovedEvent>(HubEvents.TaskMoved, async moved =>
         {
             if (OnTaskMoved is not null)
                 await OnTaskMoved.Invoke(moved);
         });
 
-        hub.On<string, int, double>("TreeUpdated", async (groupId, stage, pct) =>
+        hub.On<string, int, double>(HubEvents.TreeUpdated, async (groupId, stage, pct) =>
         {
             if (OnTreeUpdated is not null)
                 await OnTreeUpdated.Invoke(groupId, stage, pct);
         });
 
-        hub.On<KanbanTaskCreatedEvent>("TaskCreated", async created =>
+        hub.On<KanbanTaskCreatedEvent>(HubEvents.TaskCreated, async created =>
         {
             if (OnTaskCreated is not null)
                 await OnTaskCreated.Invoke(created);
         });
 
-        hub.On<KanbanTaskDeletedEvent>("TaskDeleted", async deleted =>
+        hub.On<KanbanTaskDeletedEvent>(HubEvents.TaskDeleted, async deleted =>
         {
             if (OnTaskDeleted is not null)
                 await OnTaskDeleted.Invoke(deleted);
         });
 
-        hub.On<KanbanTaskUpdatedEvent>("TaskUpdated", async updated =>
+        hub.On<KanbanTaskUpdatedEvent>(HubEvents.TaskUpdated, async updated =>
         {
             if (OnTaskUpdated is not null)
                 await OnTaskUpdated.Invoke(updated);

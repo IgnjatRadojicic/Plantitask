@@ -59,6 +59,9 @@ services:
       JwtSettings__AccessTokenExpiryInMinutes: 15
       JwtSettings__RefreshTokenExpiryInDays: 7
       App__FrontendUrl: "https://plantitask.com"
+      ForwardedHeaders__ClientIpHeader: "CF-Connecting-IP"
+      ForwardedHeaders__ForwardLimit: 1
+      ForwardedHeaders__KnownNetworks__0: "172.20.0.0/16"
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:8080"
       EmailSettings__Provider: "Smtp"
@@ -91,7 +94,7 @@ services:
     volumes:
       - uploads-data:/app/uploads
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
 
   # ---- Blazor WASM Frontend ----
   web:

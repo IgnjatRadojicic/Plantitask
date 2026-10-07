@@ -2,8 +2,9 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Plantitask.Core.Common;
 
-namespace Plantitask.Core.Common
+namespace Plantitask.Infrastructure.Data
 {
     public static class PaginatedListExtensions
     {

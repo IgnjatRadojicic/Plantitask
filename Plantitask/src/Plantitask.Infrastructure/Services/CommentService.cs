@@ -6,6 +6,7 @@ using Plantitask.Core.DTO.Comments;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Projections;
+using Plantitask.Infrastructure.Data;
 
 namespace Plantitask.Infrastructure.Services;
 
