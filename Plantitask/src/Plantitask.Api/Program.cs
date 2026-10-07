@@ -1,10 +1,12 @@
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Plantitask.Api.Configuration;
 using Plantitask.Api.Filters;
 using Plantitask.Api.Hubs;
 using Plantitask.Api.Interfaces;
@@ -20,6 +22,7 @@ using Plantitask.Infrastructure.Services;
 using Plantitask.Infrastructure.Services.Email;
 using Plantitask.Infrastructure.Services.Storage;
 using StackExchange.Redis;
+using System.Net;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -65,6 +68,35 @@ builder.Services.AddOptions<AppSettings>()
     .BindConfiguration(AppSettings.SectionName)
     .ValidateDataAnnotations()
     .ValidateOnStart();
+
+builder.Services.AddOptions<ForwardedHeadersSettings>()
+    .BindConfiguration(ForwardedHeadersSettings.SectionName)
+    .ValidateDataAnnotations()
+    .Validate(s => s.KnownNetworks.All(n => System.Net.IPNetwork.TryParse(n, out _)),
+        "ForwardedHeaders:KnownNetworks has an entry that is not valid CIDR")
+    .ValidateOnStart();
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    var settings = builder.Configuration
+        .GetSection(ForwardedHeadersSettings.SectionName)
+        .Get<ForwardedHeadersSettings>() ?? new();
+
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor;
+    options.ForwardedForHeaderName = settings.ClientIpHeader;
+    options.ForwardLimit = settings.ForwardLimit;
+
+    // Both lists ship with loopback already trusted so they are emptied before the one
+    // network we actually trust is added.
+    options.KnownProxies.Clear();
+    options.KnownNetworks.Clear();
+
+    foreach (var cidr in settings.KnownNetworks)
+    {
+        var parsed = System.Net.IPNetwork.Parse(cidr);
+        options.KnownNetworks.Add(new(parsed.BaseAddress, parsed.PrefixLength));
+    }
+});
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
@@ -290,6 +322,7 @@ var app = builder.Build();
 
 // Middleware for Exception handlin
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
