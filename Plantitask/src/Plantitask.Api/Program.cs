@@ -372,6 +372,25 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();   // 1. HTTPS first
 app.UseCors("AllowFrontend"); // 2. CORS before auth
+
+// The provider root is the avatars folder and not the uploads root so attachments have no
+// reachable path here. PhysicalFileProvider throws when the folder is missing so a fresh
+// volume would fail to boot without the CreateDirectory.
+var localStorage = app.Services
+    .GetRequiredService<IOptions<FileStorageSettings>>().Value.LocalStorage;
+
+var avatarsPath = Path.GetFullPath(
+    Path.Combine(localStorage.BasePath, "avatars"), app.Environment.ContentRootPath);
+
+Directory.CreateDirectory(avatarsPath);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(avatarsPath),
+    RequestPath = "/files/avatars",
+    OnPrepareResponse = ctx =>
+        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff"
+});
 app.UseAuthentication();      // 3. Auth
 app.UseAuthorization();       // 4. Authorization
 app.UseRateLimiter();
@@ -397,25 +416,6 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate();
 }
-
-// The provider root is the avatars folder and not the uploads root so attachments have no
-// reachable path here. PhysicalFileProvider throws when the folder is missing so a fresh
-// volume would fail to boot without the CreateDirectory.
-var localStorage = app.Services
-    .GetRequiredService<IOptions<FileStorageSettings>>().Value.LocalStorage;
-
-var avatarsPath = Path.GetFullPath(
-    Path.Combine(localStorage.BasePath, "avatars"), app.Environment.ContentRootPath);
-
-Directory.CreateDirectory(avatarsPath);
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(avatarsPath),
-    RequestPath = "/files/avatars",
-    OnPrepareResponse = ctx =>
-        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff"
-});
 
 app.Run();
 
