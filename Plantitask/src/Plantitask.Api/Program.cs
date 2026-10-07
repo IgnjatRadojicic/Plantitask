@@ -321,9 +321,18 @@ builder.Services.AddHangfire(configuration => configuration
         QueuePollInterval = TimeSpan.FromSeconds(30)
     }));
 
+builder.Services.AddOptions<HangfireSettings>()
+    .BindConfiguration(HangfireSettings.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+var hangfireSettings = builder.Configuration
+    .GetSection(HangfireSettings.SectionName)
+    .Get<HangfireSettings>() ?? new();
+
 builder.Services.AddHangfireServer(options =>
 {
-    options.WorkerCount = 2;
+    options.WorkerCount = hangfireSettings.WorkerCount;
     options.SchedulePollingInterval = TimeSpan.FromMinutes(1);
 });
 
@@ -408,7 +417,12 @@ app.UseRateLimiter();
 // Hangfire Dashboard
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
-    Authorization = new[] { new HangfireAuthorizationFilter(app.Environment) }
+    Authorization = new[]
+    {
+        new HangfireAuthorizationFilter(
+            app.Environment,
+            app.Services.GetRequiredService<IOptions<HangfireSettings>>().Value)
+    }
 });
 
 app.MapHub<NotificationHub>("/hubs/notifications");
