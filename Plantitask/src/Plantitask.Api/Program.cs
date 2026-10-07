@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Plantitask.Api.Configuration;
+using Plantitask.Api.Extensions;
 using Plantitask.Api.Filters;
 using Plantitask.Api.Hubs;
 using Plantitask.Api.Interfaces;
@@ -22,7 +23,9 @@ using Plantitask.Infrastructure.Services;
 using Plantitask.Infrastructure.Services.Email;
 using Plantitask.Infrastructure.Services.Storage;
 using StackExchange.Redis;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -172,23 +175,34 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    options.AddFixedWindowLimiter(RateLimitPolicies.Auth, opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 15;
-    });
+    options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ClientKey(httpContext),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 15,
+            }));
 
-    options.AddFixedWindowLimiter(RateLimitPolicies.Verification, opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(5);
-        opt.PermitLimit = 10;
-    });
+    options.AddPolicy(RateLimitPolicies.Verification, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ClientKey(httpContext),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(5),
+                PermitLimit = 10,
+            }));
 
-    options.AddFixedWindowLimiter(RateLimitPolicies.General, opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 60;
-    });
+    // Authenticated callers are keyed by user and not by address because an office behind one
+    // NAT shares an address and would otherwise throttle each other.
+    options.AddPolicy(RateLimitPolicies.General, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: UserOrClientKey(httpContext),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 60,
+            }));
 });
 
 // Application Services
@@ -372,3 +386,11 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.Run();
+
+static string ClientKey(HttpContext context) =>
+    "ip:" + context.GetClientIpAddress();
+
+static string UserOrClientKey(HttpContext context) =>
+    context.User.FindFirstValue(JwtRegisteredClaimNames.Sub) is string sub
+        ? "u:" + sub
+        : ClientKey(context);
