@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Plantitask.Api.Configuration;
@@ -397,12 +398,23 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// Serve uploaded files
+// The provider root is the avatars folder and not the uploads root so attachments have no
+// reachable path here. PhysicalFileProvider throws when the folder is missing so a fresh
+// volume would fail to boot without the CreateDirectory.
+var localStorage = app.Services
+    .GetRequiredService<IOptions<FileStorageSettings>>().Value.LocalStorage;
+
+var avatarsPath = Path.GetFullPath(
+    Path.Combine(localStorage.BasePath, "avatars"), app.Environment.ContentRootPath);
+
+Directory.CreateDirectory(avatarsPath);
+
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.Combine(app.Environment.ContentRootPath, "uploads")),
-    RequestPath = "/files/avatars"
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(avatarsPath),
+    RequestPath = "/files/avatars",
+    OnPrepareResponse = ctx =>
+        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff"
 });
 
 app.Run();
