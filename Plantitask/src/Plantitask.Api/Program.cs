@@ -228,8 +228,11 @@ builder.Services.AddRateLimiter(options =>
 
 // Application Services
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.Configure<GoogleAuthSettings>(
-    builder.Configuration.GetSection("Google"));
+builder.Services.AddOptions<GoogleAuthSettings>()
+    .Bind(builder.Configuration.GetSection("Google"))
+    .Validate(s => !string.IsNullOrWhiteSpace(s.ClientId), "Google:ClientId must be set")
+    .Validate(s => !string.IsNullOrWhiteSpace(s.ClientSecret), "Google:ClientSecret must be set")
+    .ValidateOnStart();
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
@@ -268,8 +271,16 @@ builder.Services.AddScoped<IGroupCodeGenerator, GroupCodeGenerator>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 
 // PayPal
-builder.Services.Configure<PayPalSettings>(
-    builder.Configuration.GetSection("PayPal"));
+builder.Services.AddOptions<PayPalSettings>()
+    .Bind(builder.Configuration.GetSection("PayPal"))
+    .Validate(s => !string.IsNullOrWhiteSpace(s.ClientId), "PayPal:ClientId must be set")
+    .Validate(s => !string.IsNullOrWhiteSpace(s.ClientSecret), "PayPal:ClientSecret must be set")
+    .Validate(s => Uri.TryCreate(s.BaseUrl, UriKind.Absolute, out var url)
+        && url.Scheme == Uri.UriSchemeHttps,
+        "PayPal:BaseUrl must be an absolute https url")
+    .Validate(s => s.OneTimePrice > 0, "PayPal:OneTimePrice must be > 0")
+    .Validate(s => !string.IsNullOrWhiteSpace(s.Currency), "PayPal:Currency must be set")
+    .ValidateOnStart();
 builder.Services.AddHttpClient<IPayPalService, PayPalService>();
 
 
