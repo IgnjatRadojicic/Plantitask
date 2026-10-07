@@ -342,9 +342,9 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Task Management API",
+        Title = "Plantitask API",
         Version = "v1",
-        Description = "Enterprise Task Management System API"
+        Description = "Plantitask backend API"
     });
 
     // Add JWT Authentication to Swagger
@@ -375,7 +375,7 @@ if (!TimeZoneRules.TryResolve("Europe/Belgrade", out _))
 var app = builder.Build();
 
 
-// Middleware for Exception handlin
+// Middleware for exception handling
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseForwardedHeaders();
 
