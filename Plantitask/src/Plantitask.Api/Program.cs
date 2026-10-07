@@ -10,9 +10,9 @@ using Microsoft.OpenApi;
 using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Api.Filters;
+using Plantitask.Api.Handlers;
 using Plantitask.Api.Hubs;
 using Plantitask.Api.Interfaces;
-using Plantitask.Api.Middleware;
 using Plantitask.Api.Services;
 using Plantitask.Core.Common;
 using Plantitask.Core.Configuration;
@@ -292,6 +292,8 @@ builder.Services.AddHttpContextAccessor();
 
 // Controllers
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 // CORS 
 builder.Services.AddCors(options =>
@@ -375,8 +377,8 @@ if (!TimeZoneRules.TryResolve("Europe/Belgrade", out _))
 var app = builder.Build();
 
 
-// Middleware for exception handling
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline
