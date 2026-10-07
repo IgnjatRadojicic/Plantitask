@@ -23,6 +23,7 @@ using Plantitask.Infrastructure.Services;
 using Plantitask.Infrastructure.Services.Email;
 using Plantitask.Infrastructure.Services.Storage;
 using StackExchange.Redis;
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Claims;
@@ -174,6 +175,25 @@ builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.OnRejected = (context, cancellationToken) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                ((int)retryAfter.TotalSeconds).ToString(NumberFormatInfo.InvariantInfo);
+        }
+
+        // A rejected request short circuits before the controller so it writes no audit row.
+        // Without this line the only record of a throttled caller is that nothing happened.
+        context.HttpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("RateLimiting")
+            .LogWarning("Rate limit hit on {Path} by {Client}",
+                context.HttpContext.Request.Path, UserOrClientKey(context.HttpContext));
+
+        return ValueTask.CompletedTask;
+    };
 
     options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
