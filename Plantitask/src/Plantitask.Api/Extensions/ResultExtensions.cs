@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Plantitask.Core.Common;
 
 namespace Plantitask.Api.Extensions
@@ -48,8 +49,36 @@ namespace Plantitask.Api.Extensions
                 _ => StatusCodes.Status500InternalServerError
             };
 
-            var body = new { status, message = error.Message };
-            return new ObjectResult(body) { StatusCode = status };
+            return new ProblemResult(status, error.Message, error.Code);
+        }
+
+        // A static extension method cannot reach DI, but a result object can because MVC
+        // executes it later with the ActionContext in hand. That is the only reason this
+        // type exists rather than building the ProblemDetails inline.
+        private sealed class ProblemResult : IActionResult
+        {
+            private readonly int _status;
+            private readonly string _detail;
+            private readonly string _errorType;
+
+            public ProblemResult(int status, string detail, string errorType)
+            {
+                _status = status;
+                _detail = detail;
+                _errorType = errorType;
+            }
+            public async Task ExecuteResultAsync(ActionContext context) {
+                var factory = context.HttpContext.RequestServices
+                    .GetRequiredService<ProblemDetailsFactory>();
+
+                var problem = factory.CreateProblemDetails(
+                    context.HttpContext, statusCode: _status, detail: _detail);
+
+                problem.Extensions["errorType"] = _errorType;
+
+                await new ObjectResult(problem) { StatusCode = _status}
+                .ExecuteResultAsync(context); 
+            }
         }
     }
 }
