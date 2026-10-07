@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Core.DTO.Auth;
 using Plantitask.Core.DTO.Plans;
@@ -12,7 +13,7 @@ namespace Plantitask.Api.Controllers;
 
 [Authorize]
 [ApiController]
-[EnableRateLimiting("general")]
+[EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/user/profile")]
 public class UserProfileController : BaseApiController
 {

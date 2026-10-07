@@ -1,4 +1,4 @@
-using Hangfire;
+﻿using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -172,19 +172,19 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    options.AddFixedWindowLimiter("auth", opt =>
+    options.AddFixedWindowLimiter(RateLimitPolicies.Auth, opt =>
     {
         opt.Window = TimeSpan.FromMinutes(1);
         opt.PermitLimit = 15;
     });
 
-    options.AddFixedWindowLimiter("verification", opt =>
+    options.AddFixedWindowLimiter(RateLimitPolicies.Verification, opt =>
     {
         opt.Window = TimeSpan.FromMinutes(5);
         opt.PermitLimit = 10;
     });
 
-    options.AddFixedWindowLimiter("general", opt =>
+    options.AddFixedWindowLimiter(RateLimitPolicies.General, opt =>
     {
         opt.Window = TimeSpan.FromMinutes(1);
         opt.PermitLimit = 60;

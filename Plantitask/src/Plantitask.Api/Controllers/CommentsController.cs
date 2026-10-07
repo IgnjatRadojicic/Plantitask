@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Api.Interfaces;
 using Plantitask.Core.Common;
@@ -11,7 +12,7 @@ namespace Plantitask.Api.Controllers;
 
 [Authorize]
 [ApiController]
-[EnableRateLimiting("general")]
+[EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/tasks/{taskId}/comments")]
 public class CommentsController : BaseApiController
 {

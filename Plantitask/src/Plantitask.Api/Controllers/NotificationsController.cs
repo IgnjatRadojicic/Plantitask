@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
+using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Api.Hubs;
 using Plantitask.Core.Common;
@@ -12,7 +13,7 @@ namespace Plantitask.Api.Controllers;
 
 [Authorize]
 [ApiController]
-[EnableRateLimiting("general")]
+[EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/[controller]")]
 public class NotificationsController : BaseApiController
 {

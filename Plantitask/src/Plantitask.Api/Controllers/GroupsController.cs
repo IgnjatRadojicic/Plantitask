@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Core.DTO.Groups;
 using Plantitask.Core.Interfaces;
@@ -10,7 +11,7 @@ namespace Plantitask.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    [EnableRateLimiting("general")]
+    [EnableRateLimiting(RateLimitPolicies.General)]
     [Produces("application/json")]
     public class GroupsController : BaseApiController
     {

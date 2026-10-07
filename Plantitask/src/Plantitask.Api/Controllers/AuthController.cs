@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Core.DTO.Audit;
 using Plantitask.Core.DTO.Auth;
@@ -9,7 +10,7 @@ using Plantitask.Core.Interfaces;
 namespace Plantitask.Api.Controllers
 {
     [ApiController]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
     [Route("api/[controller]")]
     public class AuthController : BaseApiController
     {
@@ -149,7 +150,7 @@ namespace Plantitask.Api.Controllers
         }
 
         [HttpPost("check-email")]
-        [EnableRateLimiting("verification")]
+        [EnableRateLimiting(RateLimitPolicies.Verification)]
         public async Task<IActionResult> CheckEmail([FromBody] CheckEmailDto dto)
         {
             var result = await _authService.CheckEmailAsync(dto.Email);
@@ -168,7 +169,7 @@ namespace Plantitask.Api.Controllers
         }
 
         [HttpPost("verify-email")]
-        [EnableRateLimiting("verification")]
+        [EnableRateLimiting(RateLimitPolicies.Verification)]
         public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto)
         {
             var result = await _authService.VerifyEmailCodeAsync(dto.Email, dto.Code);

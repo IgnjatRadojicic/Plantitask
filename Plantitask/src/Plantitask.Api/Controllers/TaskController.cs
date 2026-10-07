@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Api.Interfaces;
 using Plantitask.Api.Services;
@@ -12,7 +13,7 @@ namespace Plantitask.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    [EnableRateLimiting("general")]
+    [EnableRateLimiting(RateLimitPolicies.General)]
     public class TaskController : BaseApiController
     {
         private readonly ITaskService _taskService;
