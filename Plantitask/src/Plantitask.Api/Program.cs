@@ -94,12 +94,12 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     // Both lists ship with loopback already trusted so they are emptied before the one
     // network we actually trust is added.
     options.KnownProxies.Clear();
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
 
     foreach (var cidr in settings.KnownNetworks)
     {
         var parsed = System.Net.IPNetwork.Parse(cidr);
-        options.KnownNetworks.Add(new(parsed.BaseAddress, parsed.PrefixLength));
+        options.KnownIPNetworks.Add(new(parsed.BaseAddress, parsed.PrefixLength));
     }
 });
 
