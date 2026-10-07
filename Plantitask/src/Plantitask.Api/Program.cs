@@ -415,17 +415,12 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<KanbanHub>("/hubs/kanban");
 app.MapControllers();
 
-// Hangfire Jobs
+// Migrations run before the recurring jobs are registered because a job scheduled against a
+// schema that has not migrated yet can fire on the old tables.
 using (var scope = app.Services.CreateScope())
 {
-    var backgroundJobsService = scope.ServiceProvider.GetRequiredService<IBackgroundJobService>();
-    backgroundJobsService.SetupRecurringJobs();
-}
-
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
+    scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.Migrate();
+    scope.ServiceProvider.GetRequiredService<IBackgroundJobService>().SetupRecurringJobs();
 }
 
 app.Run();
