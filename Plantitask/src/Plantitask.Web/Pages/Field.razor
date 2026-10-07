@@ -112,7 +112,7 @@
             await LoadFieldData();
             await FieldSignalR.ConnectAsync();
             await FieldSignalR.JoinGroupRoomsAsync(
-    _fieldTrees.Select(t => t.GroupId.ToString()));
+    _fieldTrees.Select(t => t.GroupId));
 
             var uri    = new Uri(Navigation.Uri);
             var query  = System.Web.HttpUtility.ParseQueryString(uri.Query);

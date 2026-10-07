@@ -8,7 +8,7 @@ namespace Plantitask.Web.Interfaces
         public ValueTask DisposeAsync();
         public Task ConnectAsync();
 
-        Task JoinGroupRoomsAsync(IEnumerable<string> groupIds);
+        Task JoinGroupRoomsAsync(IEnumerable<Guid> groupIds);
 
         public event Func<string, int, double, Task>? OnTreeUpdated;
         public event Func<FieldTreeDto, Task>? OnTreeAdded;

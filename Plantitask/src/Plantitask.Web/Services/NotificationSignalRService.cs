@@ -14,7 +14,7 @@ namespace Plantitask.Web.Services
         private readonly ISessionService _session;
         private readonly IConfiguration _configuration;
         private readonly SemaphoreSlim _connectionLock = new(1, 1);
-        private readonly HashSet<string> _joinedGroupIds = new();
+        private readonly HashSet<Guid> _joinedGroupIds = new();
 
         public event Func<NotificationDto, Task>? OnNotificationReceived;
 
@@ -76,14 +76,14 @@ namespace Plantitask.Web.Services
             }
         }
 
-        public async Task JoinGroupRoomAsync(string groupId)
+        public async Task JoinGroupRoomAsync(Guid groupId)
         {
             if (_hub is null || _hub.State != HubConnectionState.Connected) return;
             await _hub.SendAsync("JoinGroupRoom", groupId);
             _joinedGroupIds.Add(groupId);
         }
 
-        public async Task LeaveGroupRoomAsync(string groupId)
+        public async Task LeaveGroupRoomAsync(Guid groupId)
         {
             if (_hub is null || _hub.State != HubConnectionState.Connected) return;
 

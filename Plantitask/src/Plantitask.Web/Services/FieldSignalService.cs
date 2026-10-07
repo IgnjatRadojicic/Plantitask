@@ -13,7 +13,7 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
     private readonly ISessionService _session;
     private readonly IConfiguration _configuration;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
-    private HashSet<string> _joinedGroupIds = new();
+    private HashSet<Guid> _joinedGroupIds = new();
 
     public event Func<string, int, double, Task>? OnTreeUpdated;
     public event Func<FieldTreeDto, Task>? OnTreeAdded;
@@ -75,7 +75,7 @@ public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService
         }
     }
 
-    public async Task JoinGroupRoomsAsync(IEnumerable<string> groupIds)
+    public async Task JoinGroupRoomsAsync(IEnumerable<Guid> groupIds)
     {
         if (_hub is null || _hub.State != HubConnectionState.Connected) return;
 
