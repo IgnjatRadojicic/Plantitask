@@ -75,7 +75,7 @@ public class UserProfileController : BaseApiController
     public async Task<IActionResult> UploadProfilePicture(IFormFile file)
     {
         if (file is null || file.Length == 0)
-            return BadRequest(new { message = "No file provided" });
+            return Problem(detail: "No file provided", statusCode: StatusCodes.Status400BadRequest);
 
         var userId = GetUserId();
         using var stream = file.OpenReadStream();
