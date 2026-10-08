@@ -1,18 +1,18 @@
-using Hangfire.Dashboard;
+﻿using Hangfire.Dashboard;
+using Plantitask.Api.Configuration;
 using System.Net;
 
 namespace Plantitask.Api.Filters;
 
 public class HangfireAuthorizationFilter : IDashboardAuthorizationFilter
 {
-    // Will move implementation in the future to Azure Credentials
-    private static readonly string[] AllowedAdmins = { "ignjatradojicic@gmail.com" };
-
     private readonly bool _isDevelopment;
+    private readonly string[] _allowedAdmins;
 
-    public HangfireAuthorizationFilter(IWebHostEnvironment environment)
+    public HangfireAuthorizationFilter(IWebHostEnvironment environment, HangfireSettings settings)
     {
         _isDevelopment = environment.IsDevelopment();
+        _allowedAdmins = settings.AdminEmails.ToArray();
     }
 
     public bool Authorize(DashboardContext context)
@@ -31,7 +31,7 @@ public class HangfireAuthorizationFilter : IDashboardAuthorizationFilter
         var email = httpContext.User.FindFirst("email")?.Value
                     ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
 
-        return AllowedAdmins.Contains(email, StringComparer.OrdinalIgnoreCase);
+        return _allowedAdmins.Contains(email, StringComparer.OrdinalIgnoreCase);
     }
 
     private static bool IsLocalRequest(HttpContext httpContext)

@@ -16,7 +16,7 @@ namespace Plantitask.Core.DTO.Groups
         public string TimeZoneId { get; set; } = string.Empty;
         public int MemberCount { get; set; }
         public GroupRole UserRole { get; set; }
-        public DateTime JoinedAt { get; set; }
+        public DateTime? JoinedAt { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

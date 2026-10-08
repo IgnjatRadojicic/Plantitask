@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Core.DTO.Auth;
 using Plantitask.Core.DTO.Plans;
@@ -12,7 +13,7 @@ namespace Plantitask.Api.Controllers;
 
 [Authorize]
 [ApiController]
-[EnableRateLimiting("general")]
+[EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/user/profile")]
 public class UserProfileController : BaseApiController
 {
@@ -74,7 +75,7 @@ public class UserProfileController : BaseApiController
     public async Task<IActionResult> UploadProfilePicture(IFormFile file)
     {
         if (file is null || file.Length == 0)
-            return BadRequest(new { message = "No file provided" });
+            return Problem(detail: "No file provided", statusCode: StatusCodes.Status400BadRequest);
 
         var userId = GetUserId();
         using var stream = file.OpenReadStream();

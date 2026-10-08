@@ -117,6 +117,8 @@ namespace Plantitask.Infrastructure.Services
                 TimeZoneId = group.TimeZoneId,
                 MemberCount = 1,
                 UserRole = GroupRole.Owner,
+                JoinedAt = ownerMember.CreatedAt,
+                CreatedAt = group.CreatedAt,
             };
         }
 
@@ -143,6 +145,7 @@ namespace Plantitask.Infrastructure.Services
                     g.PasswordHash,
                     g.TimeZoneId,
                     g.IsActive,
+                    g.CreatedAt,
                 })
                 .FirstOrDefaultAsync();
 
@@ -180,6 +183,8 @@ namespace Plantitask.Infrastructure.Services
 
             var rejoin = existingMember != null;
 
+            GroupMember member;
+
             if (existingMember != null)
 
             {
@@ -189,15 +194,20 @@ namespace Plantitask.Infrastructure.Services
                 existingMember.UpdatedBy = userId;
                 existingMember.RoleId = (int)GroupRole.Member;
 
+                // A restore keeps the original CreatedAt so JoinedAt stays the first join and
+                // reads as member since rather than resetting on every rejoin.
+                member = existingMember;
             } else
             {
-                _context.GroupMembers.Add(new GroupMember
+                member = new GroupMember
                 {
                     GroupId = groupData.Id,
                     UserId = userId,
                     RoleId = (int)GroupRole.Member,
                     CreatedBy = userId
-                });
+                };
+
+                _context.GroupMembers.Add(member);
             }
 
             await _context.SaveChangesAsync();
@@ -217,6 +227,8 @@ namespace Plantitask.Infrastructure.Services
                 TimeZoneId = groupData.TimeZoneId,
                 MemberCount = memberCount,
                 UserRole = GroupRole.Member,
+                JoinedAt = member.CreatedAt,
+                CreatedAt = groupData.CreatedAt,
             };
 
         }
@@ -283,6 +295,7 @@ namespace Plantitask.Infrastructure.Services
                     Email = gm.User.Email,
                     ProfilePicturePath = gm.User.ProfilePicturePath,
                     Role = (GroupRole)gm.RoleId,
+                    JoinedAt = gm.CreatedAt,
                 }).ToListAsync();
 
             return new GroupDetailsDto
@@ -345,6 +358,7 @@ namespace Plantitask.Infrastructure.Services
                 TimeZoneId = group.TimeZoneId,
                 MemberCount = memberCount,
                 UserRole = callerRole.Value,
+                CreatedAt = group.CreatedAt,
             };
         }
 
@@ -414,7 +428,8 @@ namespace Plantitask.Infrastructure.Services
                 UserName = row.UserName,
                 Email = row.Email,
                 ProfilePicturePath = row.ProfilePicturePath,
-                Role = changeRoleDto.NewRole
+                Role = changeRoleDto.NewRole,
+                JoinedAt = targetMembership.CreatedAt,
             };
         }
 

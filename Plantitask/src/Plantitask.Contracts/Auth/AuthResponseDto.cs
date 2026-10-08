@@ -9,7 +9,5 @@ namespace Plantitask.Core.DTO.Auth
         public string UserName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public Guid UserId { get; set; }
-        public DateTime AccessTokenExpiresAt { get; set; } 
-        public DateTime RefreshTokenExpiresAt { get; set; } 
     }
 }

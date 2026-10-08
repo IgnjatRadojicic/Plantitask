@@ -62,6 +62,9 @@ services:
       ForwardedHeaders__ClientIpHeader: "CF-Connecting-IP"
       ForwardedHeaders__ForwardLimit: 1
       ForwardedHeaders__KnownNetworks__0: "172.20.0.0/16"
+      Hangfire__WorkerCount: 2
+      Hangfire__AdminEmails__0: ${HANGFIRE_ADMIN_EMAIL}
+      Logging__Console__IncludeScopes: "true"
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:8080"
       EmailSettings__Provider: "Smtp"

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Core.DTO.Audit;
 using Plantitask.Core.Interfaces;
@@ -11,7 +12,7 @@ namespace Plantitask.Api.Controllers
     // entities, and GetUserHistoryAsync returns any user's login trail with IPs. Closed until admin panel work
     [Authorize]
     [Route("api/[controller]")]
-    [EnableRateLimiting("general")]
+    [EnableRateLimiting(RateLimitPolicies.General)]
     [Produces("application/json")]
     public class AuditController : BaseApiController
     {

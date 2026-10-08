@@ -1,16 +1,18 @@
-using Hangfire;
+﻿using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Plantitask.Api.Configuration;
+using Plantitask.Api.Extensions;
 using Plantitask.Api.Filters;
+using Plantitask.Api.Handlers;
 using Plantitask.Api.Hubs;
 using Plantitask.Api.Interfaces;
-using Plantitask.Api.Middleware;
 using Plantitask.Api.Services;
 using Plantitask.Core.Common;
 using Plantitask.Core.Configuration;
@@ -22,7 +24,10 @@ using Plantitask.Infrastructure.Services;
 using Plantitask.Infrastructure.Services.Email;
 using Plantitask.Infrastructure.Services.Storage;
 using StackExchange.Redis;
+using System.Globalization;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -89,12 +94,12 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     // Both lists ship with loopback already trusted so they are emptied before the one
     // network we actually trust is added.
     options.KnownProxies.Clear();
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
 
     foreach (var cidr in settings.KnownNetworks)
     {
         var parsed = System.Net.IPNetwork.Parse(cidr);
-        options.KnownNetworks.Add(new(parsed.BaseAddress, parsed.PrefixLength));
+        options.KnownIPNetworks.Add(new(parsed.BaseAddress, parsed.PrefixLength));
     }
 });
 
@@ -172,29 +177,62 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    options.AddFixedWindowLimiter("auth", opt =>
+    options.OnRejected = (context, cancellationToken) =>
     {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 15;
-    });
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                ((int)retryAfter.TotalSeconds).ToString(NumberFormatInfo.InvariantInfo);
+        }
 
-    options.AddFixedWindowLimiter("verification", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(5);
-        opt.PermitLimit = 10;
-    });
+        // A rejected request short circuits before the controller so it writes no audit row.
+        // Without this line the only record of a throttled caller is that nothing happened.
+        context.HttpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("RateLimiting")
+            .LogWarning("Rate limit hit on {Path} by {Client}",
+                context.HttpContext.Request.Path, UserOrClientKey(context.HttpContext));
 
-    options.AddFixedWindowLimiter("general", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 60;
-    });
+        return ValueTask.CompletedTask;
+    };
+
+    options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ClientKey(httpContext),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 15,
+            }));
+
+    options.AddPolicy(RateLimitPolicies.Verification, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ClientKey(httpContext),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(5),
+                PermitLimit = 10,
+            }));
+
+    // Authenticated callers are keyed by user and not by address because an office behind one
+    // NAT shares an address and would otherwise throttle each other.
+    options.AddPolicy(RateLimitPolicies.General, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: UserOrClientKey(httpContext),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 60,
+            }));
 });
 
 // Application Services
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.Configure<GoogleAuthSettings>(
-    builder.Configuration.GetSection("Google"));
+builder.Services.AddOptions<GoogleAuthSettings>()
+    .Bind(builder.Configuration.GetSection("Google"))
+    .Validate(s => !string.IsNullOrWhiteSpace(s.ClientId), "Google:ClientId must be set")
+    .Validate(s => !string.IsNullOrWhiteSpace(s.ClientSecret), "Google:ClientSecret must be set")
+    .ValidateOnStart();
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
@@ -233,8 +271,16 @@ builder.Services.AddScoped<IGroupCodeGenerator, GroupCodeGenerator>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 
 // PayPal
-builder.Services.Configure<PayPalSettings>(
-    builder.Configuration.GetSection("PayPal"));
+builder.Services.AddOptions<PayPalSettings>()
+    .Bind(builder.Configuration.GetSection("PayPal"))
+    .Validate(s => !string.IsNullOrWhiteSpace(s.ClientId), "PayPal:ClientId must be set")
+    .Validate(s => !string.IsNullOrWhiteSpace(s.ClientSecret), "PayPal:ClientSecret must be set")
+    .Validate(s => Uri.TryCreate(s.BaseUrl, UriKind.Absolute, out var url)
+        && url.Scheme == Uri.UriSchemeHttps,
+        "PayPal:BaseUrl must be an absolute https url")
+    .Validate(s => s.OneTimePrice > 0, "PayPal:OneTimePrice must be > 0")
+    .Validate(s => !string.IsNullOrWhiteSpace(s.Currency), "PayPal:Currency must be set")
+    .ValidateOnStart();
 builder.Services.AddHttpClient<IPayPalService, PayPalService>();
 
 
@@ -246,6 +292,8 @@ builder.Services.AddHttpContextAccessor();
 
 // Controllers
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 // CORS 
 builder.Services.AddCors(options =>
@@ -275,9 +323,18 @@ builder.Services.AddHangfire(configuration => configuration
         QueuePollInterval = TimeSpan.FromSeconds(30)
     }));
 
+builder.Services.AddOptions<HangfireSettings>()
+    .BindConfiguration(HangfireSettings.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+var hangfireSettings = builder.Configuration
+    .GetSection(HangfireSettings.SectionName)
+    .Get<HangfireSettings>() ?? new();
+
 builder.Services.AddHangfireServer(options =>
 {
-    options.WorkerCount = 2;
+    options.WorkerCount = hangfireSettings.WorkerCount;
     options.SchedulePollingInterval = TimeSpan.FromMinutes(1);
 });
 
@@ -287,9 +344,9 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Task Management API",
+        Title = "Plantitask API",
         Version = "v1",
-        Description = "Enterprise Task Management System API"
+        Description = "Plantitask backend API"
     });
 
     // Add JWT Authentication to Swagger
@@ -320,8 +377,8 @@ if (!TimeZoneRules.TryResolve("Europe/Belgrade", out _))
 var app = builder.Build();
 
 
-// Middleware for Exception handlin
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline
@@ -337,38 +394,57 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();   // 1. HTTPS first
 app.UseCors("AllowFrontend"); // 2. CORS before auth
+
+// The provider root is the avatars folder and not the uploads root so attachments have no
+// reachable path here. PhysicalFileProvider throws when the folder is missing so a fresh
+// volume would fail to boot without the CreateDirectory.
+var localStorage = app.Services
+    .GetRequiredService<IOptions<FileStorageSettings>>().Value.LocalStorage;
+
+var avatarsPath = Path.GetFullPath(
+    Path.Combine(localStorage.BasePath, "avatars"), app.Environment.ContentRootPath);
+
+Directory.CreateDirectory(avatarsPath);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(avatarsPath),
+    RequestPath = "/files/avatars",
+    OnPrepareResponse = ctx =>
+        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff"
+});
 app.UseAuthentication();      // 3. Auth
 app.UseAuthorization();       // 4. Authorization
 app.UseRateLimiter();
 // Hangfire Dashboard
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
-    Authorization = new[] { new HangfireAuthorizationFilter(app.Environment) }
+    Authorization = new[]
+    {
+        new HangfireAuthorizationFilter(
+            app.Environment,
+            app.Services.GetRequiredService<IOptions<HangfireSettings>>().Value)
+    }
 });
 
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<KanbanHub>("/hubs/kanban");
 app.MapControllers();
 
-// Hangfire Jobs
+// Migrations run before the recurring jobs are registered because a job scheduled against a
+// schema that has not migrated yet can fire on the old tables.
 using (var scope = app.Services.CreateScope())
 {
-    var backgroundJobsService = scope.ServiceProvider.GetRequiredService<IBackgroundJobService>();
-    backgroundJobsService.SetupRecurringJobs();
+    scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.Migrate();
+    scope.ServiceProvider.GetRequiredService<IBackgroundJobService>().SetupRecurringJobs();
 }
-
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
-}
-
-// Serve uploaded files
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.Combine(app.Environment.ContentRootPath, "uploads")),
-    RequestPath = "/files/avatars"
-});
 
 app.Run();
+
+static string ClientKey(HttpContext context) =>
+    "ip:" + context.GetClientIpAddress();
+
+static string UserOrClientKey(HttpContext context) =>
+    context.User.FindFirstValue(JwtRegisteredClaimNames.Sub) is string sub
+        ? "u:" + sub
+        : ClientKey(context);

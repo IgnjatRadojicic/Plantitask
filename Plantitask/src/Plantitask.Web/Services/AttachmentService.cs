@@ -32,7 +32,7 @@ public class AttachmentService : BaseApiService, IAttachmentService
             }
 
 
-            var error = await ReadErrorResponse(response);
+            var error = await ReadError(response);
             return ServiceResult<AttachmentDto>.Fail(error);
         }
         catch (HttpRequestException)
@@ -56,7 +56,7 @@ public class AttachmentService : BaseApiService, IAttachmentService
             var response = await Http.GetAsync($"api/tasks/{taskId}/attachments/{attachmentId}/download");
 
             if (!response.IsSuccessStatusCode)
-                return ServiceResult<FileDownload>.Fail(await ReadErrorResponse(response));
+                return ServiceResult<FileDownload>.Fail(await ReadError(response));
 
             var bytes = await response.Content.ReadAsByteArrayAsync();
             var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
@@ -77,16 +77,4 @@ public class AttachmentService : BaseApiService, IAttachmentService
     public Task<ServiceResult<bool>> DeleteAsync(Guid taskId, Guid attachmentId)
         => DeleteAsync<bool>($"api/tasks/{taskId}/attachments/{attachmentId}");
 
-    private static async Task<string> ReadErrorResponse(HttpResponseMessage response)
-    {
-        try
-        {
-            var apiError = await response.Content.ReadFromJsonAsync<ApiError>();
-            return apiError?.Message ?? $"Request failed ({(int)response.StatusCode})";
-        }
-        catch
-        {
-            return $"Request failed ({(int)response.StatusCode})";
-        }
-    }
 }
