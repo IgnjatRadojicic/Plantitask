@@ -42,7 +42,7 @@ public class UserProfileService : BaseApiService, IUserProfileService
                     : ServiceResult<ProfilePictureResponse>.Fail("Could not read server response.");
             }
 
-            var error = await ReadErrorResponse(response);
+            var error = await ReadError(response);
             return ServiceResult<ProfilePictureResponse>.Fail(error);
         }
         catch (HttpRequestException)
@@ -58,16 +58,4 @@ public class UserProfileService : BaseApiService, IUserProfileService
     public Task<ServiceResult<AuthResponseDto>> ChangePasswordAsync(ChangePasswordDto dto)
         => PostAsync<AuthResponseDto>("api/user/profile/change-password", dto);
 
-    private static async Task<string> ReadErrorResponse(HttpResponseMessage response)
-    {
-        try
-        {
-            var apiError = await response.Content.ReadFromJsonAsync<ApiError>();
-            return apiError?.Message ?? $"Request failed ({(int)response.StatusCode})";
-        }
-        catch
-        {
-            return $"Request failed ({(int)response.StatusCode})";
-        }
-    }
 }

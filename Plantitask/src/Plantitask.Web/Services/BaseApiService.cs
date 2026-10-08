@@ -145,12 +145,17 @@ public abstract class BaseApiService
         }
     }
 
-    private static async Task<string> ReadError(HttpResponseMessage response)
+    // Protected rather than private so the services deriving from this one can call it instead
+    // of keeping their own copy. detail is the specific message and title is all a fault carries.
+    protected static async Task<string> ReadError(HttpResponseMessage response)
     {
         try
         {
             var apiError = await response.Content.ReadFromJsonAsync<ApiError>();
-            return apiError?.Message ?? $"Request failed ({(int)response.StatusCode})";
+
+            return apiError?.Detail
+                ?? apiError?.Title
+                ?? $"Request failed ({(int)response.StatusCode})";
         }
         catch
         {
