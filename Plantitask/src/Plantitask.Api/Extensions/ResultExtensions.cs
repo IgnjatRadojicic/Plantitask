@@ -26,15 +26,6 @@ namespace Plantitask.Api.Extensions
             return ToErrorResponse(result.Error!);
         }
 
-        public static IActionResult ToCreatedResult<T>(
-            this Result<T> result, string routeName, Func<T, object> routeValues)
-        {
-            if (result.IsFailure)
-                return ToErrorResponse(result.Error!);
-
-            return new CreatedAtRouteResult(routeName, routeValues(result.Value!), result.Value);
-        }
-
         private static IActionResult ToErrorResponse(Error error)
         {
             // An unmapped ErrorType becomes a 500 so adding one means updating this switch by hand.
