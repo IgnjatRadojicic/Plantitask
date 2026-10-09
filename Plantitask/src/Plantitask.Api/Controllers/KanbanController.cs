@@ -41,10 +41,12 @@ namespace Plantitask.Api.Controllers
         }
 
         [HttpPut("{taskId}/move")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        // 409 after the retries are exhausted. The client is expected to refresh the board.
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<IActionResult> MoveTask(Guid taskId, [FromBody] MoveTaskDto moveDto)
         {
             var userId = GetUserId();
@@ -71,7 +73,7 @@ namespace Plantitask.Api.Controllers
             await _kanbanBroadcaster.BroadcastTaskMovedAsync(task.GroupId, taskId, oldStatusId, moveDto, userId);
             await _treeBroadcaster.BroadcastTreeUpdateAsync(task.GroupId);
 
-            return Ok(new { message = "Task moved successfully" });
+            return NoContent();
         }
     }
 }
