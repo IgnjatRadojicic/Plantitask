@@ -39,7 +39,11 @@ public class AttachmentsController : BaseApiController
     [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
     public async Task<IActionResult> UploadAttachment(Guid taskId, IFormFile file)
     {
+        if (file is null)
+            return Problem(detail: "No file provided", statusCode: StatusCodes.Status400BadRequest);
+
         var userId = GetUserId();
+
         using var stream = file.OpenReadStream();
         var result = await _attachmentService.UploadAttachmentAsync(taskId, stream, file.FileName, userId);
 
