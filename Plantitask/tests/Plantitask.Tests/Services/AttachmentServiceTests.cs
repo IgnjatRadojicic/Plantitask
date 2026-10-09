@@ -314,7 +314,7 @@ namespace Plantitask.Tests.Services
             var doomedId = await SeedAttachmentAsync(LeadId, fileName: "deleted.png");
             await using (var del = NewContext())
             {
-                await NewSut(del).DeleteAttachmentAsync(doomedId, LeadId);
+                await NewSut(del).DeleteAttachmentAsync(TaskId, doomedId, LeadId);
             }
 
             await using var act = NewContext();
@@ -347,7 +347,7 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
 
             await using var act = NewContext();
-            var result = await NewSut(act).GetAttachmentByIdAsync(Guid.NewGuid(), LeadId);
+            var result = await NewSut(act).GetAttachmentByIdAsync(TaskId, Guid.NewGuid(), LeadId);
 
             Assert.True(result.IsFailure);
             Assert.Equal("NotFound", result.Error!.Code);
@@ -360,7 +360,7 @@ namespace Plantitask.Tests.Services
             var attachmentId = await SeedAttachmentAsync(LeadId);
 
             await using var act = NewContext();
-            var result = await NewSut(act).GetAttachmentByIdAsync(attachmentId, OtherLeadId);
+            var result = await NewSut(act).GetAttachmentByIdAsync(TaskId, attachmentId, OtherLeadId);
 
             Assert.True(result.IsFailure);
             Assert.Equal("Forbidden", result.Error!.Code);
@@ -373,7 +373,7 @@ namespace Plantitask.Tests.Services
             var attachmentId = await SeedAttachmentAsync(MemberId, fileName: "spec.png");
 
             await using var act = NewContext();
-            var result = await NewSut(act).GetAttachmentByIdAsync(attachmentId, LeadId);
+            var result = await NewSut(act).GetAttachmentByIdAsync(TaskId, attachmentId, LeadId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
             Assert.Equal("spec.png", result.Value!.FileName);
@@ -387,7 +387,7 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
 
             await using var act = NewContext();
-            var result = await NewSut(act).DownloadAttachmentAsync(Guid.NewGuid(), LeadId);
+            var result = await NewSut(act).DownloadAttachmentAsync(TaskId, Guid.NewGuid(), LeadId);
 
             Assert.True(result.IsFailure);
             Assert.Equal("NotFound", result.Error!.Code);
@@ -404,7 +404,7 @@ namespace Plantitask.Tests.Services
             var attachmentId = await SeedAttachmentAsync(LeadId);
 
             await using var act = NewContext();
-            var result = await NewSut(act).DownloadAttachmentAsync(attachmentId, OtherLeadId);
+            var result = await NewSut(act).DownloadAttachmentAsync(TaskId, attachmentId, OtherLeadId);
 
             Assert.True(result.IsFailure);
             Assert.Equal("Forbidden", result.Error!.Code);
@@ -423,7 +423,7 @@ namespace Plantitask.Tests.Services
                 .ReturnsAsync(() => new MemoryStream(Encoding.UTF8.GetBytes("the bytes")));
 
             await using var act = NewContext();
-            var result = await NewSut(act).DownloadAttachmentAsync(attachmentId, MemberId);
+            var result = await NewSut(act).DownloadAttachmentAsync(TaskId, attachmentId, MemberId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
 
@@ -441,7 +441,7 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
 
             await using var act = NewContext();
-            var result = await NewSut(act).DeleteAttachmentAsync(Guid.NewGuid(), LeadId);
+            var result = await NewSut(act).DeleteAttachmentAsync(TaskId, Guid.NewGuid(), LeadId);
 
             Assert.True(result.IsFailure);
             Assert.Equal("NotFound", result.Error!.Code);
@@ -458,7 +458,7 @@ namespace Plantitask.Tests.Services
             var attachmentId = await SeedAttachmentAsync(OtherLeadId);
 
             await using var act = NewContext();
-            var result = await NewSut(act).DeleteAttachmentAsync(attachmentId, OtherLeadId);
+            var result = await NewSut(act).DeleteAttachmentAsync(TaskId, attachmentId, OtherLeadId);
 
             Assert.True(result.IsFailure);
             Assert.Equal("Forbidden", result.Error!.Code);
@@ -474,7 +474,7 @@ namespace Plantitask.Tests.Services
             var attachmentId = await SeedAttachmentAsync(MemberId);
 
             await using var act = NewContext();
-            var result = await NewSut(act).DeleteAttachmentAsync(attachmentId, MemberId);
+            var result = await NewSut(act).DeleteAttachmentAsync(TaskId, attachmentId, MemberId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
 
@@ -494,7 +494,7 @@ namespace Plantitask.Tests.Services
             var attachmentId = await SeedAttachmentAsync(LeadId);
 
             await using var act = NewContext();
-            var result = await NewSut(act).DeleteAttachmentAsync(attachmentId, MemberId);
+            var result = await NewSut(act).DeleteAttachmentAsync(TaskId, attachmentId, MemberId);
 
             Assert.Equal(shouldSucceed, result.IsSuccess);
 
@@ -509,7 +509,7 @@ namespace Plantitask.Tests.Services
             var attachmentId = await SeedAttachmentAsync(MemberId);
 
             await using var act = NewContext();
-            var result = await NewSut(act).DeleteAttachmentAsync(attachmentId, MemberId);
+            var result = await NewSut(act).DeleteAttachmentAsync(TaskId, attachmentId, MemberId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
 
@@ -541,7 +541,7 @@ namespace Plantitask.Tests.Services
                 .ThrowsAsync(new IOException("the disk said no"));
 
             await using var act = NewContext();
-            var result = await NewSut(act).DeleteAttachmentAsync(attachmentId, MemberId);
+            var result = await NewSut(act).DeleteAttachmentAsync(TaskId, attachmentId, MemberId);
 
             Assert.True(result.IsSuccess, result.Error?.Message);
 

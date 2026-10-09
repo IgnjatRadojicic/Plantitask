@@ -84,7 +84,7 @@ public class AttachmentsController : BaseApiController
     public async Task<IActionResult> GetAttachment(Guid taskId, Guid attachmentId)
     {
         var userId = GetUserId();
-        var result = await _attachmentService.GetAttachmentByIdAsync(attachmentId, userId);
+        var result = await _attachmentService.GetAttachmentByIdAsync(taskId, attachmentId, userId);
         return result.ToActionResult();
     }
 
@@ -95,7 +95,7 @@ public class AttachmentsController : BaseApiController
     public async Task<IActionResult> DownloadAttachment(Guid taskId, Guid attachmentId)
     {
         var userId = GetUserId();
-        var result = await _attachmentService.DownloadAttachmentAsync(attachmentId, userId);
+        var result = await _attachmentService.DownloadAttachmentAsync(taskId, attachmentId, userId);
 
         if (result.IsFailure)
             return result.ToActionResult();
@@ -111,7 +111,7 @@ public class AttachmentsController : BaseApiController
     public async Task<IActionResult> DeleteAttachment(Guid taskId, Guid attachmentId)
     {
         var userId = GetUserId();
-        var result = await _attachmentService.DeleteAttachmentAsync(attachmentId, userId);
+        var result = await _attachmentService.DeleteAttachmentAsync(taskId, attachmentId, userId);
 
         if (result.IsFailure)
             return result.ToActionResult();
