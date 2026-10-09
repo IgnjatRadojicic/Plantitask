@@ -43,7 +43,7 @@ public class NotificationsController : BaseApiController
     }
 
     [HttpPatch("{notificationId}/read")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> MarkAsRead(Guid notificationId)
     {
         var userId = GetUserId();
@@ -51,11 +51,11 @@ public class NotificationsController : BaseApiController
         if (result.IsFailure)
             return result.ToActionResult();
 
-        return Ok(new { message = "Notification marked as read" });
+        return NoContent();
     }
 
     [HttpPut("read-all")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> MarkAllAsRead()
     {
         var userId = GetUserId();
@@ -63,11 +63,11 @@ public class NotificationsController : BaseApiController
         if (result.IsFailure)
             return result.ToActionResult();
 
-        return Ok(new { message = "All notifications marked as read" });
+        return NoContent();
     }
 
     [HttpDelete("{notificationId}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteNotification(Guid notificationId)
     {
@@ -76,6 +76,6 @@ public class NotificationsController : BaseApiController
         if (result.IsFailure)
             return result.ToActionResult();
 
-        return Ok(new { message = "Notification deleted" });
+        return NoContent();
     }
 }
