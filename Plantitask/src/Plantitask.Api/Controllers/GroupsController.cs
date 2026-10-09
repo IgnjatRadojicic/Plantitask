@@ -26,7 +26,7 @@ namespace Plantitask.Api.Controllers
         }
 
         [HttpPost]
-        [ProducesResponseType(typeof(GroupDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(GroupDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CreateGroup([FromBody] CreateGroupDto createGroupDto)
         {
@@ -45,7 +45,10 @@ namespace Plantitask.Api.Controllers
                 action: "Created",
                 groupId: group.Id);
 
-            return Ok(group);
+            return CreatedAtAction(
+                nameof(GetGroupDetails),
+                new { groupId = group.Id },
+                group);
         }
 
         [HttpPost("join")]
