@@ -222,6 +222,11 @@ namespace Plantitask.Api.Controllers
         }
 
         [HttpPost("{taskId}/assign")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> AssignTask(Guid taskId, [FromBody] AssignTaskDto assignDto)
         {
             var userId = GetUserId();
@@ -253,12 +258,13 @@ namespace Plantitask.Api.Controllers
             await _notificationService.TrySendTaskAssignmentEmailAsync(
                 assignDto.UserId, task.Title, task.GroupName, task.CreatedByUserName);
 
-            return Ok(new { message = "Task assigned successfully" });
+            return NoContent();
         }
 
         [HttpPost("{taskId}/unassign")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UnassignTask(Guid taskId)
         {
@@ -283,12 +289,13 @@ namespace Plantitask.Api.Controllers
                 propertyName: "AssignedTo",
                 oldValue: task.AssignedToUserName);
 
-            return Ok(new { message = "Task unassigned successfully" });
+            return NoContent();
         }
 
         [HttpDelete("{taskId}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteTask(Guid taskId)
         {
@@ -313,7 +320,7 @@ namespace Plantitask.Api.Controllers
 
             await _kanbanBroadcaster.BroadcastTaskDeletedAsync(task.GroupId, taskId, task.StatusId, userId);
 
-            return Ok(new { message = "Task deleted successfully" });
+            return NoContent();
         }
     }
 }

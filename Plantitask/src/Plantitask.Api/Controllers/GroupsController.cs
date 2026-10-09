@@ -145,9 +145,11 @@ namespace Plantitask.Api.Controllers
         }
 
         [HttpDelete("{groupId}/members/{memberId}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> RemoveUserFromGroup(Guid groupId, Guid memberId)
         {
             var userId = GetUserId();
@@ -163,11 +165,11 @@ namespace Plantitask.Api.Controllers
                 action: "RemovedFromGroup",
                 groupId: groupId);
 
-            return Ok(new { message = "Member removed successfully" });
+            return NoContent();
         }
 
         [HttpPost("{groupId}/leave")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> LeaveGroup(Guid groupId)
@@ -185,7 +187,7 @@ namespace Plantitask.Api.Controllers
                 action: "LeftGroup",
                 groupId: groupId);
 
-            return Ok(new { message = "Left group successfully" });
+            return NoContent();
         }
     }
 }
