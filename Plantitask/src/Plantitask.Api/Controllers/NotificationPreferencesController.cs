@@ -30,7 +30,7 @@ public class NotificationPreferencesController : BaseApiController
     }
 
     [HttpPut]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SavePreferences([FromBody] UpdateNotificationPreferencesDto dto)
     {
@@ -39,6 +39,6 @@ public class NotificationPreferencesController : BaseApiController
         if (result.IsFailure)
             return result.ToActionResult();
 
-        return Ok(new { message = "Notification preferences saved successfully" });
+        return NoContent();
     }
 }

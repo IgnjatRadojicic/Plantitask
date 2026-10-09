@@ -105,7 +105,7 @@ public class AttachmentsController : BaseApiController
     }
 
     [HttpDelete("{attachmentId}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteAttachment(Guid taskId, Guid attachmentId)
@@ -122,6 +122,6 @@ public class AttachmentsController : BaseApiController
             entityId: attachmentId,
             action: "Deleted");
 
-        return Ok(new { message = "Attachment deleted successfully" });
+        return NoContent();
     }
 }

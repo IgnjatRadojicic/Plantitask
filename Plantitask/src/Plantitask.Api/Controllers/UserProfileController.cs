@@ -87,7 +87,7 @@ public class UserProfileController : BaseApiController
     }
 
     [HttpDelete("picture")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RemoveProfilePicture()
     {
         var userId = GetUserId();
@@ -96,7 +96,7 @@ public class UserProfileController : BaseApiController
         if (result.IsFailure)
             return result.ToActionResult();
 
-        return Ok(new { message = "Profile picture removed" });
+        return NoContent();
     }
 
     [HttpPost("change-password")]
