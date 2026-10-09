@@ -103,18 +103,24 @@ public abstract class BaseApiService
                 ? await Http.PatchAsJsonAsync(url, data)
                 : await Http.PatchAsync(url, null);
 
-            if(!response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode)
             {
-                var error = await response.Content.ReadAsStringAsync();
-                return ServiceResult<T>.Fail(error);
+                if (response.StatusCode == HttpStatusCode.NoContent)
+                    return ServiceResult<T>.Ok(default!);
+
+                var body = await response.Content.ReadFromJsonAsync<T>();
+                return body != null
+                    ? ServiceResult<T>.Ok(body)
+                    : ServiceResult<T>.Fail("Could not read server response.");
             }
 
-            var result = await response.Content.ReadFromJsonAsync<T>();
-            return ServiceResult<T>.Ok(result!);
+            var error = await ReadError(response);
+            return ServiceResult<T>.Fail(error);
         }
-        catch (Exception ex)
+        catch (HttpRequestException)
         {
-            return ServiceResult<T>.Fail(ex.Message);
+            return ServiceResult<T>.Fail(
+                "Cannot reach the server. Please check your connection.");
         }
     }
 
