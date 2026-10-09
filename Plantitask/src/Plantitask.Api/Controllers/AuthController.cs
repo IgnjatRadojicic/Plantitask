@@ -89,7 +89,8 @@ namespace Plantitask.Api.Controllers
 
         [Authorize]
         [HttpPost("logout")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Logout([FromBody] RefreshTokenDto refreshTokenDto)
         {
             var userId = GetUserId();
@@ -105,22 +106,23 @@ namespace Plantitask.Api.Controllers
                 action: "Logout",
                 groupId: null);
 
-            return Ok(new { message = "Logged out successfully" });
+            return NoContent();
         }
 
         [HttpPost("forgot-password")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto forgotPasswordDto)
         {
             var result = await _authService.ForgotPasswordAsync(forgotPasswordDto.Email, GetClientIpAddress());
             if (result.IsFailure)
                 return result.ToActionResult();
 
-            return Ok(new { message = "Password reset email sent" });
+            return NoContent();
         }
 
         [HttpPost("reset-password")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
         {
             var result = await _authService.ResetPasswordAsync(resetPasswordDto);
@@ -142,7 +144,7 @@ namespace Plantitask.Api.Controllers
                 UserAgent = GetUserAgent(),
             });
 
-            return Ok(new { message = "Password reset successfully" });
+            return NoContent();
         }
 
         [HttpPost("check-email")]
@@ -154,25 +156,28 @@ namespace Plantitask.Api.Controllers
         }
 
         [HttpPost("send-verification")]
-
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> SendVerification([FromBody] SendVerificationRequest dto)
         {
             var result = await _authService.SendVerificationCodeAsync(dto.Email);
             if (result.IsFailure)
                 return result.ToActionResult();
 
-            return Ok(new { message = "Verification code sent" });
+            return NoContent();
         }
 
         [HttpPost("verify-email")]
         [EnableRateLimiting(RateLimitPolicies.Verification)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto)
         {
             var result = await _authService.VerifyEmailCodeAsync(dto.Email, dto.Code);
             if (result.IsFailure)
                 return result.ToActionResult();
 
-            return Ok(new { message = "Email verified successfully" });
+            return NoContent();
         }
 
         [HttpPost("google-login")]
