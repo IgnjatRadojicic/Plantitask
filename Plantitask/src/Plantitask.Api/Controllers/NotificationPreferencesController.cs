@@ -14,14 +14,10 @@ namespace Plantitask.Api.Controllers;
 public class NotificationPreferencesController : BaseApiController
 {
     private readonly INotificationService _notificationService;
-    private readonly ILogger<NotificationPreferencesController> _logger;
 
-    public NotificationPreferencesController(
-        INotificationService notificationService,
-        ILogger<NotificationPreferencesController> logger)
+    public NotificationPreferencesController(INotificationService notificationService)
     {
         _notificationService = notificationService;
-        _logger = logger;
     }
 
     [HttpGet]

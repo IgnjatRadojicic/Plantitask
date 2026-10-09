@@ -17,12 +17,10 @@ namespace Plantitask.Api.Controllers
     public class AuditController : BaseApiController
     {
         private readonly IAuditService _auditService;
-        private readonly ILogger<AuditController> _logger;
 
-        public AuditController(IAuditService auditService, ILogger<AuditController> logger)
+        public AuditController(IAuditService auditService)
         {
             _auditService = auditService;
-            _logger = logger;
         }
 
         [NonAction]

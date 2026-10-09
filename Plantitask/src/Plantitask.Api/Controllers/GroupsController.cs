@@ -16,16 +16,13 @@ namespace Plantitask.Api.Controllers
     {
         private readonly IGroupService _groupService;
         private readonly IAuditService _auditService;
-        private readonly ILogger<GroupsController> _logger;
 
         public GroupsController(
             IGroupService groupService,
-            IAuditService auditService,
-            ILogger<GroupsController> logger)
+            IAuditService auditService)
         {
             _groupService = groupService;
             _auditService = auditService;
-            _logger = logger;
         }
 
         [HttpPost]

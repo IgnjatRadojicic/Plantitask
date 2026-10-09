@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.AspNetCore.SignalR;
 using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
-using Plantitask.Api.Hubs;
 using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Notifications;
 using Plantitask.Core.Interfaces;
@@ -17,17 +15,10 @@ namespace Plantitask.Api.Controllers;
 public class NotificationsController : BaseApiController
 {
     private readonly INotificationService _notificationService;
-    private readonly IHubContext<NotificationHub> _hubContext;
-    private readonly ILogger<NotificationsController> _logger;
 
-    public NotificationsController(
-        INotificationService notificationService,
-        IHubContext<NotificationHub> hubContext,
-        ILogger<NotificationsController> logger)
+    public NotificationsController(INotificationService notificationService)
     {
         _notificationService = notificationService;
-        _hubContext = hubContext;
-        _logger = logger;
     }
 
     [HttpGet]

@@ -15,16 +15,13 @@ namespace Plantitask.Api.Controllers
     {
         private readonly IAuthService _authService;
         private readonly IAuditService _auditService;
-        private readonly ILogger<AuthController> _logger;
 
         public AuthController(
             IAuthService authService,
-            IAuditService auditService,
-            ILogger<AuthController> logger)
+            IAuditService auditService)
         {
             _authService = authService;
             _auditService = auditService;
-            _logger = logger;
         }
 
         [HttpPost("register")]
