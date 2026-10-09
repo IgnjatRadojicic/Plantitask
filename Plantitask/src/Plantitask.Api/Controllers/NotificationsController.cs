@@ -44,7 +44,6 @@ public class NotificationsController : BaseApiController
 
     [HttpPatch("{notificationId}/read")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> MarkAsRead(Guid notificationId)
     {
         var userId = GetUserId();

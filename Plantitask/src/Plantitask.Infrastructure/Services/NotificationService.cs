@@ -282,6 +282,10 @@ public class NotificationService : INotificationService
     /// </summary>
     public async Task<Result> MarkAsReadAsync(Guid notificationId, Guid userId)
     {
+        // The row count is deliberately not checked. The caller's intent is "ensure this is read"
+        // so an already read notification is a success, and a notification that is not theirs
+        // returning success avoids leaking which ids exist. Returning NotFound on a zero count
+        // would break the idempotency and leak existence at the same time.
         var now = DateTime.UtcNow;
 
         var updatedCount = await _context.Notifications
