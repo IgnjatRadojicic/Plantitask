@@ -11,7 +11,6 @@ using Plantitask.Core.Interfaces;
 namespace Plantitask.Api.Controllers;
 
 [Authorize]
-[ApiController]
 [EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/tasks/{taskId}/comments")]
 public class CommentsController : BaseApiController

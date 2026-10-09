@@ -8,7 +8,6 @@ using Plantitask.Core.Interfaces;
  
 namespace Plantitask.Api.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
     [Authorize]
     public class PremiumController : BaseApiController

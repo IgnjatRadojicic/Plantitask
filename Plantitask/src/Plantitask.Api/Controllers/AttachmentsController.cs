@@ -10,7 +10,6 @@ using Plantitask.Core.Interfaces;
 namespace Plantitask.Api.Controllers;
 
 [Authorize]
-[ApiController]
 [EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/tasks/{taskId}/attachments")]
 public class AttachmentsController : BaseApiController

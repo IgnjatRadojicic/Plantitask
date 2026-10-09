@@ -12,7 +12,6 @@ using Plantitask.Core.Interfaces;
 namespace Plantitask.Api.Controllers;
 
 [Authorize]
-[ApiController]
 [EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/[controller]")]
 public class NotificationsController : BaseApiController

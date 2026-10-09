@@ -9,7 +9,6 @@ using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Controllers
 {
-    [ApiController]
     [EnableRateLimiting(RateLimitPolicies.Auth)]
     [Route("api/[controller]")]
     public class AuthController : BaseApiController

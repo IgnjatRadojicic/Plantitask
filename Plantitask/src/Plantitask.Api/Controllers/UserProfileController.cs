@@ -12,7 +12,6 @@ using Plantitask.Infrastructure.Services;
 namespace Plantitask.Api.Controllers;
 
 [Authorize]
-[ApiController]
 [EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/user/profile")]
 public class UserProfileController : BaseApiController

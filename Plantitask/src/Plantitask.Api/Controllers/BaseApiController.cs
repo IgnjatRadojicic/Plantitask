@@ -8,6 +8,10 @@ using Microsoft.EntityFrameworkCore.Internal;
 
 namespace Plantitask.Api.Controllers
 {
+    // Inherited by every controller so a new one cannot be written without it. Without it a
+    // binding failure is recorded in ModelState and never read so the action runs on
+    // default values and answers 200.
+    [ApiController]
     public abstract class BaseApiController : ControllerBase
     {
         protected Guid GetUserId()
