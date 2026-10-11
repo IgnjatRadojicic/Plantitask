@@ -1,7 +1,7 @@
 ﻿using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
-using Plantitask.Core.DTO.Kanban;
+using Plantitask.Contracts.DTO.Kanban;
 namespace Plantitask.Web.Services;
 
 public class KanbanService : BaseApiService, IKanbanService

@@ -1,5 +1,5 @@
 ﻿
-namespace Plantitask.Core.DTO.Paypal
+namespace Plantitask.Contracts.DTO.Paypal
 {
     /// <summary>
     /// Subscription state only. Limits live in EntitlementsDto: a payload describing what someone

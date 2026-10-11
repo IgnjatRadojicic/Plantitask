@@ -5,7 +5,7 @@ using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Api.Interfaces;
 using Plantitask.Api.Services;
-using Plantitask.Core.DTO.Tasks;
+using Plantitask.Contracts.DTO.Tasks;
 using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Controllers

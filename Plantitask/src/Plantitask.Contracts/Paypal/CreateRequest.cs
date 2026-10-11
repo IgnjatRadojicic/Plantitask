@@ -1,5 +1,5 @@
 ﻿
-namespace Plantitask.Core.DTO.Paypal
+namespace Plantitask.Contracts.DTO.Paypal
 {
     public class CreateOrderRequest
     {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Plantitask.Core.DTO.Tasks
+namespace Plantitask.Contracts.DTO.Tasks
 {
     public class UpdateTaskDto
     {

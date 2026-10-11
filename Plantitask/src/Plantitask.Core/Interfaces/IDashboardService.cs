@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Dashboard;
+using Plantitask.Contracts.DTO.Dashboard;
 
 namespace Plantitask.Core.Interfaces
 {

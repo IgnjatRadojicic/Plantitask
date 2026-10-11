@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Api.Interfaces;
-using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Comments;
+using Plantitask.Contracts.Common;
+using Plantitask.Contracts.DTO.Comments;
 using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Controllers;

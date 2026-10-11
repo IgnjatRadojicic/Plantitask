@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Linq.Expressions;
-using Plantitask.Core.DTO.Users;
+using Plantitask.Contracts.DTO.Users;
 using Plantitask.Core.Entities;
 
 namespace Plantitask.Core.Projections

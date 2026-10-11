@@ -1,7 +1,6 @@
 ﻿using Plantitask.Web.Models;
-
-using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Comments;
+using Plantitask.Contracts.Common;
+using Plantitask.Contracts.DTO.Comments;
 namespace Plantitask.Web.Interfaces;
 
 public interface ICommentService

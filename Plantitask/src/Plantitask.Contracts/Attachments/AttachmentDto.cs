@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Plantitask.Core.DTO.Attachments
+namespace Plantitask.Contracts.DTO.Attachments
 {
     public class AttachmentDto
     {

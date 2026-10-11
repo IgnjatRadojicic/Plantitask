@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Plantitask.Core.Common;
-
 namespace Plantitask.Api.Extensions
 {
     public static class ResultExtensions

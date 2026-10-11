@@ -1,4 +1,4 @@
-namespace Plantitask.Core.SignalR
+﻿namespace Plantitask.Contracts.SignalR
 {
     public static class HubEvents
     {

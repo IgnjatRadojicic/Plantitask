@@ -1,4 +1,4 @@
-﻿using Plantitask.Core.DTO.Notifications;
+﻿using Plantitask.Contracts.DTO.Notifications;
 namespace Plantitask.Api.Interfaces
 {
     public interface INotificationBroadcaster

@@ -2,7 +2,7 @@
 using Plantitask.Api.Hubs;
 using Plantitask.Api.Interfaces;
 using Plantitask.Core.Interfaces;
-using Plantitask.Core.SignalR;
+using Plantitask.Contracts.SignalR;
 
 namespace Plantitask.Api.Services;
 

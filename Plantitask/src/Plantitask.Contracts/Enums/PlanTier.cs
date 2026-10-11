@@ -1,4 +1,4 @@
-namespace Plantitask.Core.Enums
+﻿namespace Plantitask.Contracts.Enums
 {
     /// <summary>
     /// The plan identities code is allowed to name. The value is the PlanLookup row id, the same

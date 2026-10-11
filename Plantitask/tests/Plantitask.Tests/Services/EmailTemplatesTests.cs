@@ -1,4 +1,4 @@
-using Plantitask.Core.DTO.Tasks;
+﻿using Plantitask.Core.DTO.Tasks;
 using Plantitask.Infrastructure.Services.Email;
 
 namespace Plantitask.Tests.Services

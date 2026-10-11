@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Plantitask.Core.DTO.Tasks
+namespace Plantitask.Contracts.DTO.Tasks
 {
     public class TaskDto
     {

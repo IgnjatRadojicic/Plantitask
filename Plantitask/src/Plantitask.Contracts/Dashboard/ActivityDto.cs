@@ -1,5 +1,5 @@
 ﻿
-namespace Plantitask.Core.DTO.Dashboard
+namespace Plantitask.Contracts.DTO.Dashboard
 {
     public class ActivityDto
     {

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Plantitask.Core.DTO.Audit
+namespace Plantitask.Contracts.DTO.Audit
 {
     public class AuditLogDto
     {

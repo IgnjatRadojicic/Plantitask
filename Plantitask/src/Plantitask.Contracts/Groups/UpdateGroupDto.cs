@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Plantitask.Core.DTO.Groups
+namespace Plantitask.Contracts.DTO.Groups
 {
     public class UpdateGroupDto
     {

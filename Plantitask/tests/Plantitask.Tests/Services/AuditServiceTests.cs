@@ -1,9 +1,9 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Plantitask.Core.DTO.Audit;
 using Plantitask.Core.Entities;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Data;
 using Plantitask.Infrastructure.Services;

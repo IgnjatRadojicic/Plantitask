@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Audit;
+using Plantitask.Contracts.DTO.Audit;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Projections;

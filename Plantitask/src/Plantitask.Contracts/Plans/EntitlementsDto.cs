@@ -1,4 +1,4 @@
-namespace Plantitask.Core.DTO.Plans
+﻿namespace Plantitask.Contracts.DTO.Plans
 {
     /// <summary>
     /// Plan limits plus current usage. The one payload that carries policy, so identity DTOs do

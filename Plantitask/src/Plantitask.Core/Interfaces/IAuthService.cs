@@ -1,6 +1,6 @@
 ﻿using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Auth;
-using Plantitask.Core.DTO.Users;
+using Plantitask.Contracts.DTO.Auth;
+using Plantitask.Contracts.DTO.Users;
 
 namespace Plantitask.Core.Interfaces
 {

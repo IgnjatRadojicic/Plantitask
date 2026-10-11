@@ -1,6 +1,6 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
-namespace Plantitask.Core.DTO.Users
+namespace Plantitask.Contracts.DTO.Users
 {
     public class ChangePasswordDto
     {

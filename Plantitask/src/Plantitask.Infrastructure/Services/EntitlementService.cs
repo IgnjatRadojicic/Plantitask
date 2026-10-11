@@ -1,10 +1,10 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Plans;
+using Plantitask.Contracts.DTO.Plans;
 using Plantitask.Core.Entities;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Plans;
 using Plantitask.Infrastructure.Data;

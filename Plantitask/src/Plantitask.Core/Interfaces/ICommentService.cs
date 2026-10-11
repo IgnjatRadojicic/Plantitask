@@ -4,7 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Comments;
+using Plantitask.Contracts.Common;
+using Plantitask.Contracts.DTO.Comments;
 
 namespace Plantitask.Core.Interfaces
 {

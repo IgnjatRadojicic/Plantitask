@@ -1,7 +1,7 @@
-using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Plans;
+﻿using Plantitask.Core.Common;
+using Plantitask.Contracts.DTO.Plans;
 using Plantitask.Core.Entities;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 using Plantitask.Core.Plans;
 
 namespace Plantitask.Core.Interfaces

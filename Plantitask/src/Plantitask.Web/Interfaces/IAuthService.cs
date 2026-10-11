@@ -1,6 +1,6 @@
 ﻿using Plantitask.Web.Models;
 
-using Plantitask.Core.DTO.Auth;
+using Plantitask.Contracts.DTO.Auth;
 namespace Plantitask.Web.Interfaces
 {
     public interface IAuthService

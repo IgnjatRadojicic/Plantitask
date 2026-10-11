@@ -1,8 +1,8 @@
-using Plantitask.Core.DTO.Groups;
-using Plantitask.Core.Enums;
+﻿using Plantitask.Contracts.DTO.Groups;
+using Plantitask.Contracts.Enums;
 using Plantitask.Web.Models;
 
-using Plantitask.Core.DTO.Dashboard;
+using Plantitask.Contracts.DTO.Dashboard;
 namespace Plantitask.Web.Interfaces
 {
     public interface IGroupService

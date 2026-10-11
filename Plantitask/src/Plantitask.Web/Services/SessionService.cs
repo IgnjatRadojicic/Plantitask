@@ -1,7 +1,7 @@
 ﻿using Blazored.LocalStorage;
 using System.Net;
 using System.Net.Http.Json;
-using Plantitask.Core.DTO.Auth;
+using Plantitask.Contracts.DTO.Auth;
 using Plantitask.Web.Interfaces;
 using Microsoft.JSInterop;
 

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
-using Plantitask.Core.DTO.Groups;
+using Plantitask.Contracts.DTO.Groups;
 using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Controllers

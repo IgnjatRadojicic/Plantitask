@@ -1,5 +1,4 @@
 ﻿using Plantitask.Core.Common;
-
 namespace Plantitask.Core.Validation;
 
 public static class FileUploadRules

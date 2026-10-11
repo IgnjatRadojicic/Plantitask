@@ -1,8 +1,8 @@
-using Plantitask.Core.DTO.Attachments;
-using Plantitask.Core.DTO.Kanban;
-using Plantitask.Core.DTO.Tasks;
-using Plantitask.Core.DTO.Users;
-using Plantitask.Core.Enums;
+﻿using Plantitask.Contracts.DTO.Attachments;
+using Plantitask.Contracts.DTO.Kanban;
+using Plantitask.Contracts.DTO.Tasks;
+using Plantitask.Contracts.DTO.Users;
+using Plantitask.Contracts.Enums;
 
 namespace Plantitask.Web.Helpers;
 

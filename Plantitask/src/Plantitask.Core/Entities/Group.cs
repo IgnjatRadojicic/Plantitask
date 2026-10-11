@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Plantitask.Core.Common;
-
 namespace Plantitask.Core.Entities
 {
     public class Group : BaseEntity

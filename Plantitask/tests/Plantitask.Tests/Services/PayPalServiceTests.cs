@@ -1,12 +1,13 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Plantitask.Core.DTO.Paypal;
+using Plantitask.Contracts.DTO.Paypal;
 using Plantitask.Core.Entities;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Services;
 using Plantitask.Tests.Helpers;

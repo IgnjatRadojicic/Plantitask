@@ -2,7 +2,7 @@
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
-using Plantitask.Core.DTO.Dashboard;
+using Plantitask.Contracts.DTO.Dashboard;
 namespace Plantitask.Web.Services
 {
     public class DashboardService : BaseApiService, IDashboardService

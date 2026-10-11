@@ -1,5 +1,4 @@
-using Plantitask.Core.Common;
-
+﻿using Plantitask.Core.Common;
 namespace Plantitask.Core.Entities
 {
     public class ProcessedWebhookEvent : ImmutableEntity

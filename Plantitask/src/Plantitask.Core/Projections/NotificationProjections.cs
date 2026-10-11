@@ -1,4 +1,4 @@
-using Plantitask.Core.DTO.Notifications;
+﻿using Plantitask.Contracts.DTO.Notifications;
 using Plantitask.Core.Entities;
 using System.Linq.Expressions;
 

@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 
-namespace Plantitask.Core.DTO.Notifications
+namespace Plantitask.Contracts.DTO.Notifications
 {
     public class NotificationDto
     {

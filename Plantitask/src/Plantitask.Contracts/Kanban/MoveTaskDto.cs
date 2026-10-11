@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Plantitask.Core.DTO.Kanban;
+namespace Plantitask.Contracts.DTO.Kanban;
 
 public class MoveTaskDto
 {

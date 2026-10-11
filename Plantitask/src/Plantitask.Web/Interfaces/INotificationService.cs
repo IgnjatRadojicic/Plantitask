@@ -1,7 +1,6 @@
 ﻿using Plantitask.Web.Models;
-
-using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Notifications;
+using Plantitask.Contracts.Common;
+using Plantitask.Contracts.DTO.Notifications;
 namespace Plantitask.Web.Interfaces;
 
 public interface INotificationService

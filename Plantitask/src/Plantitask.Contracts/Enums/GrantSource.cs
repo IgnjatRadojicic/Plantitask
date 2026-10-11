@@ -1,4 +1,4 @@
-namespace Plantitask.Core.Enums
+﻿namespace Plantitask.Contracts.Enums
 {
     /// <summary>
     /// Why a grant exists. Stored as text so a new source never needs a migration, and read back

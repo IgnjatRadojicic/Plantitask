@@ -3,8 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
-using Plantitask.Core.DTO.Kanban;
-using Plantitask.Core.SignalR;
+using Plantitask.Contracts.DTO.Kanban;
+using Plantitask.Contracts.SignalR;
 namespace Plantitask.Web.Services;
 
 public class KanbanSignalRService : IKanbanSignalRService

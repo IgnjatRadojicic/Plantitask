@@ -1,4 +1,4 @@
-using Plantitask.Core.Common;
+﻿using Plantitask.Core.Common;
 using Plantitask.Core.Entities.Lookups;
 
 namespace Plantitask.Core.Entities

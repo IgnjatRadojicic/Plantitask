@@ -1,7 +1,7 @@
 ﻿
 using System.ComponentModel.DataAnnotations;
 
-namespace Plantitask.Core.DTO.Auth
+namespace Plantitask.Contracts.DTO.Auth
 {
     public class VerifyEmailDto
     {

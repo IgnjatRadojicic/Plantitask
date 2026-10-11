@@ -1,5 +1,4 @@
 ﻿using Plantitask.Core.DTO.Tasks;
-
 namespace Plantitask.Core.Interfaces
 {
     public interface IEmailService

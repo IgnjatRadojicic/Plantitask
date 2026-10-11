@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Linq.Expressions;
-using Plantitask.Core.DTO.Dashboard;
+using Plantitask.Contracts.DTO.Dashboard;
 using Plantitask.Core.DTO.Tasks;
+using Plantitask.Contracts.DTO.Tasks;
 using Plantitask.Core.Entities;
 
 namespace Plantitask.Core.Projections

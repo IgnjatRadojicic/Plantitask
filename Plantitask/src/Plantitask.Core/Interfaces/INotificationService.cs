@@ -1,8 +1,9 @@
 ﻿using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Comments;
-using Plantitask.Core.DTO.Notifications;
-using Plantitask.Core.DTO.Tasks;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Common;
+using Plantitask.Contracts.DTO.Comments;
+using Plantitask.Contracts.DTO.Notifications;
+using Plantitask.Contracts.DTO.Tasks;
+using Plantitask.Contracts.Enums;
 
 namespace Plantitask.Core.Interfaces;
 

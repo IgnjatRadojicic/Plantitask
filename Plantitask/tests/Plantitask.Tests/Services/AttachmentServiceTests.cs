@@ -1,11 +1,11 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Plantitask.Core.Configuration;
 using Plantitask.Core.Entities;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Services;
 using Plantitask.Tests.Helpers;

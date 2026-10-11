@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.ComponentModel.DataAnnotations;
 
-namespace Plantitask.Core.DTO.Groups
+namespace Plantitask.Contracts.DTO.Groups
 {
     public class JoinGroupDto
     {

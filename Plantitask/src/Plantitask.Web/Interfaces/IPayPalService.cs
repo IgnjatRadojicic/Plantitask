@@ -1,6 +1,5 @@
 ﻿using Plantitask.Web.Models;
-
-using Plantitask.Core.DTO.Paypal;
+using Plantitask.Contracts.DTO.Paypal;
 namespace Plantitask.Web.Interfaces
 {
     public interface IPayPalService

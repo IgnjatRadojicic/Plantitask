@@ -1,5 +1,5 @@
-﻿using Plantitask.Core.DTO.Dashboard;
-using Plantitask.Core.Enums;
+﻿using Plantitask.Contracts.DTO.Dashboard;
+using Plantitask.Contracts.Enums;
 
 namespace Plantitask.Web.Models;
 

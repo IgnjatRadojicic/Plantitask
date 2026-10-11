@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Plantitask.Core.Common;
+using Plantitask.Contracts.Common;
 
 namespace Plantitask.Infrastructure.Data
 {

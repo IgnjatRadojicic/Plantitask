@@ -5,8 +5,8 @@ using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Groups;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.DTO.Groups;
+using Plantitask.Contracts.Enums;
 
 namespace Plantitask.Core.Interfaces
 {

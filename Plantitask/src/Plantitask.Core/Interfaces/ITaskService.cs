@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Plantitask.Core.DTO.Kanban;
+using Plantitask.Contracts.DTO.Kanban;
 using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Tasks;
+using Plantitask.Contracts.Common;
+using Plantitask.Contracts.DTO.Tasks;
 
 namespace Plantitask.Core.Interfaces
 {

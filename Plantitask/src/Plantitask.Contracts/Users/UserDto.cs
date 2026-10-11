@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Plantitask.Core.DTO.Users
+namespace Plantitask.Contracts.DTO.Users
 {
     public class UserDto
     {

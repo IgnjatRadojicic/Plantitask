@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Plantitask.Core.DTO.Kanban;
+using Plantitask.Contracts.DTO.Kanban;
 
 namespace Plantitask.Core.Interfaces
 {

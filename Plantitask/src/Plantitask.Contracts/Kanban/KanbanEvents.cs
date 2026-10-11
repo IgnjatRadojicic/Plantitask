@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace Plantitask.Core.DTO.Kanban
+namespace Plantitask.Contracts.DTO.Kanban
 {
     public class KanbanTaskCreatedEvent
     {

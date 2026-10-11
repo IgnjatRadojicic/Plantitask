@@ -2,8 +2,8 @@
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
 using Plantitask.Core.Constants;
-using Plantitask.Core.DTO.Dashboard;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.DTO.Dashboard;
+using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Domain;
 using Plantitask.Core.Projections;

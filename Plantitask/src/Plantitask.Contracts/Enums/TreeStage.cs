@@ -1,6 +1,6 @@
 ﻿
 
-namespace Plantitask.Core.Enums
+namespace Plantitask.Contracts.Enums
 {
     public enum TreeStage
     {

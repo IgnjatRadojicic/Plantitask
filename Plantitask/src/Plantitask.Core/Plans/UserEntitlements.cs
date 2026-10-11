@@ -1,4 +1,4 @@
-using Plantitask.Core.Enums;
+﻿using Plantitask.Contracts.Enums;
 
 namespace Plantitask.Core.Plans
 {

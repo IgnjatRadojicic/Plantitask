@@ -1,7 +1,6 @@
 ﻿using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
-
-using Plantitask.Core.DTO.Paypal;
+using Plantitask.Contracts.DTO.Paypal;
 namespace Plantitask.Web.Services;
 
 public class PayPalService : BaseApiService, IPayPalService

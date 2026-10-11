@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Plantitask.Api.Extensions;
-using Plantitask.Core.DTO.Paypal;
+using Plantitask.Contracts.DTO.Paypal;
 using Plantitask.Core.Interfaces;
  
 namespace Plantitask.Api.Controllers

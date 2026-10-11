@@ -1,7 +1,7 @@
 ﻿
 
 using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Users;
+using Plantitask.Contracts.DTO.Users;
 using System.Runtime.CompilerServices;
 
 namespace Plantitask.Core.Interfaces

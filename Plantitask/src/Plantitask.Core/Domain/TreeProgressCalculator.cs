@@ -1,5 +1,5 @@
 ﻿using Plantitask.Core.Constants;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 
 namespace Plantitask.Core.Domain;
 

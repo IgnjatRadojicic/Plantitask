@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Attachments;
+using Plantitask.Contracts.DTO.Attachments;
 
 namespace Plantitask.Core.Interfaces
 {

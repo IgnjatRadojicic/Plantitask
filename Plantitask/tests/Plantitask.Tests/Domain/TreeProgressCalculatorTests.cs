@@ -1,5 +1,5 @@
-using Plantitask.Core.Domain;
-using Plantitask.Core.Enums;
+﻿using Plantitask.Core.Domain;
+using Plantitask.Contracts.Enums;
 
 namespace Plantitask.Tests.Domain
 {

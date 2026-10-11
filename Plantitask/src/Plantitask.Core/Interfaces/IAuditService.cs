@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Audit;
+using Plantitask.Contracts.DTO.Audit;
 using Plantitask.Core.Entities;
 
 namespace Plantitask.Core.Interfaces

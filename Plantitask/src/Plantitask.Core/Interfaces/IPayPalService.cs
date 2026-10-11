@@ -1,5 +1,5 @@
 ﻿using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Paypal;
+using Plantitask.Contracts.DTO.Paypal;
 
 namespace Plantitask.Core.Interfaces
 {

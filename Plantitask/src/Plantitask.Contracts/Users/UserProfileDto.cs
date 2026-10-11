@@ -1,5 +1,5 @@
 ﻿
-namespace Plantitask.Core.DTO.Users
+namespace Plantitask.Contracts.DTO.Users
 {
     /// <summary>
     /// Who the user is. Identity only.

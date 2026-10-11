@@ -1,8 +1,7 @@
 ﻿using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
-
-using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Notifications;
+using Plantitask.Contracts.Common;
+using Plantitask.Contracts.DTO.Notifications;
 namespace Plantitask.Web.Services;
 
 public class NotificationService : BaseApiService, INotificationService

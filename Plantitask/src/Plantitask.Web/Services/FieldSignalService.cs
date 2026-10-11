@@ -3,8 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
-using Plantitask.Core.DTO.Dashboard;
-using Plantitask.Core.SignalR;
+using Plantitask.Contracts.DTO.Dashboard;
+using Plantitask.Contracts.SignalR;
 namespace Plantitask.Web.Services;
 
 public class FieldSignalRService : IAsyncDisposable, IFieldSignalRService

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Plantitask.Core.DTO.Auth
+namespace Plantitask.Contracts.DTO.Auth
 {
     public class SendVerificationRequest
     {

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Plantitask.Api.Hubs;
-using Plantitask.Core.DTO.Kanban;
-using Plantitask.Core.SignalR;
+using Plantitask.Contracts.DTO.Kanban;
+using Plantitask.Contracts.SignalR;
 using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Services

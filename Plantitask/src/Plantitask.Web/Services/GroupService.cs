@@ -1,9 +1,9 @@
-﻿using Plantitask.Core.DTO.Groups;
-using Plantitask.Core.Enums;
+﻿using Plantitask.Contracts.DTO.Groups;
+using Plantitask.Contracts.Enums;
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
 
-using Plantitask.Core.DTO.Users;
+using Plantitask.Contracts.DTO.Users;
 namespace Plantitask.Web.Services
 {
     public class GroupService : BaseApiService, IGroupService

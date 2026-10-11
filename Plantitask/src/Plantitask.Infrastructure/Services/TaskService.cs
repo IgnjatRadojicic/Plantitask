@@ -2,12 +2,13 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
+using Plantitask.Contracts.Common;
 using Plantitask.Core.Domain;
-using Plantitask.Core.DTO.Kanban;
-using Plantitask.Core.DTO.Tasks;
+using Plantitask.Contracts.DTO.Kanban;
+using Plantitask.Contracts.DTO.Tasks;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Projections;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
 using System.Text.RegularExpressions;
 using Plantitask.Infrastructure.Data;

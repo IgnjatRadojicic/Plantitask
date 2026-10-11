@@ -8,8 +8,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Paypal;
+using Plantitask.Contracts.DTO.Paypal;
 using Plantitask.Core.Entities;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Data;
 

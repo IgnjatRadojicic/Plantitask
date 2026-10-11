@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 
-namespace Plantitask.Core.DTO.Notifications;
+namespace Plantitask.Contracts.DTO.Notifications;
 
 public class NotificationPreferenceDto
 {

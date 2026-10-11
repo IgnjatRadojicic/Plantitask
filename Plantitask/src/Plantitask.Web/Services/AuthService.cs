@@ -1,7 +1,7 @@
 ﻿using System.Net.Http.Json;
 using Plantitask.Web.Interfaces;
 using Plantitask.Web.Models;
-using Plantitask.Core.DTO.Auth;
+using Plantitask.Contracts.DTO.Auth;
 namespace Plantitask.Web.Services
 {
     public class AuthService : BaseApiService, IAuthService

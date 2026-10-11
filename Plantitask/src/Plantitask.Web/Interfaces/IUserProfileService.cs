@@ -1,10 +1,10 @@
 ﻿
 using Plantitask.Web.Models;
 
-using Plantitask.Core.DTO.Users;
-using Plantitask.Core.DTO.Paypal;
-using Plantitask.Core.DTO.Auth;
-using Plantitask.Core.DTO.Plans;
+using Plantitask.Contracts.DTO.Users;
+using Plantitask.Contracts.DTO.Paypal;
+using Plantitask.Contracts.DTO.Auth;
+using Plantitask.Contracts.DTO.Plans;
 namespace Plantitask.Web.Interfaces;
 
     public interface IUserProfileService

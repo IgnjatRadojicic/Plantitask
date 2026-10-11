@@ -1,7 +1,6 @@
 ﻿using Plantitask.Web.Models;
-
-using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Tasks;
+using Plantitask.Contracts.Common;
+using Plantitask.Contracts.DTO.Tasks;
 namespace Plantitask.Web.Interfaces;
 
 public interface ITaskService

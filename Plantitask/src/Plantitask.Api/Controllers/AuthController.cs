@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Core.DTO.Audit;
-using Plantitask.Core.DTO.Auth;
+using Plantitask.Contracts.DTO.Auth;
 using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Controllers

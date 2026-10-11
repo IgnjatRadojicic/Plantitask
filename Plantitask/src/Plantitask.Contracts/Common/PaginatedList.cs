@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
-namespace Plantitask.Core.Common
+namespace Plantitask.Contracts.Common
 {
     public class PaginatedList<T>
     {

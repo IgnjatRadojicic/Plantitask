@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using Plantitask.Core.DTO.Tasks;
-
 namespace Plantitask.Infrastructure.Services.Email
 {
     /// <summary>

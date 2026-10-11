@@ -1,9 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
-using Plantitask.Core.DTO.Groups;
+using Plantitask.Contracts.DTO.Groups;
 using Plantitask.Core.Entities;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Validation;
 using Plantitask.Infrastructure.Data;

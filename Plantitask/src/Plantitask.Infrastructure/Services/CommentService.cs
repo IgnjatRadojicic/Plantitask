@@ -1,8 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
-using Plantitask.Core.Enums;
-using Plantitask.Core.DTO.Comments;
+using Plantitask.Contracts.Common;
+using Plantitask.Contracts.Enums;
+using Plantitask.Contracts.DTO.Comments;
 using Plantitask.Core.Entities;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Projections;

@@ -1,11 +1,11 @@
-@inject IUserProfileService ProfileService
+﻿@inject IUserProfileService ProfileService
 @inject IPayPalService PayPalService
 @inject ISettingsUIService SettingsUI
 @inject ISnackbar Snackbar
 @inject ICurrentUserService CurrentUser
 @inject NavigationManager Navigation
 @using System.Globalization
-@using Plantitask.Core.DTO.Plans
+@using Plantitask.Contracts.DTO.Plans
 @implements IDisposable
 
 @if (_loading)

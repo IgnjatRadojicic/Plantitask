@@ -1,6 +1,6 @@
 ﻿
 
-using Plantitask.Core.DTO.Comments;
+using Plantitask.Contracts.DTO.Comments;
 using Plantitask.Core.Entities;
 using System.Linq.Expressions;
 

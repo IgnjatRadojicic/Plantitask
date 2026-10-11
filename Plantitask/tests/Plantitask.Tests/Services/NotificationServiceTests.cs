@@ -1,11 +1,11 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Plantitask.Core.DTO.Comments;
-using Plantitask.Core.DTO.Notifications;
-using Plantitask.Core.DTO.Tasks;
+using Plantitask.Contracts.DTO.Comments;
+using Plantitask.Contracts.DTO.Notifications;
+using Plantitask.Contracts.DTO.Tasks;
 using Plantitask.Core.Entities;
-using Plantitask.Core.Enums;
+using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Services;
 using Plantitask.Tests.Helpers;
