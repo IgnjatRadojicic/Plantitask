@@ -16,6 +16,7 @@ using Plantitask.Api.Services;
 using Plantitask.Core.Common;
 using Plantitask.Core.Configuration;
 using Plantitask.Core.DTO.Paypal;
+using Plantitask.Core.Events;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Validation;
 using Plantitask.Infrastructure.Data;
@@ -368,8 +369,11 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+EventNames.ValidateAll();
+
 // Due dates and the dashboard resolve zones by name. An image without tzdata fails every lookup,
 // so refuse to start instead of rejecting every group creation with a 400.
+
 if (!TimeZoneRules.TryResolve("Europe/Belgrade", out _))
     throw new InvalidOperationException("Time zone data is missing. Install tzdata in the runtime image.");
 
