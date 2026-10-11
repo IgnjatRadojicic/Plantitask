@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Plantitask.Api.Hubs;
-using Plantitask.Api.Interfaces;
 using Plantitask.Core.Interfaces;
 using Plantitask.Contracts.SignalR;
 

@@ -12,7 +12,6 @@ using Plantitask.Api.Extensions;
 using Plantitask.Api.Filters;
 using Plantitask.Api.Handlers;
 using Plantitask.Api.Hubs;
-using Plantitask.Api.Interfaces;
 using Plantitask.Api.Services;
 using Plantitask.Core.Common;
 using Plantitask.Core.Configuration;
