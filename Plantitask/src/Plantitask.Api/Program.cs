@@ -392,8 +392,8 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();   // 1. HTTPS first
-app.UseCors("AllowFrontend"); // 2. CORS before auth
+app.UseHttpsRedirection();
+app.UseCors("AllowFrontend"); // before auth, and before the static files below so avatars keep the headers
 
 // The provider root is the avatars folder and not the uploads root so attachments have no
 // reachable path here. PhysicalFileProvider throws when the folder is missing so a fresh
@@ -413,9 +413,9 @@ app.UseStaticFiles(new StaticFileOptions
     OnPrepareResponse = ctx =>
         ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff"
 });
-app.UseAuthentication();      // 3. Auth
-app.UseAuthorization();       // 4. Authorization
-app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();         // after authentication because UserOrClientKey reads HttpContext.User
 // Hangfire Dashboard
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {

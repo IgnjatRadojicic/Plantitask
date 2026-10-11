@@ -9,7 +9,6 @@ using Plantitask.Core.Interfaces;
 namespace Plantitask.Api.Controllers
 {
     [Authorize]
-    [ApiController]
     [EnableRateLimiting(RateLimitPolicies.General)]
     [Route("api/[controller]")]
     public class DashboardController : BaseApiController
@@ -44,6 +43,7 @@ namespace Plantitask.Api.Controllers
         [HttpGet("groups/{groupId}")]
         [ProducesResponseType(typeof(GroupStatisticsDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetGroupStatistics(Guid groupId)
         {

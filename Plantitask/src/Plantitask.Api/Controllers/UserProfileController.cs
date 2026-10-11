@@ -7,12 +7,10 @@ using Plantitask.Core.DTO.Auth;
 using Plantitask.Core.DTO.Plans;
 using Plantitask.Core.DTO.Users;
 using Plantitask.Core.Interfaces;
-using Plantitask.Infrastructure.Services;
 
 namespace Plantitask.Api.Controllers;
 
 [Authorize]
-[ApiController]
 [EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/user/profile")]
 public class UserProfileController : BaseApiController
@@ -89,7 +87,7 @@ public class UserProfileController : BaseApiController
     }
 
     [HttpDelete("picture")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RemoveProfilePicture()
     {
         var userId = GetUserId();
@@ -98,7 +96,7 @@ public class UserProfileController : BaseApiController
         if (result.IsFailure)
             return result.ToActionResult();
 
-        return Ok(new { message = "Profile picture removed" });
+        return NoContent();
     }
 
     [HttpPost("change-password")]

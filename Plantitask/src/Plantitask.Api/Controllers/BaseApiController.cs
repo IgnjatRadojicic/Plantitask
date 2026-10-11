@@ -4,10 +4,13 @@ using Plantitask.Api.Extensions;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.DTO.Audit;
 using System.IdentityModel.Tokens.Jwt;
-using Microsoft.EntityFrameworkCore.Internal;
 
 namespace Plantitask.Api.Controllers
 {
+    // Inherited by every controller so a new one cannot be written without it. Without it a
+    // binding failure is recorded in ModelState and never read so the action runs on
+    // default values and answers 200.
+    [ApiController]
     public abstract class BaseApiController : ControllerBase
     {
         protected Guid GetUserId()
@@ -48,10 +51,11 @@ namespace Plantitask.Api.Controllers
                 EntityId = entityId,
                 Action = action,
                 UserId = GetUserId(),
-                UserName = User.FindFirstValue(JwtRegisteredClaimNames.UniqueName)
-                                            ?? User.FindFirstValue(ClaimTypes.Name) ?? "unknown",
-                UserEmail = User.FindFirstValue(JwtRegisteredClaimNames.Email)
-                                             ?? User.FindFirstValue(ClaimTypes.Email) ?? "unknown",
+                // MapInboundClaims is false so inbound claims keep their JWT names and the
+                // ClaimTypes aliases can never arrive. JwtTokenGenerator mints sub, email,
+                // unique_name and jti and nothing else.
+                UserName = User.FindFirstValue(JwtRegisteredClaimNames.UniqueName) ?? "unknown",
+                UserEmail = User.FindFirstValue(JwtRegisteredClaimNames.Email) ?? "unknown",
                 GroupId = groupId,
                 IpAddress = GetClientIpAddress(),
                 UserAgent = GetUserAgent(),

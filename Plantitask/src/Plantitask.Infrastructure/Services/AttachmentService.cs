@@ -170,10 +170,10 @@ namespace Plantitask.Infrastructure.Services
         /// Returns one attachment's metadata after confirming the caller belongs to the group
         /// that owns it.
         /// </summary>
-        public async Task<Result<AttachmentDto>> GetAttachmentByIdAsync(Guid attachmentId, Guid userId)
+        public async Task<Result<AttachmentDto>> GetAttachmentByIdAsync(Guid taskId, Guid attachmentId, Guid userId)
         {
             var attachment = await _context.TaskAttachments
-                .Where(a => a.Id == attachmentId)
+                .Where(a => a.Id == attachmentId && a.TaskId == taskId)
                 .Select(a => new
                 {
                     a.Id,
@@ -214,10 +214,10 @@ namespace Plantitask.Infrastructure.Services
         /// original filename and the server-derived content type so the controller can serve it
         /// as a download.
         /// </summary>
-        public async Task<Result<(Stream FileStream, string FileName, string ContentType)>> DownloadAttachmentAsync(Guid attachmentId, Guid userId)
+        public async Task<Result<(Stream FileStream, string FileName, string ContentType)>> DownloadAttachmentAsync(Guid taskId, Guid attachmentId, Guid userId)
         {
             var attachment = await _context.TaskAttachments
-                .Where(a => a.Id == attachmentId)
+                .Where(a => a.Id == attachmentId && a.TaskId == taskId)
                 .Select(a => new
                 {
                     GroupId = a.Task.GroupId,
@@ -246,10 +246,10 @@ namespace Plantitask.Infrastructure.Services
         /// either the uploader or a Manager and above. The database row commits first; deleting
         /// the physical file is best effort because the row is the source of truth.
         /// </summary>
-        public async Task<Result> DeleteAttachmentAsync(Guid attachmentId, Guid userId)
+        public async Task<Result> DeleteAttachmentAsync(Guid taskId, Guid attachmentId, Guid userId)
         {
             var row = await _context.TaskAttachments
-                .Where(a => a.Id == attachmentId)
+                .Where(a => a.Id == attachmentId && a.TaskId == taskId)
                 .Select(a => new { Attachment = a, a.Task.GroupId })
                 .FirstOrDefaultAsync();
 

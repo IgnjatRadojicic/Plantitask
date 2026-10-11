@@ -12,8 +12,8 @@ namespace Plantitask.Core.Interfaces
     {
         Task<Result<AttachmentDto>> UploadAttachmentAsync(Guid taskId, Stream content, string fileName, Guid userId);
         Task<Result<List<AttachmentDto>>> GetTaskAttachmentsAsync(Guid taskId, Guid userId);
-        Task<Result<AttachmentDto>> GetAttachmentByIdAsync(Guid attachmentId, Guid userId);
-        Task<Result<(Stream FileStream, string FileName, string ContentType)>> DownloadAttachmentAsync(Guid attachmentId, Guid userId);
-        Task<Result> DeleteAttachmentAsync(Guid attachmentId, Guid userId);
+        Task<Result<AttachmentDto>> GetAttachmentByIdAsync(Guid taskId, Guid attachmentId, Guid userId);
+        Task<Result<(Stream FileStream, string FileName, string ContentType)>> DownloadAttachmentAsync(Guid taskId, Guid attachmentId, Guid userId);
+        Task<Result> DeleteAttachmentAsync(Guid taskId, Guid attachmentId, Guid userId);
     }
 }

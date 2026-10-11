@@ -9,7 +9,6 @@ using Plantitask.Core.Interfaces;
 namespace Plantitask.Api.Controllers
 {
     [Authorize]
-    [ApiController]
     [Route("api/[controller]")]
     [EnableRateLimiting(RateLimitPolicies.General)]
     [Produces("application/json")]
@@ -17,20 +16,17 @@ namespace Plantitask.Api.Controllers
     {
         private readonly IGroupService _groupService;
         private readonly IAuditService _auditService;
-        private readonly ILogger<GroupsController> _logger;
 
         public GroupsController(
             IGroupService groupService,
-            IAuditService auditService,
-            ILogger<GroupsController> logger)
+            IAuditService auditService)
         {
             _groupService = groupService;
             _auditService = auditService;
-            _logger = logger;
         }
 
         [HttpPost]
-        [ProducesResponseType(typeof(GroupDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(GroupDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CreateGroup([FromBody] CreateGroupDto createGroupDto)
         {
@@ -49,7 +45,10 @@ namespace Plantitask.Api.Controllers
                 action: "Created",
                 groupId: group.Id);
 
-            return Ok(group);
+            return CreatedAtAction(
+                nameof(GetGroupDetails),
+                new { groupId = group.Id },
+                group);
         }
 
         [HttpPost("join")]
@@ -149,9 +148,11 @@ namespace Plantitask.Api.Controllers
         }
 
         [HttpDelete("{groupId}/members/{memberId}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> RemoveUserFromGroup(Guid groupId, Guid memberId)
         {
             var userId = GetUserId();
@@ -167,11 +168,11 @@ namespace Plantitask.Api.Controllers
                 action: "RemovedFromGroup",
                 groupId: groupId);
 
-            return Ok(new { message = "Member removed successfully" });
+            return NoContent();
         }
 
         [HttpPost("{groupId}/leave")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> LeaveGroup(Guid groupId)
@@ -189,7 +190,7 @@ namespace Plantitask.Api.Controllers
                 action: "LeftGroup",
                 groupId: groupId);
 
-            return Ok(new { message = "Left group successfully" });
+            return NoContent();
         }
     }
 }

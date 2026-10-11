@@ -11,7 +11,6 @@ using Plantitask.Core.Interfaces;
 namespace Plantitask.Api.Controllers;
 
 [Authorize]
-[ApiController]
 [EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/tasks/{taskId}/comments")]
 public class CommentsController : BaseApiController
@@ -124,7 +123,7 @@ public class CommentsController : BaseApiController
     }
 
     [HttpDelete("{commentId}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteComment(Guid taskId, Guid commentId)
@@ -141,6 +140,6 @@ public class CommentsController : BaseApiController
             entityId: commentId,
             action: "Deleted");
 
-        return Ok(new { message = "Comment deleted successfully" });
+        return NoContent();
     }
 }

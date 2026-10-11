@@ -6,6 +6,9 @@
 *.suo
 *.user
 *.userosscache
+
+# Visual Studio csproj upgrade leftovers
+*.csproj.Backup.tmp
 *.sln.docstates
 
 !**/wwwroot/appsettings.Production.json

@@ -10,7 +10,6 @@ using Plantitask.Core.Interfaces;
 namespace Plantitask.Api.Controllers;
 
 [Authorize]
-[ApiController]
 [EnableRateLimiting(RateLimitPolicies.General)]
 [Route("api/tasks/{taskId}/attachments")]
 public class AttachmentsController : BaseApiController
@@ -40,7 +39,11 @@ public class AttachmentsController : BaseApiController
     [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
     public async Task<IActionResult> UploadAttachment(Guid taskId, IFormFile file)
     {
+        if (file is null)
+            return Problem(detail: "No file provided", statusCode: StatusCodes.Status400BadRequest);
+
         var userId = GetUserId();
+
         using var stream = file.OpenReadStream();
         var result = await _attachmentService.UploadAttachmentAsync(taskId, stream, file.FileName, userId);
 
@@ -81,7 +84,7 @@ public class AttachmentsController : BaseApiController
     public async Task<IActionResult> GetAttachment(Guid taskId, Guid attachmentId)
     {
         var userId = GetUserId();
-        var result = await _attachmentService.GetAttachmentByIdAsync(attachmentId, userId);
+        var result = await _attachmentService.GetAttachmentByIdAsync(taskId, attachmentId, userId);
         return result.ToActionResult();
     }
 
@@ -92,7 +95,7 @@ public class AttachmentsController : BaseApiController
     public async Task<IActionResult> DownloadAttachment(Guid taskId, Guid attachmentId)
     {
         var userId = GetUserId();
-        var result = await _attachmentService.DownloadAttachmentAsync(attachmentId, userId);
+        var result = await _attachmentService.DownloadAttachmentAsync(taskId, attachmentId, userId);
 
         if (result.IsFailure)
             return result.ToActionResult();
@@ -102,13 +105,13 @@ public class AttachmentsController : BaseApiController
     }
 
     [HttpDelete("{attachmentId}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteAttachment(Guid taskId, Guid attachmentId)
     {
         var userId = GetUserId();
-        var result = await _attachmentService.DeleteAttachmentAsync(attachmentId, userId);
+        var result = await _attachmentService.DeleteAttachmentAsync(taskId, attachmentId, userId);
 
         if (result.IsFailure)
             return result.ToActionResult();
@@ -119,6 +122,6 @@ public class AttachmentsController : BaseApiController
             entityId: attachmentId,
             action: "Deleted");
 
-        return Ok(new { message = "Attachment deleted successfully" });
+        return NoContent();
     }
 }
