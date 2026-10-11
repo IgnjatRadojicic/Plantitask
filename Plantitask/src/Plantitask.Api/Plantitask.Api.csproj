@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Plantitask.Contracts\Plantitask.Contracts.csproj" />
     <ProjectReference Include="..\Plantitask.Core\Plantitask.Core.csproj" />
     <ProjectReference Include="..\Plantitask.Infrastructure\Plantitask.Infrastructure.csproj" />
   </ItemGroup>
