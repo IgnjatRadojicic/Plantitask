@@ -256,6 +256,7 @@ builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICurrentActor, HttpCurrentActor>();
 builder.Services.AddScoped<INotificationBroadcaster, SignalRNotificationBroadcaster>();
 builder.Services.AddScoped<IKanbanBroadcaster, KanbanBroadcaster>();
 builder.Services.AddScoped<ITreeProgressBroadcaster, TreeProgressBroadcaster>();
