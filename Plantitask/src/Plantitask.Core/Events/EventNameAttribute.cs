@@ -2,7 +2,7 @@
 namespace Plantitask.Core.Events
 {
     /// <summary>
-    /// The name the event travels under. Not the c# name
+    /// The name the event travels under. Not the C# name
     /// once a Service Bus subscription filters on it, a rename becomes a breaking change
     /// across services.
     /// </summary>

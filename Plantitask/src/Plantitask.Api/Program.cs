@@ -20,6 +20,7 @@ using Plantitask.Core.Events;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Validation;
 using Plantitask.Infrastructure.Data;
+using Plantitask.Infrastructure.Events;
 using Plantitask.Infrastructure.Services;
 using Plantitask.Infrastructure.Services.Email;
 using Plantitask.Infrastructure.Services.Storage;
@@ -41,7 +42,14 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 // Database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<EventCollector>();
+builder.Services.AddScoped<IEventCollector>(sp => sp.GetRequiredService<EventCollector>());
+builder.Services.AddScoped<EventDispatchInterceptor>();
+
+builder.Services.AddDbContext<ApplicationDbContext>((sp, options) => options
+ .UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+ .AddInterceptors(sp.GetRequiredService<EventDispatchInterceptor>()));
+
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")),
     ServiceLifetime.Scoped);

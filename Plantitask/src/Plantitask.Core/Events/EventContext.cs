@@ -14,12 +14,12 @@ namespace Plantitask.Core.Events
         public EventActor? Actor { get; init; }
         public string? TraceParent { get; init; }
     }
-        public record EventActor(Guid Id, string UserName, string Email);
-        public enum EventSource
-        {
-            Request = 1,
-            Webhook = 2,
-            Job = 3,
-        }
+    public record EventActor(Guid Id, string UserName, string Email);
+    public enum EventSource
+    {
+        Request = 1,
+        Webhook = 2,
+        Job = 3,
     }
+}
 
