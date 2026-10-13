@@ -19,6 +19,9 @@ namespace Plantitask.Tests.Helpers
 
         protected ApplicationDbContext NewContext() => _fixture.NewContext();
 
+        /// <summary>For the tests that build their own context, such as one carrying an interceptor.</summary>
+        protected DbContextOptions<ApplicationDbContext> ContextOptions => _fixture.Options;
+
         /// <summary>For the services that take IDbContextFactory rather than a context.</summary>
         protected IDbContextFactory<ApplicationDbContext> ContextFactory
             => new TestDbContextFactory(_fixture.Options);
