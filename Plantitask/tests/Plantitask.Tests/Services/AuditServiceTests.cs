@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Plantitask.Core.DTO.Audit;
 using Plantitask.Core.Entities;
+using Plantitask.Core.Events;
 using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
 using Plantitask.Infrastructure.Data;
@@ -90,7 +91,9 @@ namespace Plantitask.Tests.Services
                 UserEmail = "seeded@example.com",
                 GroupId = groupId,
                 IpAddress = "198.51.100.4",
-                UserAgent = "seed"
+                UserAgent = "seed",
+                Source = EventSource.Request,
+                OccurredAt = createdAt ?? DateTime.UtcNow
             };
 
             db.AuditLogs.Add(log);

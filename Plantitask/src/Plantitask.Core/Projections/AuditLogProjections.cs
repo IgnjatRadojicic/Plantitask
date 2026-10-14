@@ -19,7 +19,7 @@ namespace Plantitask.Core.Projections
             UserId = a.UserId,
             UserName = a.UserName,
             UserEmail = a.UserEmail,
-            Timestamp = a.CreatedAt,
+            Timestamp = a.OccurredAt,
             Reason = a.Reason,
             IpAddress = a.IpAddress
         };

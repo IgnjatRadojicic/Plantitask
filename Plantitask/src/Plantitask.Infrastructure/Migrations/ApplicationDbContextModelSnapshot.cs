@@ -49,13 +49,15 @@ namespace Plantitask.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("IpAddress")
-                        .IsRequired()
                         .HasMaxLength(45)
                         .HasColumnType("character varying(45)");
 
                     b.Property<string>("NewValue")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("OldValue")
                         .HasMaxLength(1000)
@@ -69,21 +71,23 @@ namespace Plantitask.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<string>("UserAgent")
+                    b.Property<string>("Source")
                         .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("UserAgent")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
                     b.Property<string>("UserEmail")
-                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("UserName")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
@@ -99,7 +103,14 @@ namespace Plantitask.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", t =>
+                        {
+                            t.HasCheckConstraint("CK_AuditLogs_ActorComplete", "(\"UserId\" IS NULL) = (\"UserName\" IS NULL) AND (\"UserId\" IS NULL) = (\"UserEmail\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_AuditLogs_RequestHasActor", "\"Source\" <> 'Request' OR \"UserId\" IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_AuditLogs_Source", "\"Source\" IN ('Request', 'Webhook', 'Job')");
+                        });
                 });
 
             modelBuilder.Entity("Plantitask.Core.Entities.Group", b =>

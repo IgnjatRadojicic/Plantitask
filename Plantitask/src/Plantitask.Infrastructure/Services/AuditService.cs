@@ -4,6 +4,7 @@ using Plantitask.Core.Common;
 using Plantitask.Core.DTO.Audit;
 using Plantitask.Contracts.DTO.Audit;
 using Plantitask.Core.Entities;
+using Plantitask.Core.Events;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Projections;
 using Plantitask.Infrastructure.Data;
@@ -59,7 +60,10 @@ namespace Plantitask.Infrastructure.Services
                     PropertyName = request.PropertyName,
                     OldValue = request.OldValue,
                     NewValue = request.NewValue,
-                    Reason = request.Reason
+                    Reason = request.Reason,
+                    // Every row this writer records comes from a signed in request, written right after it.
+                    Source = EventSource.Request,
+                    OccurredAt = DateTime.UtcNow
                 };
 
                 context.AuditLogs.Add(auditLog);

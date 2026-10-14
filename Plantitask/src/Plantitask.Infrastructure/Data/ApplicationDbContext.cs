@@ -407,8 +407,24 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.EntityType).HasMaxLength(50).IsRequired();
             entity.Property(e => e.Action).HasMaxLength(50).IsRequired();
 
-            entity.Property(e => e.UserName).HasMaxLength(100).IsRequired();
-            entity.Property(e => e.UserEmail).HasMaxLength(256).IsRequired();
+            entity.Property(e => e.UserName).HasMaxLength(100);
+            entity.Property(e => e.UserEmail).HasMaxLength(256);
+
+            entity.Property(e => e.Source).HasConversion<string>().HasMaxLength(20);
+
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_AuditLogs_Source",
+                    "\"Source\" IN ('Request', 'Webhook', 'Job')");
+
+                // A row that came through a request always names the person behind it.
+                t.HasCheckConstraint("CK_AuditLogs_RequestHasActor",
+                    "\"Source\" <> 'Request' OR \"UserId\" IS NOT NULL");
+
+                // The actor is all or nothing, like EventActor.
+                t.HasCheckConstraint("CK_AuditLogs_ActorComplete",
+                    "(\"UserId\" IS NULL) = (\"UserName\" IS NULL) AND (\"UserId\" IS NULL) = (\"UserEmail\" IS NULL)");
+            });
 
             entity.Property(e => e.PropertyName).HasMaxLength(100);
             entity.Property(e => e.OldValue).HasMaxLength(1000);
