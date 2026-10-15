@@ -29,7 +29,7 @@ namespace Plantitask.Api.Controllers
             return HttpContext.GetClientIpAddress();
         }
 
-        protected string GetUserAgent()
+        protected string? GetUserAgent()
         {
             return HttpContext.GetUserAgent();
         }

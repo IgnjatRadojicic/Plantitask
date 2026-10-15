@@ -7,9 +7,11 @@ namespace Plantitask.Api.Extensions
             return context.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         }
 
-        public static string GetUserAgent(this HttpContext context)
+        // Client controlled and unbounded, so it is cut to the column size here where it enters.
+        public static string? GetUserAgent(this HttpContext context)
         {
-            return context.Request.Headers["User-Agent"].FirstOrDefault() ?? "Unknown";
+            var userAgent = context.Request.Headers["User-Agent"].FirstOrDefault();
+            return userAgent is { Length: > 500 } ? userAgent[..500] : userAgent;
         }
     }
 }

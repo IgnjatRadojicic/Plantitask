@@ -131,8 +131,6 @@ namespace Plantitask.Tests.Services
             Assert.Equal("lead", log.UserName);
             Assert.Equal("lead@example.com", log.UserEmail);
             Assert.Equal(GroupId, log.GroupId);
-            Assert.Equal("203.0.113.7", log.IpAddress);
-            Assert.Equal("xunit", log.UserAgent);
             Assert.Equal("Title", log.PropertyName);
             Assert.Equal("before", log.OldValue);
             Assert.Equal("after", log.NewValue);
@@ -141,18 +139,51 @@ namespace Plantitask.Tests.Services
         }
 
         [Fact]
-        public async Task LogAsync_SubstitutesUnknownForAMissingIpAndUserAgent()
+        public async Task LogAsync_KeepsIpAndUserAgentOnAnAuthAction()
         {
             await SeedAsync();
 
             await using var groupCtx = NewContext();
-            await NewSut(groupCtx).LogAsync(NewRequest(ipAddress: null, userAgent: null));
+            await NewSut(groupCtx).LogAsync(NewRequest(
+                entityType: "User", entityId: LeadId, action: "Login", groupless: true));
 
             await using var assert = NewContext();
             var log = await assert.AuditLogs.SingleAsync();
 
-            Assert.Equal("Unknown", log.IpAddress);
-            Assert.Equal("Unknown", log.UserAgent);
+            Assert.Equal("203.0.113.7", log.IpAddress);
+            Assert.Equal("xunit", log.UserAgent);
+        }
+
+        [Fact]
+        public async Task LogAsync_DropsIpAndUserAgentEverywhereElse()
+        {
+            await SeedAsync();
+
+            await using var groupCtx = NewContext();
+            await NewSut(groupCtx).LogAsync(NewRequest(action: "Updated"));
+
+            await using var assert = NewContext();
+            var log = await assert.AuditLogs.SingleAsync();
+
+            Assert.Null(log.IpAddress);
+            Assert.Null(log.UserAgent);
+        }
+
+        [Fact]
+        public async Task LogAsync_StoresNullForAMissingIpAndUserAgent()
+        {
+            await SeedAsync();
+
+            await using var groupCtx = NewContext();
+            await NewSut(groupCtx).LogAsync(NewRequest(
+                entityType: "User", entityId: LeadId, action: "Login", groupless: true,
+                ipAddress: null, userAgent: null));
+
+            await using var assert = NewContext();
+            var log = await assert.AuditLogs.SingleAsync();
+
+            Assert.Null(log.IpAddress);
+            Assert.Null(log.UserAgent);
         }
 
         [Fact]

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
+using Plantitask.Core.Constants;
 using Plantitask.Core.DTO.Audit;
 using Plantitask.Contracts.DTO.Audit;
 using Plantitask.Core.Entities;
@@ -20,6 +21,15 @@ namespace Plantitask.Infrastructure.Services
     /// </summary>
     public class AuditService : IAuditService
     {
+        // Where a request came from is kept on auth actions only, see the security skill.
+        private static readonly HashSet<string> AuthActions =
+        [
+            AuditActions.Registered,
+            AuditActions.Login,
+            AuditActions.Logout,
+            AuditActions.PasswordReset
+        ];
+
         private readonly IDbContextFactory<ApplicationDbContext> _factory;
         private readonly ILogger<AuditService> _logger;
         private readonly IGroupService _groupService;
@@ -46,6 +56,8 @@ namespace Plantitask.Infrastructure.Services
             {
                 await using var context = await _factory.CreateDbContextAsync();
 
+                var isAuth = AuthActions.Contains(request.Action);
+
                 var auditLog = new AuditLog
                 {
                     EntityType = request.EntityType,
@@ -55,8 +67,8 @@ namespace Plantitask.Infrastructure.Services
                     UserName = request.UserName,
                     UserEmail = request.UserEmail,
                     GroupId = request.GroupId,
-                    IpAddress = request.IpAddress ?? "Unknown",
-                    UserAgent = request.UserAgent ?? "Unknown",
+                    IpAddress = isAuth ? request.IpAddress : null,
+                    UserAgent = isAuth ? request.UserAgent : null,
                     PropertyName = request.PropertyName,
                     OldValue = request.OldValue,
                     NewValue = request.NewValue,
