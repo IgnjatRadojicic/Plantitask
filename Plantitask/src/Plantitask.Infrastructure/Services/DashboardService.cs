@@ -4,6 +4,7 @@ using Plantitask.Core.Common;
 using Plantitask.Core.Constants;
 using Plantitask.Contracts.DTO.Dashboard;
 using Plantitask.Contracts.Enums;
+using Plantitask.Core.Events;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Domain;
 using Plantitask.Core.Projections;
@@ -114,14 +115,15 @@ namespace Plantitask.Infrastructure.Services
                 ? new List<ActivityDto>()
                 : await _context.AuditLogs
                 .Where(a => a.GroupId.HasValue && userGroupIds.Contains(a.GroupId.Value))
-                .OrderByDescending(a => a.CreatedAt)
+                .OrderByDescending(a => a.OccurredAt)
                 .Take(15)
                 .Select(a => new ActivityDto
                 {
-                    UserName = a.UserName,
+                    // A row with no signed in user names the door it came through instead.
+                    UserName = a.UserName ?? (a.Source == EventSource.Webhook ? "PayPal" : "System"),
                     Action = a.Action,
                     EntityType = a.EntityType,
-                    Timestamp = a.CreatedAt
+                    Timestamp = a.OccurredAt
                 })
                 .ToListAsync();
 
