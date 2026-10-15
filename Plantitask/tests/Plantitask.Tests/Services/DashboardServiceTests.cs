@@ -72,23 +72,28 @@ namespace Plantitask.Tests.Services
             return task.Id;
         }
 
-        private async Task SeedAuditAsync(Guid groupId, string action, DateTime createdAt)
+        private async Task SeedAuditAsync(
+            Guid groupId, string action, DateTime createdAt,
+            DateTime? occurredAt = null, EventSource source = EventSource.Request)
         {
             await using var db = NewContext();
+
+            // Only a request row has somebody signed in behind it.
+            var signedIn = source == EventSource.Request;
 
             var log = new AuditLog
             {
                 EntityType = "Task",
                 EntityId = Guid.NewGuid(),
                 Action = action,
-                UserId = LeadId,
-                UserName = "lead",
-                UserEmail = "lead@example.com",
+                UserId = signedIn ? LeadId : null,
+                UserName = signedIn ? "lead" : null,
+                UserEmail = signedIn ? "lead@example.com" : null,
                 GroupId = groupId,
                 IpAddress = "1.1.1.1",
                 UserAgent = "test",
-                Source = EventSource.Request,
-                OccurredAt = createdAt
+                Source = source,
+                OccurredAt = occurredAt ?? createdAt
             };
 
             db.AuditLogs.Add(log);
@@ -289,6 +294,46 @@ namespace Plantitask.Tests.Services
             Assert.Equal(
                 new[] { "Newest", "Middle", "Oldest" },
                 dashboard.RecentActivity.Select(a => a.Action));
+        }
+
+        /// <summary>
+        /// The drainer writes rows after the fact, so the order rows were written in and the order
+        /// things happened in can disagree. Sorting by CreatedAt would put the late row first.
+        /// </summary>
+        [Fact]
+        public async Task GetPersonalDashboardAsync_OrdersActivityByWhenItHappenedNotWhenItWasWritten()
+        {
+            await SeedAsync();
+
+            var now = DateTime.UtcNow;
+            // Happened two hours ago but only written now, like a row drained late.
+            await SeedAuditAsync(GroupId, "Happened first", createdAt: now, occurredAt: now.AddHours(-2));
+            // Happened an hour ago and written straight away.
+            await SeedAuditAsync(GroupId, "Happened last", createdAt: now.AddHours(-1));
+
+            await using var act = NewContext();
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
+
+            Assert.Equal(
+                new[] { "Happened last", "Happened first" },
+                dashboard.RecentActivity.Select(a => a.Action));
+        }
+
+        [Fact]
+        public async Task GetPersonalDashboardAsync_NamesTheDoorForARowWithNoSignedInUser()
+        {
+            await SeedAsync();
+
+            var now = DateTime.UtcNow;
+            await SeedAuditAsync(GroupId, "By a job", now.AddMinutes(-1), source: EventSource.Job);
+            await SeedAuditAsync(GroupId, "By a webhook", now, source: EventSource.Webhook);
+
+            await using var act = NewContext();
+            var dashboard = (await NewSut(act).GetPersonalDashboardAsync(MemberId, "UTC")).Value!;
+
+            Assert.Equal(
+                new[] { ("By a webhook", "PayPal"), ("By a job", "System") },
+                dashboard.RecentActivity.Select(a => (a.Action, a.UserName)));
         }
 
         [Fact]
