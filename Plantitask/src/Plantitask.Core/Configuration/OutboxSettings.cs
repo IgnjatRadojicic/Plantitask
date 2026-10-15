@@ -2,15 +2,15 @@
 
 namespace Plantitask.Core.Configuration
 {
+
+    /// <summary>
+    /// How the outbox retries drains and cleans up. Defaults are the values decided on 2026-10-15.
+    /// An environment with no outbox section runs exactly as decided.
+    /// </summary>
     public class OutboxSettings
     {
         public const string SectionName = "Outbox";
 
-
-        /// <summary>
-        /// How the outbox retries drains and cleans up. Defaults are the values decided on 2026-10-15.
-        /// An environment with no outbox section runs exactly as decided.
-        /// </summary>
         private static readonly TimeSpan[] DefaultRetryDelays =
         [
             TimeSpan.FromMinutes(1),
