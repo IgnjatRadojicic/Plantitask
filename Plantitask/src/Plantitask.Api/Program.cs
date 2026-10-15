@@ -337,6 +337,16 @@ builder.Services.AddOptions<HangfireSettings>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddOptions<OutboxSettings>()
+    .BindConfiguration(OutboxSettings.SectionName)
+    .ValidateDataAnnotations()
+    .Validate(s => s.EffectiveRetryDelays.All(d => d > TimeSpan.Zero),
+        "Outbox:RetryDelays must all be positive")
+    // An inbox row must outlive every retry of its message, or a late retry looks brand new.
+    .Validate(s => TimeSpan.FromDays(s.RetentionDays) > s.TotalRetrySpan,
+        "Outbox:RetentionDays must outlast the whole retry schedule")
+    .ValidateOnStart();
+
 var hangfireSettings = builder.Configuration
     .GetSection(HangfireSettings.SectionName)
     .Get<HangfireSettings>() ?? new();
