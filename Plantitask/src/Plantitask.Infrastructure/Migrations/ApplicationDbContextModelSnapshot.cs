@@ -691,9 +691,6 @@ namespace Plantitask.Infrastructure.Migrations
                     b.Property<int>("Attempts")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("EventType")
                         .IsRequired()
                         .HasMaxLength(200)

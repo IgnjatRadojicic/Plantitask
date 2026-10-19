@@ -1,5 +1,4 @@
-﻿using Plantitask.Core.Common.Interfaces;
-using Plantitask.Core.Events;
+﻿using Plantitask.Core.Events;
 
 namespace Plantitask.Core.Entities
 {
@@ -8,10 +7,11 @@ namespace Plantitask.Core.Entities
     /// as the change that raised it. No soft delete, retention removes processed rows for good.
     /// Id is generated once and later becomes the Service Bus MessageId on Azure.
     /// </summary>
-    public class OutboxMessage : IEntity
+    public class OutboxMessage
     {
+        // No CreatedAt. The row is added after the SaveChanges override has stamped, and
+        // OccurredAt already says when the event happened.
         public Guid Id { get; set; } = Guid.NewGuid();
-        public DateTime CreatedAt { get; set; }
         public required string EventType { get; init; }
         public required string Payload { get; init; }
 
