@@ -229,6 +229,33 @@ namespace Plantitask.Infrastructure.Migrations
                     b.ToTable("GroupMembers");
                 });
 
+            modelBuilder.Entity("Plantitask.Core.Entities.InboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Handler")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("MessageId", "Handler")
+                        .IsUnique();
+
+                    b.ToTable("InboxMessages");
+                });
+
             modelBuilder.Entity("Plantitask.Core.Entities.Lookups.GroupRoleLookup", b =>
                 {
                     b.Property<int>("Id")
@@ -642,6 +669,78 @@ namespace Plantitask.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("NotificationPreferences");
+                });
+
+            modelBuilder.Entity("Plantitask.Core.Entities.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ParkedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TraceParent")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("IX_OutboxMessages_Due")
+                        .HasFilter("\"ProcessedAt\" IS NULL AND \"ParkedAt\" IS NULL");
+
+                    b.HasIndex("ProcessedAt")
+                        .HasFilter("\"ProcessedAt\" IS NOT NULL");
+
+                    b.ToTable("OutboxMessages", t =>
+                        {
+                            t.HasCheckConstraint("CK_OutboxMessages_ActorComplete", "(\"ActorId\" IS NULL) = (\"ActorName\" IS NULL) AND (\"ActorId\" IS NULL) = (\"ActorEmail\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_OutboxMessages_Source", "\"Source\" IN ('Request', 'Webhook', 'Job')");
+                        });
                 });
 
             modelBuilder.Entity("Plantitask.Core.Entities.PasswordResetToken", b =>

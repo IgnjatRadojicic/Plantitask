@@ -38,6 +38,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<ProcessedWebhookEvent> ProcessedWebhookEvents { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+    public DbSet<OutboxMessage> OutboxMessages { get; set; }
+    public DbSet<InboxMessage> InboxMessages { get; set; }
 
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -70,7 +72,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
                 modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
             }
 
-            if(typeof(SelfManagedEntity).IsAssignableFrom(entityType.ClrType))
+            if (typeof(SelfManagedEntity).IsAssignableFrom(entityType.ClrType))
             {
                 var parameter = Expression.Parameter(entityType.ClrType, "e");
                 var property = Expression.Property(parameter, nameof(SelfManagedEntity.IsDeleted));
@@ -178,7 +180,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.HasOne(e => e.Owner)
                 .WithMany(u => u.OwnedGroups)
                 .HasForeignKey(e => e.OwnerId)
-                .OnDelete(DeleteBehavior.Restrict);  
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne<User>()
                 .WithMany()
@@ -234,7 +236,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
                   .HasMethod("gin")
                   .HasOperators("gin_trgm_ops");
 
-          
+
 
             entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
@@ -437,18 +439,18 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired(false);  
+                .IsRequired(false);
 
             entity.HasOne(e => e.Group)
                 .WithMany()
                 .HasForeignKey(e => e.GroupId)
                 .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired(false);  
+                .IsRequired(false);
         });
 
-        
+
         modelBuilder.Entity<Notification>(entity =>
-        { 
+        {
 
             entity.Property(n => n.Title)
                 .IsRequired()
@@ -514,16 +516,63 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.HasIndex(e => e.EventId).IsUnique();
             entity.HasIndex(e => e.CreatedAt);
         });
+
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.EventType).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Payload).HasColumnType("jsonb").IsRequired();
+
+            entity.Property(e => e.Source).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.ActorName).HasMaxLength(100);
+            entity.Property(e => e.ActorEmail).HasMaxLength(256);
+
+            // TraceParent and LastError must be unbounded. A diagnostic value that is 
+            // too long should never be the reason a user's save fails. The outbox insert shares that save.
+
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_OutboxMessages_Source",
+                    "\"Source\" IN ('Request', 'Webhook', 'Job')");
+
+                // The actor is all or nothing, like EventActor.
+                t.HasCheckConstraint("CK_OutboxMessages_ActorComplete",
+                    "(\"ActorId\" IS NULL) = (\"ActorName\" IS NULL) AND (\"ActorId\" IS NULL) = (\"ActorEmail\" IS NULL)");
+
+            });
+
+            // The owed roles are only put in it. Making it tiny no matter how much the table grows.
+            entity.HasIndex(e => e.OccurredAt)
+                .HasDatabaseName("IX_OutboxMessages_Due")
+                .HasFilter("\"ProcessedAt\" IS NULL AND \"ParkedAt\" IS NULL");
+
+            entity.HasIndex(e => e.ProcessedAt)
+                .HasFilter("\"ProcessedAt\" IS NOT NULL");
+
+        });
+
+        modelBuilder.Entity<InboxMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Handler).HasMaxLength(100).IsRequired();
+
+            // The uniqueness is what gurantees, a retry that tries to record the same handler finishing
+            // the same message again is refused. 
+            entity.HasIndex(e => new { e.MessageId, e.Handler }).IsUnique();
+            entity.HasIndex(e => e.CreatedAt);
+        });
     }
 
-    
+
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         var entries = ChangeTracker.Entries()
             .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
-        foreach(var entry in entries)
+        foreach (var entry in entries)
         {
             if (entry.State == EntityState.Added && entry.Entity is IEntity entity)
             {
