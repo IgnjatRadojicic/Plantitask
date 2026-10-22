@@ -6,10 +6,11 @@ namespace Plantitask.Infrastructure.Events
 {
     /// <summary>
     /// Holds the events raised in this scope until SaveChanges that commits them.
-    /// The context is captured at Raise bacause that is the only moment the request still exists.
+    /// The context is captured at Raise because that is the only moment the request still exists.
     /// </summary>
     public class EventCollector : IEventCollector
     {
+        private int _inOutbox;
         private readonly ICurrentActor _actor;
         private readonly List<PendingEvent> _pending = new();
 
@@ -31,13 +32,26 @@ namespace Plantitask.Infrastructure.Events
             _pending.Add(new PendingEvent<TEvent>(e, context));
         }
 
+        public IReadOnlyList<PendingEvent> TakeNotYetInOutbox()
+        {
+            var fresh = _pending.Skip(_inOutbox).ToList();
+            _inOutbox = _pending.Count;
+            return fresh;
+        }
+
         public IReadOnlyList<PendingEvent> TakeAll()
         {
             var taken = _pending.ToList();
             _pending.Clear();
+            _inOutbox = 0;
             return taken;
         }
-        public void Discard() => _pending.Clear();
+
+        public void Discard()
+        {
+            _pending.Clear();
+            _inOutbox = 0;
+        }
     }
 }
 

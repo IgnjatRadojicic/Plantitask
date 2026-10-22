@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Plantitask.Core.Entities;
 using Plantitask.Core.Events;
 
 namespace Plantitask.Infrastructure.Events
@@ -11,37 +12,50 @@ namespace Plantitask.Infrastructure.Events
     public abstract class PendingEvent
     {
         public abstract Task DispatchSyncAsync(IServiceProvider services, ILogger logger);
+        public abstract OutboxMessage ToOutboxMessage();
 
     }
-        public sealed class PendingEvent<TEvent> : PendingEvent where TEvent : IEvent
+    public sealed class PendingEvent<TEvent> : PendingEvent where TEvent : IEvent
+    {
+        private readonly TEvent _event;
+        private readonly EventContext _context;
+
+        public PendingEvent(TEvent e, EventContext context)
         {
-            private readonly TEvent _event;
-            private readonly EventContext _context;
+            _event = e;
+            _context = context;
+        }
 
-            public PendingEvent(TEvent e, EventContext context)
+        public override async Task DispatchSyncAsync(IServiceProvider services, ILogger logger)
+        {
+            foreach (var handler in services.GetServices<IEventHandler<TEvent>>())
             {
-                _event = e;
-                _context = context;
-            }
+                if (handler is IDurableEventHandler<TEvent>)
+                    continue;
 
-            public override async Task DispatchSyncAsync(IServiceProvider services, ILogger logger)
-            {
-                foreach (var handler in services.GetServices<IEventHandler<TEvent>>())
+                try
                 {
-                    if (handler is IDurableEventHandler<TEvent>)
-                        continue;
-
-                    try
-                    {
-                        await handler.HandleAsync(_event, _context, CancellationToken.None);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Handler {Handler} failed for {Event}",
-                            handler.GetType().Name, typeof(TEvent).Name);
-                    }
+                    await handler.HandleAsync(_event, _context, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Handler {Handler} failed for {Event}",
+                        handler.GetType().Name, typeof(TEvent).Name);
                 }
             }
         }
+
+        public override OutboxMessage ToOutboxMessage() => new()
+        {
+            EventType = EventNames.For<TEvent>(),
+            Payload = EventSerializer.Serialize(_event),
+            OccurredAt = _context.OccurredAt,
+            Source = _context.Source,
+            ActorId = _context.Actor?.Id,
+            ActorName = _context.Actor?.UserName,
+            ActorEmail = _context.Actor?.Email,
+            TraceParent = _context.TraceParent
+        };
     }
+}
 
