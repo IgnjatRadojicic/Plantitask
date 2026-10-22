@@ -337,12 +337,9 @@ namespace Plantitask.Tests.Events
         }
 
         [Fact]
-
-        public async Task SaveChanges_TwoSeperateRequests_EachWritesOnlyItsOwnEvent()
+        public async Task SaveChanges_TwoPlainSavesInOneRequest_EachWritesItsOwnEvent()
         {
             await using var request = OpenScope();
-
-            await using var transaction = await request.Db.BeginTransactionAsync();
 
             request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
             request.Events.Raise(new UserSeeded(TestIds.LeadId));
@@ -351,8 +348,6 @@ namespace Plantitask.Tests.Events
             request.Db.Users.Add(TestData.User(TestIds.MemberId, "member"));
             request.Events.Raise(new UserSeeded(TestIds.MemberId));
             await request.Db.SaveChangesAsync();
-
-            await transaction.CommitAsync();
 
             await using var check = NewContext();
 
