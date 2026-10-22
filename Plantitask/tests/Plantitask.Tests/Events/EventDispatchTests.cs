@@ -239,5 +239,128 @@ namespace Plantitask.Tests.Events
             _handler.Calls.Should().ContainSingle("the handler after the throwing one still runs");
             durable.Calls.Should().Be(0, "durable handlers wait for the outbox");
         }
+
+        [Fact]
+        public async Task SaveChanges_WritesOneOutboxRowPerEventWithItsEnvelope()
+        {
+            await using var request = OpenScope();
+
+            request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+            request.Events.Raise(new UserSeeded(TestIds.LeadId));
+            await request.Db.SaveChangesAsync();
+
+            await using var check = NewContext();
+            var row = await check.OutboxMessages.SingleAsync();
+
+            row.EventType.Should().Be("test.user-seeded.v1");
+            row.Payload.Should().Contain("userId").And.Contain(TestIds.LeadId.ToString());
+            row.Source.Should().Be(EventSource.Request);
+            row.ActorId.Should().Be(TestIds.LeadId);
+            row.ActorName.Should().Be("lead");
+            row.ActorEmail.Should().Be("lead@example.com");
+            row.OccurredAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(30));
+            row.ProcessedAt.Should().BeNull("nothing has drained it yet");
+            row.Attempts.Should().Be(0);
+        }
+
+        /// <summary>
+        /// The row and the change share one transaction, so a save that fails writes neither. The
+        /// next save must not write the failed one's row either, which is what detaching it is for.
+        /// </summary>
+        [Fact]
+        public async Task SaveChanges_FailedSave_LeavesNoOutboxRowBehind()
+        {
+            await using (var seed = NewContext())
+            {
+                seed.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+                await seed.SaveChangesAsync();
+            }
+
+            await using var request = OpenScope();
+
+            // Same user name and email as the seeded lead, so the unique indexes reject it.
+            var duplicate = TestData.User(TestIds.MemberId, "lead");
+            request.Db.Users.Add(duplicate);
+            request.Events.Raise(new UserSeeded(TestIds.MemberId));
+
+            var save = () => request.Db.SaveChangesAsync();
+            await save.Should().ThrowAsync<DbUpdateException>();
+
+            // Only the rejected user is taken out. Clearing the whole tracker would hide a leaked row.
+            request.Db.Entry(duplicate).State = EntityState.Detached;
+            request.Db.Users.Add(TestData.User(TestIds.OutsiderId, "outsider"));
+            await request.Db.SaveChangesAsync();
+
+            await using var check = NewContext();
+            (await check.OutboxMessages.CountAsync()).Should().Be(0);
+        }
+
+        [Fact]
+        public async Task SaveChanges_TwoSavesInOneTransaction_WriteEachEventOnce()
+        {
+            await using var request = OpenScope();
+            await using var transaction = await request.Db.BeginTransactionAsync();
+
+            request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+            request.Events.Raise(new UserSeeded(TestIds.LeadId));
+            await request.Db.SaveChangesAsync();
+
+            request.Db.Users.Add(TestData.User(TestIds.MemberId, "member"));
+            request.Events.Raise(new UserSeeded(TestIds.MemberId));
+            await request.Db.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+
+            await using var check = NewContext();
+            var payloads = await check.OutboxMessages.Select(m => m.Payload).ToListAsync();
+
+            payloads.Should().HaveCount(2, "the first save's event must not be written a second time");
+            payloads.Should().ContainSingle(p => p.Contains(TestIds.LeadId.ToString()));
+            payloads.Should().ContainSingle(p => p.Contains(TestIds.MemberId.ToString()));
+        }
+
+        [Fact]
+        public async Task SaveChanges_TransactionRolledBack_LeavesNoOutboxRow()
+        {
+            await using var request = OpenScope();
+
+            await using (var transaction = await request.Db.BeginTransactionAsync())
+            {
+                request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+                request.Events.Raise(new UserSeeded(TestIds.LeadId));
+                await request.Db.SaveChangesAsync();
+                await transaction.RollbackAsync();
+            }
+
+            await using var check = NewContext();
+            (await check.OutboxMessages.CountAsync()).Should().Be(0);
+        }
+
+        [Fact]
+
+        public async Task SaveChanges_TwoSeperateRequests_EachWritesOnlyItsOwnEvent()
+        {
+            await using var request = OpenScope();
+
+            await using var transaction = await request.Db.BeginTransactionAsync();
+
+            request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+            request.Events.Raise(new UserSeeded(TestIds.LeadId));
+            await request.Db.SaveChangesAsync();
+
+            request.Db.Users.Add(TestData.User(TestIds.MemberId, "member"));
+            request.Events.Raise(new UserSeeded(TestIds.MemberId));
+            await request.Db.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+
+            await using var check = NewContext();
+
+            var payloads = await check.OutboxMessages.Select(m => m.Payload).ToListAsync();
+
+            payloads.Should().HaveCount(2);
+            payloads.Should().ContainSingle(p => p.Contains(TestIds.MemberId.ToString()), "the second save's event needs its own row");
+
+        }
     }
 }
