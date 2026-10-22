@@ -41,6 +41,8 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxRequestBodySize = 8 * 1024 * 1024;
 });
 
+builder.Services.AddSingleton(new EventTypeRegistry(typeof(IEvent).Assembly));
+
 // Database
 builder.Services.AddScoped<EventCollector>();
 builder.Services.AddScoped<IEventCollector>(sp => sp.GetRequiredService<EventCollector>());
