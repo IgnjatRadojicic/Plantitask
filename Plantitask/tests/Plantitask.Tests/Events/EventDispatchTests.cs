@@ -56,6 +56,8 @@ namespace Plantitask.Tests.Events
 
         private sealed class CountingDurableHandler : IDurableEventHandler<UserSeeded>
         {
+            public string Name => "test-counter";
+
             public int Calls { get; private set; }
 
             public Task HandleAsync(UserSeeded e, EventContext context, CancellationToken ct)
