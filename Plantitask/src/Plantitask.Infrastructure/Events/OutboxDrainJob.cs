@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Text.Json;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -40,12 +41,17 @@ namespace Plantitask.Infrastructure.Events
             _logger = logger;
         }
 
-        public async Task RunAsync()
+        [AutomaticRetry(Attempts = 0)]
+        public async Task RunAsync(CancellationToken cancellationToken)
         {
             var settings = _outboxSettings.Value;
 
             for (var i = 0; i < settings.MaxMessagesPerRun; i++)
             {
+                // Shutdown is only checked between messages, so a message that started always finishes.
+                if (cancellationToken.IsCancellationRequested)
+                    break;
+
                 if (!await DrainOneAsync(settings))
                     break;
             }
