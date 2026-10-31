@@ -9,7 +9,7 @@ namespace Plantitask.Infrastructure.Events
     /// <summary>
     /// Hangs on the DbContext and follows each and every save. Before the write it turns the raised events into outbox rows
     /// so they commit with the change. After the commit it runs the sync handlers.
-    /// A failed save or a rollback throws the events and their rows away.
+    /// A failed save, a rollback or a transaction that ended without a commit throws the events and their rows away.
     /// </summary>
     public class EventDispatchInterceptor : ISaveChangesInterceptor, IDbTransactionInterceptor
     {
@@ -19,6 +19,7 @@ namespace Plantitask.Infrastructure.Events
         private readonly ILogger<EventDispatchInterceptor> _logger;
         private readonly List<OutboxMessage> _addedThisSave = new();
         private bool _rowsWritten;
+        private Guid? _waitingOnTransaction;
 
         public EventDispatchInterceptor(
             EventCollector collector,
@@ -36,6 +37,7 @@ namespace Plantitask.Infrastructure.Events
             DbContextEventData eventData, InterceptionResult<int> result,
             CancellationToken cancellationToken = default)
         {
+            DropEventsOfAbandonedTransaction(eventData.Context?.Database.CurrentTransaction?.TransactionId);
             _addedThisSave.Clear();
 
             if (eventData.Context is { } context)
@@ -55,10 +57,15 @@ namespace Plantitask.Infrastructure.Events
             SaveChangesCompletedEventData eventData, int result,
             CancellationToken cancellationToken = default)
         {
-            if (_addedThisSave.Count > 0)
-                _rowsWritten = true;
+            var transaction = eventData.Context?.Database.CurrentTransaction;
 
-            if (eventData.Context?.Database.CurrentTransaction == null)
+            if (_addedThisSave.Count > 0)
+            {
+                _rowsWritten = true;
+                _waitingOnTransaction = transaction?.TransactionId;
+            }
+
+            if (transaction == null)
                 await DispatchAsync();
             return result;
         }
@@ -66,7 +73,10 @@ namespace Plantitask.Infrastructure.Events
         public Task TransactionCommittedAsync(
             DbTransaction transaction, TransactionEndEventData eventData,
             CancellationToken cancellationToken = default)
-            => DispatchAsync();
+        {
+            DropEventsOfAbandonedTransaction(eventData.TransactionId);
+            return DispatchAsync();
+        }
 
         public Task SaveChangesFailedAsync(
             DbContextErrorEventData eventData, CancellationToken cancellationToken = default)
@@ -78,6 +88,7 @@ namespace Plantitask.Infrastructure.Events
             }
 
             _addedThisSave.Clear();
+            _waitingOnTransaction = null;
             _collector.Discard();
             return Task.CompletedTask;
         }
@@ -87,12 +98,15 @@ namespace Plantitask.Infrastructure.Events
             CancellationToken cancellationToken = default)
         {
             _rowsWritten = false;
+            _waitingOnTransaction = null;
             _collector.Discard();
             return Task.CompletedTask;
         }
 
         private async Task DispatchAsync()
         {
+            _waitingOnTransaction = null;
+
             // One signal per commit however many events it carried, sent before the broadcasts so
             // the drain never waits on them.
             if (_rowsWritten)
@@ -105,6 +119,18 @@ namespace Plantitask.Infrastructure.Events
             {
                 await pending.DispatchSyncAsync(_services, _logger);
             }
+        }
+
+        // A transaction disposed without a commit or rollback fires no hook at all. Seeing another
+        // transaction, or none, while events still wait on the old one means it never committed.
+        private void DropEventsOfAbandonedTransaction(Guid? current)
+        {
+            if (_waitingOnTransaction is not { } waiting || waiting == current)
+                return;
+
+            _collector.DiscardInOutbox();
+            _rowsWritten = false;
+            _waitingOnTransaction = null;
         }
     }
 }

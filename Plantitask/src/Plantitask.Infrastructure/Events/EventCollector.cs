@@ -52,6 +52,14 @@ namespace Plantitask.Infrastructure.Events
             _pending.Clear();
             _inOutbox = 0;
         }
+
+        // Drops only the events whose outbox rows went down with a transaction that never
+        // committed. Anything raised after that stays.
+        public void DiscardInOutbox()
+        {
+            _pending.RemoveRange(0, _inOutbox);
+            _inOutbox = 0;
+        }
     }
 }
 

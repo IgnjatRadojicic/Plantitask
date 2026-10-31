@@ -468,5 +468,68 @@ namespace Plantitask.Tests.Events
 
             _signal.RowsVisible.Should().BeEmpty("the rolled back rows are gone and there is nothing to drain");
         }
+
+        [Fact]
+        public async Task SaveChanges_TransactionDisposedWithoutCommit_NeverRunsTheHandler()
+        {
+            await using var request = OpenScope();
+
+            await using (var transaction = await request.Db.BeginTransactionAsync())
+            {
+                request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+                request.Events.Raise(new UserSeeded(TestIds.LeadId));
+                await request.Db.SaveChangesAsync();
+            }
+
+            request.Db.ChangeTracker.Clear();
+            request.Db.Users.Add(TestData.User(TestIds.MemberId, "member"));
+            await request.Db.SaveChangesAsync();
+
+            _handler.Calls.Should().BeEmpty("the abandoned transaction's event must not ride along with a later save");
+            _signal.RowsVisible.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task Commit_AfterATransactionDisposedWithoutCommit_NeverRunsTheHandler()
+        {
+            await using var request = OpenScope();
+
+            await using (var abandoned = await request.Db.BeginTransactionAsync())
+            {
+                request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+                request.Events.Raise(new UserSeeded(TestIds.LeadId));
+                await request.Db.SaveChangesAsync();
+            }
+
+            await using (var next = await request.Db.BeginTransactionAsync())
+                await next.CommitAsync();
+
+            _handler.Calls.Should().BeEmpty("a commit with no save of its own must not dispatch the abandoned event");
+        }
+
+        [Fact]
+        public async Task SaveChanges_EventRaisedAfterAnAbandonedTransaction_StillRuns()
+        {
+            await using var request = OpenScope();
+
+            await using (var transaction = await request.Db.BeginTransactionAsync())
+            {
+                request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+                request.Events.Raise(new UserSeeded(TestIds.LeadId));
+                await request.Db.SaveChangesAsync();
+            }
+
+            request.Db.ChangeTracker.Clear();
+            request.Db.Users.Add(TestData.User(TestIds.MemberId, "member"));
+            request.Events.Raise(new UserSeeded(TestIds.MemberId));
+            await request.Db.SaveChangesAsync();
+
+            _handler.Calls.Should().ContainSingle().Which.UserId.Should().Be(TestIds.MemberId);
+            _signal.RowsVisible.Should().ContainSingle().Which.Should().Be(1);
+
+            await using var check = NewContext();
+            (await check.OutboxMessages.Select(m => m.Payload).SingleAsync())
+                .Should().Contain(TestIds.MemberId.ToString());
+        }
     }
 }
