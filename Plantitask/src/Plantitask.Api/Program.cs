@@ -276,6 +276,8 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<NotificationBackgroundJob>();
 builder.Services.AddScoped<IEntitlementService, EntitlementService>();
 builder.Services.AddScoped<AttachmentPurgeJob>();
+builder.Services.AddScoped<OutboxDrainJob>();
+builder.Services.AddScoped<OutboxCleanupJob>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
@@ -332,7 +334,10 @@ builder.Services.AddHangfire(configuration => configuration
         options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("HangfireConnection"));
     }, new PostgreSqlStorageOptions
     {
-        QueuePollInterval = TimeSpan.FromSeconds(30)
+        QueuePollInterval = TimeSpan.FromSeconds(30),
+        // Workers wake on a Postgres notification when a job is enqueued, so the 30 second poll
+        // is only the fallback and an outbox drain starts at once.
+        EnableLongPolling = true
     }));
 
 builder.Services.AddOptions<HangfireSettings>()
