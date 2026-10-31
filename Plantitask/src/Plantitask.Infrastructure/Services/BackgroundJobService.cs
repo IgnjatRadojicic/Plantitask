@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
+using Plantitask.Infrastructure.Events;
 
 namespace Plantitask.Infrastructure.Services
 {
@@ -78,9 +79,7 @@ namespace Plantitask.Infrastructure.Services
         }
 
         /// <summary>
-        /// Registers the three recurring jobs at startup: overdue check (daily 00:00 UTC),
-        /// and notification cleanup (weekly Sunday 02:00 UTC). AddOrUpdate makes this idempotent
-        /// across restarts.
+        /// Registers the recurring jobs at startup. AddOrUpdate makes this idempotent across restarts.
         /// </summary>
         public void SetupRecurringJobs()
         {
@@ -106,8 +105,20 @@ namespace Plantitask.Infrastructure.Services
                 job => job.PurgeDeletedAttachmentFilesAsync(),
                 "*/15 * * * *");
 
+            // The safety net under the signal. Anything a lost enqueue missed, and every retry whose
+            // time has come, is picked up within a minute.
+            _recurringJobs.AddOrUpdate<OutboxDrainJob>(
+                "drain-outbox",
+                job => job.RunAsync(CancellationToken.None),
+                Cron.Minutely());
+
+            _recurringJobs.AddOrUpdate<OutboxCleanupJob>(
+                "cleanup-outbox",
+                job => job.RunAsync(CancellationToken.None),
+                Cron.Daily(hour: 3, minute: 0));
+
             _logger.LogInformation(
-                "Recurring jobs configured: check-overdue-tasks (daily 00:00 UTC), purge-deleted-attachment-files (every 15 min), cleanup-old-notifications (weekly Sun 02:00 UTC)");
+                "Recurring jobs configured: check-overdue-tasks (daily 00:00 UTC), purge-deleted-attachment-files (every 15 min), cleanup-old-notifications (weekly Sun 02:00 UTC), drain-outbox (every minute), cleanup-outbox (daily 03:00 UTC)");
         }
 
         /// <summary>Runs the overdue digest immediately instead of waiting for midnight - a dev and support lever.</summary>
