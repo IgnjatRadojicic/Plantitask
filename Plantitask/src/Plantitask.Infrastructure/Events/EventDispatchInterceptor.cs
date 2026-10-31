@@ -14,16 +14,20 @@ namespace Plantitask.Infrastructure.Events
     public class EventDispatchInterceptor : ISaveChangesInterceptor, IDbTransactionInterceptor
     {
         private readonly EventCollector _collector;
+        private readonly IOutboxSignal _signal;
         private readonly IServiceProvider _services;
         private readonly ILogger<EventDispatchInterceptor> _logger;
         private readonly List<OutboxMessage> _addedThisSave = new();
+        private bool _rowsWritten;
 
         public EventDispatchInterceptor(
             EventCollector collector,
+            IOutboxSignal signal,
             IServiceProvider services,
             ILogger<EventDispatchInterceptor> logger)
         {
             _collector = collector;
+            _signal = signal;
             _services = services;
             _logger = logger;
         }
@@ -51,6 +55,9 @@ namespace Plantitask.Infrastructure.Events
             SaveChangesCompletedEventData eventData, int result,
             CancellationToken cancellationToken = default)
         {
+            if (_addedThisSave.Count > 0)
+                _rowsWritten = true;
+
             if (eventData.Context?.Database.CurrentTransaction == null)
                 await DispatchAsync();
             return result;
@@ -79,12 +86,21 @@ namespace Plantitask.Infrastructure.Events
             DbTransaction transaction, TransactionEndEventData eventData,
             CancellationToken cancellationToken = default)
         {
+            _rowsWritten = false;
             _collector.Discard();
             return Task.CompletedTask;
         }
 
         private async Task DispatchAsync()
         {
+            // One signal per commit however many events it carried, sent before the broadcasts so
+            // the drain never waits on them.
+            if (_rowsWritten)
+            {
+                _rowsWritten = false;
+                _signal.RowsCommitted();
+            }
+
             foreach (var pending in _collector.TakeAll())
             {
                 await pending.DispatchSyncAsync(_services, _logger);

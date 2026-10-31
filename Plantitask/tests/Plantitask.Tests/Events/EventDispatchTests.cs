@@ -18,9 +18,13 @@ namespace Plantitask.Tests.Events
     public class EventDispatchTests : DbTestBase
     {
         private readonly RecordingHandler _handler;
+        private readonly RecordingSignal _signal;
 
         public EventDispatchTests(PostgresFixture fixture) : base(fixture)
-            => _handler = new RecordingHandler(NewContext);
+        {
+            _handler = new RecordingHandler(NewContext);
+            _signal = new RecordingSignal(NewContext);
+        }
 
         [EventName("test.user-seeded.v1")]
         public record UserSeeded(Guid UserId) : IEvent;
@@ -67,6 +71,22 @@ namespace Plantitask.Tests.Events
             }
         }
 
+        /// <summary>Records, for every signal, how many outbox rows another connection could see.</summary>
+        private sealed class RecordingSignal : IOutboxSignal
+        {
+            private readonly Func<ApplicationDbContext> _newContext;
+
+            public RecordingSignal(Func<ApplicationDbContext> newContext) => _newContext = newContext;
+
+            public List<int> RowsVisible { get; } = new();
+
+            public void RowsCommitted()
+            {
+                using var other = _newContext();
+                RowsVisible.Add(other.OutboxMessages.Count());
+            }
+        }
+
         private sealed class FixedActor : ICurrentActor
         {
             public EventActor? Actor => new(TestIds.LeadId, "lead", "lead@example.com");
@@ -94,6 +114,7 @@ namespace Plantitask.Tests.Events
                 .AddScoped<EventCollector>()
                 .AddScoped<IEventCollector>(sp => sp.GetRequiredService<EventCollector>())
                 .AddScoped<EventDispatchInterceptor>()
+                .AddSingleton<IOutboxSignal>(_signal)
                 .AddSingleton<ILogger<EventDispatchInterceptor>>(NullLogger<EventDispatchInterceptor>.Instance);
 
             extraHandlers?.Invoke(services);
@@ -358,6 +379,94 @@ namespace Plantitask.Tests.Events
             payloads.Should().HaveCount(2);
             payloads.Should().ContainSingle(p => p.Contains(TestIds.MemberId.ToString()), "the second save's event needs its own row");
 
+        }
+
+        [Fact]
+        public async Task SaveChanges_EventsRaised_SignalsOnceAfterTheRowsAreCommitted()
+        {
+            await using var request = OpenScope();
+
+            request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+            request.Db.Users.Add(TestData.User(TestIds.MemberId, "member"));
+            request.Events.Raise(new UserSeeded(TestIds.LeadId));
+            request.Events.Raise(new UserSeeded(TestIds.MemberId));
+            await request.Db.SaveChangesAsync();
+
+            _signal.RowsVisible.Should().ContainSingle("one signal per commit")
+                .Which.Should().Be(2, "both rows must already be committed when it fires");
+        }
+
+        [Fact]
+        public async Task SaveChanges_NoEventsRaised_DoesNotSignal()
+        {
+            await using var request = OpenScope();
+
+            request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+            await request.Db.SaveChangesAsync();
+
+            _signal.RowsVisible.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task SaveChanges_TwoSavesInOneTransaction_SignalOnceAtTheCommit()
+        {
+            await using var request = OpenScope();
+            await using var transaction = await request.Db.BeginTransactionAsync();
+
+            request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+            request.Events.Raise(new UserSeeded(TestIds.LeadId));
+            await request.Db.SaveChangesAsync();
+
+            request.Db.Users.Add(TestData.User(TestIds.MemberId, "member"));
+            request.Events.Raise(new UserSeeded(TestIds.MemberId));
+            await request.Db.SaveChangesAsync();
+
+            _signal.RowsVisible.Should().BeEmpty("nothing is committed yet");
+
+            await transaction.CommitAsync();
+
+            _signal.RowsVisible.Should().ContainSingle().Which.Should().Be(2);
+        }
+
+        [Fact]
+        public async Task SaveChanges_FailedSave_DoesNotSignal()
+        {
+            await using (var seed = NewContext())
+            {
+                seed.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+                await seed.SaveChangesAsync();
+            }
+
+            await using var request = OpenScope();
+
+            // Same user name and email as the seeded lead, so the unique indexes reject it.
+            request.Db.Users.Add(TestData.User(TestIds.MemberId, "lead"));
+            request.Events.Raise(new UserSeeded(TestIds.MemberId));
+
+            var save = () => request.Db.SaveChangesAsync();
+            await save.Should().ThrowAsync<DbUpdateException>();
+
+            _signal.RowsVisible.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task SaveChanges_TransactionRolledBack_DoesNotSignalOnTheNextSave()
+        {
+            await using var request = OpenScope();
+
+            await using (var transaction = await request.Db.BeginTransactionAsync())
+            {
+                request.Db.Users.Add(TestData.User(TestIds.LeadId, "lead"));
+                request.Events.Raise(new UserSeeded(TestIds.LeadId));
+                await request.Db.SaveChangesAsync();
+                await transaction.RollbackAsync();
+            }
+
+            request.Db.ChangeTracker.Clear();
+            request.Db.Users.Add(TestData.User(TestIds.MemberId, "member"));
+            await request.Db.SaveChangesAsync();
+
+            _signal.RowsVisible.Should().BeEmpty("the rolled back rows are gone and there is nothing to drain");
         }
     }
 }

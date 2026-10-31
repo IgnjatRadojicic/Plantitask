@@ -47,6 +47,7 @@ builder.Services.AddSingleton(new EventTypeRegistry(typeof(IEvent).Assembly));
 builder.Services.AddScoped<EventCollector>();
 builder.Services.AddScoped<IEventCollector>(sp => sp.GetRequiredService<EventCollector>());
 builder.Services.AddScoped<EventDispatchInterceptor>();
+builder.Services.AddSingleton<IOutboxSignal, HangfireOutboxSignal>();
 
 builder.Services.AddDbContext<ApplicationDbContext>((sp, options) => options
  .UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
