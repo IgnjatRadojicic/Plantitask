@@ -16,5 +16,7 @@ namespace Plantitask.Infrastructure.Events
         }
 
         public Type? Find(string eventType) => _byName.GetValueOrDefault(eventType);
+
+        public IEnumerable<Type> EventTypes => _byName.Values;
     }
 }

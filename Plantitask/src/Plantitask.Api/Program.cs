@@ -465,6 +465,8 @@ app.MapControllers();
 // schema that has not migrated yet can fire on the old tables.
 using (var scope = app.Services.CreateScope())
 {
+    EventHandlerRegistration.ValidateDurableHandlerNames(
+        scope.ServiceProvider, app.Services.GetRequiredService<EventTypeRegistry>().EventTypes);
     scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.Migrate();
     scope.ServiceProvider.GetRequiredService<IBackgroundJobService>().SetupRecurringJobs();
 }

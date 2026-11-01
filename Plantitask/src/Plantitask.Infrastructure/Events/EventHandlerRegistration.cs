@@ -34,5 +34,25 @@ namespace Plantitask.Infrastructure.Events
 
             return services;
         }
+
+        /// <summary>
+        /// Fails the boot when two durable handlers of one event share a Name. The drainer picks a
+        /// handler by its name, so a duplicate would fail every attempt and park the message.
+        /// </summary>
+        public static void ValidateDurableHandlerNames(IServiceProvider services, IEnumerable<Type> eventTypes)
+        {
+            var duplicates = eventTypes
+                .SelectMany(eventType => services
+                    .GetServices(typeof(IDurableEventHandler<>).MakeGenericType(eventType))
+                    .Cast<INamedEventHandler>()
+                    .GroupBy(h => h.Name)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => $"{g.Key} on {eventType.Name}"))
+                .ToList();
+
+            if (duplicates.Count > 0)
+                throw new InvalidOperationException(
+                    "Durable handlers share a name: " + string.Join("; ", duplicates));
+        }
     }
 }

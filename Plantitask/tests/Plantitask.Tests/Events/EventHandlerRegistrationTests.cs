@@ -71,5 +71,27 @@ namespace Plantitask.Tests.Events
 
             register.Should().Throw<InvalidOperationException>();
         }
+
+        [Fact]
+        public void ValidateDurableHandlerNames_SameHandlerRegisteredTwice_Throws()
+        {
+            using var scope = ScopeWith(s => s.AddEventHandler<DurableForBoth>().AddEventHandler<DurableForBoth>());
+
+            var validate = () => EventHandlerRegistration.ValidateDurableHandlerNames(
+                scope.ServiceProvider, [typeof(First), typeof(Second)]);
+
+            validate.Should().Throw<InvalidOperationException>().WithMessage("*test-both on First*");
+        }
+
+        [Fact]
+        public void ValidateDurableHandlerNames_EachHandlerOnce_Passes()
+        {
+            using var scope = ScopeWith(s => s.AddEventHandler<DurableForBoth>().AddEventHandler<SyncForFirst>());
+
+            var validate = () => EventHandlerRegistration.ValidateDurableHandlerNames(
+                scope.ServiceProvider, [typeof(First), typeof(Second)]);
+
+            validate.Should().NotThrow();
+        }
     }
 }
