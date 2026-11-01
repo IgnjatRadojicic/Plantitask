@@ -143,12 +143,21 @@ namespace Plantitask.Infrastructure.Events
 
             List<string> names;
 
-            using (var lookup = _scopeFactory.CreateScope())
+            try
             {
+                using var lookup = _scopeFactory.CreateScope();
                 names = lookup.ServiceProvider.GetServices(handlerType)
                     .Cast<INamedEventHandler>()
                     .Select(h => h.Name)
                     .ToList();
+            }
+            catch (Exception ex)
+            {
+                // Without the names no single handler can be blamed, so the whole attempt fails and the
+                // row retries or parks instead of blocking every row behind it.
+                _logger.LogWarning(ex, "Could not build the durable handlers for outbox message {MessageId}",
+                    message.Id);
+                return [$"handler lookup: {ex.Message}"];
             }
 
             var failures = new List<string>();
@@ -163,14 +172,15 @@ namespace Plantitask.Infrastructure.Events
                 m.Handler == name))
                     continue;
 
-                var handler = scope.ServiceProvider.GetServices(handlerType)
-                    .Cast<INamedEventHandler>()
-                    .Single(h => h.Name == name);
-
                 await using var transaction = await db.BeginTransactionAsync();
 
                 try
                 {
+                    // Built inside the try so a handler that can't be built fails like one that throws.
+                    var handler = scope.ServiceProvider.GetServices(handlerType)
+                        .Cast<INamedEventHandler>()
+                        .Single(h => h.Name == name);
+
                     await (Task)handleMethod.Invoke(handler, [theEvent, context, CancellationToken.None])!;
                     db.InboxMessages.Add(new InboxMessage { MessageId = message.Id, Handler = name });
 
