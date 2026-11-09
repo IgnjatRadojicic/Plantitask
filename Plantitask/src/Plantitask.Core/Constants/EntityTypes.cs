@@ -6,5 +6,8 @@ namespace Plantitask.Core.Constants
         public const string TaskItem = nameof(TaskItem);
         public const string Group = nameof(Group);
         public const string GroupMember = nameof(GroupMember);
+        public const string TaskComment = nameof(TaskComment);
+        public const string TaskAttachment = nameof(TaskAttachment);
+        public const string User = nameof(User);
     }
 }

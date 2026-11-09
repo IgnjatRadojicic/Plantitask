@@ -28,6 +28,8 @@ namespace Plantitask.Core.Constants
         public const string Login = "Login";
         public const string Logout = "Logout";
         public const string PasswordReset = "PasswordReset";
+        public const string PasswordChanged = "PasswordChanged";
+        public const string UsernameChanged = "UsernameChanged";
 
         public const string PremiumActivated = "PremiumActivated";
         public const string PremiumCancelled = "PremiumCancelled";
