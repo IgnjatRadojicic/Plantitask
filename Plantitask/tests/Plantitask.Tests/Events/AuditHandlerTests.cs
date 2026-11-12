@@ -63,7 +63,7 @@ namespace Plantitask.Tests.Events
                 new TaskStatusChanged
                 {
                     TaskId = TaskId, GroupId = Group, Title = "T", AssigneeId = null, CreatedById = User,
-                    OldStatusId = 1, NewStatusId = 2
+                    OldStatusId = 1, OldStatusName = "Not Started", NewStatusId = 2, NewStatusName = "In Progress"
                 },
                 new(EntityTypes.TaskItem, TaskId, AuditActions.StatusChanged, Group, "StatusId", "Not Started", "In Progress")
             },
@@ -71,7 +71,7 @@ namespace Plantitask.Tests.Events
                 new TaskPriorityChanged
                 {
                     TaskId = TaskId, GroupId = Group, Title = "T", AssigneeId = null,
-                    OldPriorityId = 2, NewPriorityId = 3
+                    OldPriorityId = 2, OldPriorityName = "Medium", NewPriorityId = 3, NewPriorityName = "High"
                 },
                 new(EntityTypes.TaskItem, TaskId, AuditActions.PriorityChanged, Group, "Priority", "Medium", "High")
             },
@@ -96,7 +96,12 @@ namespace Plantitask.Tests.Events
                 new(EntityTypes.TaskItem, TaskId, AuditActions.Deleted, Group)
             },
             {
-                new TaskMoved { TaskId = TaskId, GroupId = Group, OldStatusId = 2, NewStatusId = 3, NewDisplayOrder = 0 },
+                new TaskMoved
+                {
+                    TaskId = TaskId, GroupId = Group,
+                    OldStatusId = 2, OldStatusName = "In Progress", NewStatusId = 3, NewStatusName = "Under Review",
+                    NewDisplayOrder = 0
+                },
                 new(EntityTypes.TaskItem, TaskId, AuditActions.Moved, Group, "StatusId", "In Progress", "Under Review")
             },
 
