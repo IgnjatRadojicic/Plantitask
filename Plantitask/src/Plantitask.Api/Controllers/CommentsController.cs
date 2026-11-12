@@ -18,6 +18,7 @@ public class CommentsController : BaseApiController
     private readonly ICommentService _commentService;
     private readonly INotificationService _notificationService;
     private readonly INotificationBroadcaster _notificationBroadcaster;
+    private readonly ITaskEmailSender _taskEmails;
     private readonly ITaskService _taskService;
     private readonly IAuditService _auditService;
     private readonly ILogger<CommentsController> _logger;
@@ -28,11 +29,13 @@ public class CommentsController : BaseApiController
         ITaskService taskService,
         INotificationService notificationService,
         INotificationBroadcaster notificationBroadcaster,
+        ITaskEmailSender taskEmails,
         ILogger<CommentsController> logger)
     {
         _commentService = commentService;
         _auditService = auditService;
         _notificationBroadcaster = notificationBroadcaster;
+        _taskEmails = taskEmails;
         _notificationService = notificationService;
         _taskService = taskService;
         _logger = logger;
@@ -81,7 +84,7 @@ public class CommentsController : BaseApiController
         foreach (var notification in notifications)
             await _notificationBroadcaster.BroadcastNotificationAsync(notification);
 
-        await _notificationService.TrySendCommentEmailAsync(
+        await _taskEmails.TrySendCommentEmailAsync(
             task.AssignedToId ?? Guid.Empty, userId, task.Title, comment.Content);
 
         return CreatedAtAction(nameof(GetTaskComments), new { taskId }, comment);

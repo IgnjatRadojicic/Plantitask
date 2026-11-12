@@ -32,7 +32,7 @@ namespace Plantitask.Tests.Events
         }
 
         private NotificationEventHandler NewSut(IApplicationDbContext context) => new(
-            new NotificationService(context, NullLogger<NotificationService>.Instance, new Mock<IEmailService>().Object),
+            new NotificationService(context, NullLogger<NotificationService>.Instance),
             _broadcaster.Object);
 
         private static EventContext By(Guid actorId) => new()

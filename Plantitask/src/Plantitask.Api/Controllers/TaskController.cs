@@ -22,6 +22,7 @@ namespace Plantitask.Api.Controllers
         private readonly INotificationBroadcaster _notificationBroadcaster;
         private readonly ITreeProgressBroadcaster _treeBroadcaster;
         private readonly IKanbanBroadcaster _kanbanBroadcaster;
+        private readonly ITaskEmailSender _taskEmails;
 
 
         public TaskController(
@@ -29,6 +30,7 @@ namespace Plantitask.Api.Controllers
             IAuditService auditService,
             INotificationBroadcaster notificationBroadcaster,
             INotificationService notificationService,
+            ITaskEmailSender taskEmails,
             ITreeProgressBroadcaster treeBroadcaster,
             IKanbanBroadcaster kanbanBroadcaster,
             ILogger<TaskController> logger)
@@ -36,6 +38,7 @@ namespace Plantitask.Api.Controllers
             _taskService = taskService;
             _notificationBroadcaster = notificationBroadcaster;
             _notificationService = notificationService;
+            _taskEmails = taskEmails;
             _treeBroadcaster = treeBroadcaster;
             _kanbanBroadcaster = kanbanBroadcaster;
             _auditService = auditService;
@@ -256,7 +259,7 @@ namespace Plantitask.Api.Controllers
             if (notification != null)
                 await _notificationBroadcaster.BroadcastNotificationAsync(notification);
 
-            await _notificationService.TrySendTaskAssignmentEmailAsync(
+            await _taskEmails.TrySendTaskAssignmentEmailAsync(
                 assignDto.UserId, task.Title, task.GroupName, task.CreatedByUserName);
 
             return NoContent();

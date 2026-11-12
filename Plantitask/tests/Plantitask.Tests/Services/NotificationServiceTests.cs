@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using Plantitask.Contracts.DTO.Notifications;
 using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
@@ -15,12 +14,10 @@ namespace Plantitask.Tests.Services
 {
     public class NotificationServiceTests : DbTestBase
     {
-        private readonly Mock<IEmailService> _email = new();
-
         public NotificationServiceTests(PostgresFixture fixture) : base(fixture) { }
 
         private NotificationService NewSut(IApplicationDbContext context) => new(
-            context, NullLogger<NotificationService>.Instance, _email.Object);
+            context, NullLogger<NotificationService>.Instance);
 
         private async Task SeedAsync()
         {
@@ -767,105 +764,6 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             Assert.Null(await NewSut(act).GetUserContactAsync(Guid.NewGuid()));
-        }
-
-        [Fact]
-        public async Task TrySendTaskAssignmentEmailAsync_SendsToTheAssignee()
-        {
-            await SeedAsync();
-
-            await using var act = NewContext();
-            await NewSut(act).TrySendTaskAssignmentEmailAsync(MemberId, "Ship it", "Dev Team", "lead");
-
-            _email.Verify(e => e.SendTaskAssignmentEmailAsync(
-                "member@example.com", "member", "Ship it", "Dev Team", "lead"), Times.Once);
-        }
-
-        [Fact]
-        public async Task TrySendTaskAssignmentEmailAsync_RespectsTheEmailPreference()
-        {
-            await SeedAsync();
-            await SetPreferenceAsync(MemberId, NotificationType.TaskAssigned, byEmail: false);
-
-            await using var act = NewContext();
-            await NewSut(act).TrySendTaskAssignmentEmailAsync(MemberId, "Ship it", "Dev Team", "lead");
-
-            _email.VerifyNoOtherCalls();
-        }
-
-        /// <summary>
-        /// The Try prefix is the contract. These run after the mutation has committed, so a mail
-        /// failure is logged and swallowed rather than surfacing to a caller who can no longer do
-        /// anything about it.
-        /// </summary>
-        [Fact]
-        public async Task TrySendTaskAssignmentEmailAsync_SwallowsAFailedSend()
-        {
-            await SeedAsync();
-
-            _email
-                .Setup(e => e.SendTaskAssignmentEmailAsync(
-                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                    It.IsAny<string>(), It.IsAny<string>()))
-                .ThrowsAsync(new Plantitask.Core.Common.EmailSendException("provider down"));
-
-            await using var act = NewContext();
-            var thrown = await Record.ExceptionAsync(
-                () => NewSut(act).TrySendTaskAssignmentEmailAsync(MemberId, "Ship it", "Dev Team", "lead"));
-
-            Assert.Null(thrown);
-        }
-
-        [Fact]
-        public async Task TrySendCommentEmailAsync_SendsToTheAssigneeNamingTheCommenter()
-        {
-            await SeedAsync();
-
-            await using var act = NewContext();
-            await NewSut(act).TrySendCommentEmailAsync(MemberId, LeadId, "Ship it", "looks good");
-
-            _email.Verify(e => e.SendTaskCommentEmailAsync(
-                "member@example.com", "member", "lead", "Ship it", "looks good"), Times.Once);
-        }
-
-        [Fact]
-        public async Task TrySendCommentEmailAsync_SaysNothingWhenYouCommentOnYourOwnTask()
-        {
-            await SeedAsync();
-
-            await using var act = NewContext();
-            await NewSut(act).TrySendCommentEmailAsync(MemberId, MemberId, "Ship it", "note to self");
-
-            _email.VerifyNoOtherCalls();
-        }
-
-        [Fact]
-        public async Task TrySendCommentEmailAsync_SaysNothingWhenTheTaskHasNoAssignee()
-        {
-            await SeedAsync();
-
-            await using var act = NewContext();
-            await NewSut(act).TrySendCommentEmailAsync(Guid.Empty, LeadId, "Ship it", "anyone there");
-
-            _email.VerifyNoOtherCalls();
-        }
-
-        [Fact]
-        public async Task TrySendCommentEmailAsync_SwallowsAFailedSend()
-        {
-            await SeedAsync();
-
-            _email
-                .Setup(e => e.SendTaskCommentEmailAsync(
-                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                    It.IsAny<string>(), It.IsAny<string>()))
-                .ThrowsAsync(new Plantitask.Core.Common.EmailSendException("provider down"));
-
-            await using var act = NewContext();
-            var thrown = await Record.ExceptionAsync(
-                () => NewSut(act).TrySendCommentEmailAsync(MemberId, LeadId, "Ship it", "looks good"));
-
-            Assert.Null(thrown);
         }
     }
 }

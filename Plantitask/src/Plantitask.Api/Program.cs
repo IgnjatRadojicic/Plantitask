@@ -279,6 +279,7 @@ builder.Services.AddScoped<AttachmentPurgeJob>();
 builder.Services.AddScoped<OutboxDrainJob>();
 builder.Services.AddScoped<OutboxCleanupJob>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<ITaskEmailSender, TaskEmailSender>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IGroupCodeGenerator, GroupCodeGenerator>();

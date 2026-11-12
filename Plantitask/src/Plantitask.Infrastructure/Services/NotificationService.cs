@@ -21,14 +21,11 @@ public class NotificationService : INotificationService
 {
     private readonly IApplicationDbContext _context;
     private readonly ILogger<NotificationService> _logger;
-    private readonly IEmailService _emailService;
 
     public NotificationService(
         IApplicationDbContext context,
-        ILogger<NotificationService> logger,
-        IEmailService emailService)
+        ILogger<NotificationService> logger)
     {
-        _emailService = emailService;
         _context = context;
         _logger = logger;
     }
@@ -497,67 +494,6 @@ public class NotificationService : INotificationService
         if (user == null) return null;
 
         return (user.Email, user.UserName);
-    }
-
-    /// <summary>
-    /// Best-effort assignment email, honoring the email preference. Runs after the mutation is
-    /// committed, so failures are logged and swallowed - the Try prefix is the contract.
-    /// </summary>
-    public async Task TrySendTaskAssignmentEmailAsync(Guid assigneeUserId, string taskTitle, string groupName, string assignedByUserName)
-    {
-        try
-        {
-            if (!await ShouldEmailAsync(assigneeUserId, NotificationType.TaskAssigned))
-                return;
-
-            var contact = await GetUserContactAsync(assigneeUserId);
-            if (contact == null)
-                return;
-
-            await _emailService.SendTaskAssignmentEmailAsync(
-                contact.Value.Email,
-                contact.Value.UserName,
-                taskTitle,
-                groupName,
-                assignedByUserName);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send task assignment email to user {UserId}", assigneeUserId);
-        }
-    }
-
-    /// <summary>
-    /// Best-effort email to the assignee about a new comment, skipping self-comments and
-    /// unassigned tasks. Same log-and-swallow contract as the other Try sender.
-    /// </summary>
-    public async Task TrySendCommentEmailAsync(Guid taskAssignedToUserId, Guid commenterId, string taskTitle, string commentContent)
-    {
-        try
-        {
-            if (taskAssignedToUserId == Guid.Empty || taskAssignedToUserId == commenterId)
-                return;
-
-            if (!await ShouldEmailAsync(taskAssignedToUserId, NotificationType.TaskCommentAdded))
-                return;
-
-            var assignee = await GetUserContactAsync(taskAssignedToUserId);
-            var commenter = await GetUserContactAsync(commenterId);
-
-            if (assignee == null || commenter == null)
-                return;
-
-            await _emailService.SendTaskCommentEmailAsync(
-                assignee.Value.Email,
-                assignee.Value.UserName,
-                commenter.Value.UserName,
-                taskTitle,
-                commentContent);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send comment email to user {UserId}", taskAssignedToUserId);
-        }
     }
 
     /// <summary>Saves a single notification and maps it, with the actor name supplied by the caller.</summary>
