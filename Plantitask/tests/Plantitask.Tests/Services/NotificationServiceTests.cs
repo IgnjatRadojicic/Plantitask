@@ -1,9 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Plantitask.Contracts.DTO.Comments;
 using Plantitask.Contracts.DTO.Notifications;
-using Plantitask.Contracts.DTO.Tasks;
+using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
 using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
@@ -29,16 +28,15 @@ namespace Plantitask.Tests.Services
             await db.SeedWorldAsync();
         }
 
-        private static TaskDto TaskDto(
+        private static TaskSnapshot Snapshot(
             Guid? assignedTo = null,
             Guid? createdBy = null,
             string title = "Ship the release") => new()
             {
                 Id = TaskId,
                 Title = title,
-                GroupId = GroupId,
-                AssignedToId = assignedTo,
-                CreatedBy = createdBy ?? LeadId
+                AssigneeId = assignedTo,
+                CreatedById = createdBy ?? LeadId
             };
 
         private async Task SetPreferenceAsync(
@@ -97,7 +95,7 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
 
             await using var act = NewContext();
-            var dto = await NewSut(act).NotifyAssignmentAsync(LeadId, TaskDto(assignedTo: MemberId));
+            var dto = await NewSut(act).NotifyAssignmentAsync(LeadId, Snapshot(assignedTo: MemberId));
 
             Assert.NotNull(dto);
             Assert.Equal(MemberId, dto.UserId);
@@ -119,7 +117,7 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
 
             await using var act = NewContext();
-            var dto = await NewSut(act).NotifyAssignmentAsync(MemberId, TaskDto(assignedTo: MemberId));
+            var dto = await NewSut(act).NotifyAssignmentAsync(MemberId, Snapshot(assignedTo: MemberId));
 
             Assert.Null(dto);
             Assert.Empty(await ReadAllAsync());
@@ -131,7 +129,7 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
 
             await using var act = NewContext();
-            var dto = await NewSut(act).NotifyAssignmentAsync(LeadId, TaskDto(assignedTo: null));
+            var dto = await NewSut(act).NotifyAssignmentAsync(LeadId, Snapshot(assignedTo: null));
 
             Assert.Null(dto);
             Assert.Empty(await ReadAllAsync());
@@ -144,7 +142,53 @@ namespace Plantitask.Tests.Services
             await SetPreferenceAsync(MemberId, NotificationType.TaskAssigned, inApp: false);
 
             await using var act = NewContext();
-            var dto = await NewSut(act).NotifyAssignmentAsync(LeadId, TaskDto(assignedTo: MemberId));
+            var dto = await NewSut(act).NotifyAssignmentAsync(LeadId, Snapshot(assignedTo: MemberId));
+
+            Assert.Null(dto);
+            Assert.Empty(await ReadAllAsync());
+        }
+
+        [Fact]
+        public async Task NotifyUnassignedAsync_TellsThePreviousAssigneeAndNamesTheActor()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var dto = await NewSut(act).NotifyUnassignedAsync(LeadId, Snapshot(assignedTo: null), MemberId);
+
+            Assert.NotNull(dto);
+            Assert.Equal(MemberId, dto.UserId);
+            Assert.Equal(LeadId, dto.ActorId);
+            Assert.Equal("lead", dto.ActorName);
+            Assert.Equal(TaskId, dto.RelatedEntityId);
+            Assert.Contains("Ship the release", dto.Message);
+
+            Assert.Single(await ReadAllAsync());
+        }
+
+        [Fact]
+        public async Task NotifyUnassignedAsync_SaysNothingWhenTheActorRemovedThemselves()
+        {
+            await SeedAsync();
+
+            await using var act = NewContext();
+            var dto = await NewSut(act).NotifyUnassignedAsync(MemberId, Snapshot(assignedTo: null), MemberId);
+
+            Assert.Null(dto);
+            Assert.Empty(await ReadAllAsync());
+        }
+
+        /// <summary>
+        /// Losing a task follows the TaskAssigned switch, so turning assignment off covers both directions.
+        /// </summary>
+        [Fact]
+        public async Task NotifyUnassignedAsync_SaysNothingWhenTheRecipientTurnedAssignmentsOff()
+        {
+            await SeedAsync();
+            await SetPreferenceAsync(MemberId, NotificationType.TaskAssigned, inApp: false);
+
+            await using var act = NewContext();
+            var dto = await NewSut(act).NotifyUnassignedAsync(LeadId, Snapshot(assignedTo: null), MemberId);
 
             Assert.Null(dto);
             Assert.Empty(await ReadAllAsync());
@@ -162,7 +206,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskStatusChangedAsync(
-                OtherLeadId, TaskDto(assignedTo: MemberId, createdBy: LeadId), "Not Started", "In Progress");
+                OtherLeadId, Snapshot(assignedTo: MemberId, createdBy: LeadId), "Not Started", "In Progress");
 
             Assert.Equal(2, dtos.Count);
             Assert.Contains(dtos, d => d.UserId == MemberId);
@@ -180,7 +224,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskStatusChangedAsync(
-                OtherLeadId, TaskDto(assignedTo: LeadId, createdBy: LeadId), "Not Started", "In Progress");
+                OtherLeadId, Snapshot(assignedTo: LeadId, createdBy: LeadId), "Not Started", "In Progress");
 
             Assert.Equal(LeadId, Assert.Single(dtos).UserId);
         }
@@ -192,7 +236,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskStatusChangedAsync(
-                LeadId, TaskDto(assignedTo: LeadId, createdBy: LeadId), "Not Started", "In Progress");
+                LeadId, Snapshot(assignedTo: LeadId, createdBy: LeadId), "Not Started", "In Progress");
 
             Assert.Empty(dtos);
             Assert.Empty(await ReadAllAsync());
@@ -206,7 +250,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskStatusChangedAsync(
-                OtherLeadId, TaskDto(assignedTo: MemberId, createdBy: LeadId), "Not Started", "In Progress");
+                OtherLeadId, Snapshot(assignedTo: MemberId, createdBy: LeadId), "Not Started", "In Progress");
 
             Assert.Equal(LeadId, Assert.Single(dtos).UserId);
         }
@@ -216,11 +260,9 @@ namespace Plantitask.Tests.Services
         {
             await SeedAsync();
 
-            var comment = new CommentDto { UserId = MemberId, UserName = "member", Content = "looks good" };
-
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskCommentAddedAsync(
-                GroupId, TaskDto(assignedTo: MemberId, createdBy: LeadId), comment);
+                MemberId, Snapshot(assignedTo: MemberId, createdBy: LeadId));
 
             var dto = Assert.Single(dtos);
             Assert.Equal(LeadId, dto.UserId);
@@ -233,11 +275,9 @@ namespace Plantitask.Tests.Services
         {
             await SeedAsync();
 
-            var comment = new CommentDto { UserId = LeadId, UserName = "lead", Content = "note to self" };
-
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskCommentAddedAsync(
-                GroupId, TaskDto(assignedTo: LeadId, createdBy: LeadId), comment);
+                LeadId, Snapshot(assignedTo: LeadId, createdBy: LeadId));
 
             Assert.Empty(dtos);
         }
@@ -249,7 +289,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dto = await NewSut(act).NotifyTaskPriorityChangedAsync(
-                LeadId, TaskDto(assignedTo: MemberId), "Low", "Urgent");
+                LeadId, Snapshot(assignedTo: MemberId), "Low", "Urgent");
 
             Assert.NotNull(dto);
             Assert.Contains("from Low to Urgent", dto.Message);
@@ -261,7 +301,7 @@ namespace Plantitask.Tests.Services
             await SeedAsync();
 
             await using var act = NewContext();
-            var dto = await NewSut(act).NotifyTaskUpdatedAsync(LeadId, TaskDto(assignedTo: MemberId));
+            var dto = await NewSut(act).NotifyTaskUpdatedAsync(LeadId, Snapshot(assignedTo: MemberId));
 
             Assert.NotNull(dto);
             Assert.Equal(MemberId, dto.UserId);

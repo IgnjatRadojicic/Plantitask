@@ -5,6 +5,7 @@ using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Contracts.Common;
 using Plantitask.Contracts.DTO.Comments;
+using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Controllers;
@@ -68,9 +69,14 @@ public class CommentsController : BaseApiController
         var task = taskResult.Value!;
 
         var notifications = await _notificationService.NotifyTaskCommentAddedAsync(
-            task.GroupId,
-            task,
-            comment);
+            userId,
+            new TaskSnapshot
+            {
+                Id = task.Id,
+                Title = task.Title,
+                AssigneeId = task.AssignedToId,
+                CreatedById = task.CreatedBy,
+            });
 
         foreach (var notification in notifications)
             await _notificationBroadcaster.BroadcastNotificationAsync(notification);

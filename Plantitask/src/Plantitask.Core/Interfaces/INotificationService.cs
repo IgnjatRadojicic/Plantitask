@@ -1,19 +1,19 @@
 ﻿using Plantitask.Core.Common;
 using Plantitask.Contracts.Common;
-using Plantitask.Contracts.DTO.Comments;
 using Plantitask.Contracts.DTO.Notifications;
-using Plantitask.Contracts.DTO.Tasks;
 using Plantitask.Contracts.Enums;
+using Plantitask.Core.DTO.Tasks;
 
 namespace Plantitask.Core.Interfaces;
 
 public interface INotificationService
 {
-    Task<NotificationDto?> NotifyAssignmentAsync(Guid actorId, TaskDto task);
-    Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskDto task, string oldStatus, string newStatus);
-    Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment);
-    Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid actorId, TaskDto task, string oldPriority, string newPriority);
-    Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid actorId, TaskDto task);
+    Task<NotificationDto?> NotifyAssignmentAsync(Guid actorId, TaskSnapshot task);
+    Task<NotificationDto?> NotifyUnassignedAsync(Guid actorId, TaskSnapshot task, Guid previousAssigneeId);
+    Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskSnapshot task, string oldStatus, string newStatus);
+    Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid actorId, TaskSnapshot task);
+    Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid actorId, TaskSnapshot task, string oldPriority, string newPriority);
+    Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid actorId, TaskSnapshot task);
     Task<NotificationDto?> NotifyGroupInvitationAsync(Guid userId, string groupName);
 
     Task<Result<PaginatedList<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false, int pageNumber = 1, int pageSize = 20);

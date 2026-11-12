@@ -2,9 +2,8 @@
 using Microsoft.Extensions.Logging;
 using Plantitask.Core.Common;
 using Plantitask.Contracts.Common;
-using Plantitask.Contracts.DTO.Comments;
 using Plantitask.Contracts.DTO.Notifications;
-using Plantitask.Contracts.DTO.Tasks;
+using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Entities;
 using Plantitask.Contracts.Enums;
 using Plantitask.Core.Interfaces;
@@ -38,9 +37,9 @@ public class NotificationService : INotificationService
     /// Notifies the assignee about a new assignment. Null when there is nothing to send: no
     /// assignee, self-assignment, or the recipient turned this type off.
     /// </summary>
-    public async Task<NotificationDto?> NotifyAssignmentAsync(Guid actorId, TaskDto task)
+    public async Task<NotificationDto?> NotifyAssignmentAsync(Guid actorId, TaskSnapshot task)
     {
-        if (task.AssignedToId is not Guid assigneeId || assigneeId == actorId)
+        if (task.AssigneeId is not Guid assigneeId || assigneeId == actorId)
             return null;
 
         if (!await ShouldNotifyAsync(assigneeId, NotificationType.TaskAssigned))
@@ -68,15 +67,15 @@ public class NotificationService : INotificationService
     /// who disabled the type. Preferences are fetched in one query and everything commits with
     /// a single save - the shape that replaced the old save-per-recipient N+1.
     /// </summary>
-    public async Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskDto task, string oldStatus, string newStatus)
+    public async Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskSnapshot task, string oldStatus, string newStatus)
     {
         var recipients = new List<Guid>();
 
-        if (task.AssignedToId.HasValue && task.AssignedToId.Value != actorId)
-            recipients.Add(task.AssignedToId.Value);
+        if (task.AssigneeId.HasValue && task.AssigneeId.Value != actorId)
+            recipients.Add(task.AssigneeId.Value);
 
-        if (task.CreatedBy != actorId && task.CreatedBy != task.AssignedToId)
-            recipients.Add(task.CreatedBy);
+        if (task.CreatedById != actorId && task.CreatedById != task.AssigneeId)
+            recipients.Add(task.CreatedById);
 
         if (recipients.Count == 0)
             return new();
@@ -117,18 +116,18 @@ public class NotificationService : INotificationService
     /// Fans a new comment out to the task's creator and assignee, minus the commenter. Same
     /// batched-preferences, single-save shape as the status fan-out.
     /// </summary>
-    public async Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid groupId, TaskDto task, CommentDto comment)
+    public async Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid actorId, TaskSnapshot task)
     {
         var usersToNotify = new List<Guid>();
 
-        if (task.CreatedBy != comment.UserId)
-            usersToNotify.Add(task.CreatedBy);
+        if (task.CreatedById != actorId)
+            usersToNotify.Add(task.CreatedById);
 
-        if (task.AssignedToId.HasValue
-            && task.AssignedToId.Value != comment.UserId
-            && task.AssignedToId.Value != task.CreatedBy)
+        if (task.AssigneeId.HasValue
+            && task.AssigneeId.Value != actorId
+            && task.AssigneeId.Value != task.CreatedById)
         {
-            usersToNotify.Add(task.AssignedToId.Value);
+            usersToNotify.Add(task.AssigneeId.Value);
         }
 
         if (usersToNotify.Count == 0)
@@ -146,7 +145,7 @@ public class NotificationService : INotificationService
             .Select(userId => new Notification
             {
                 UserId = userId,
-                ActorId = comment.UserId,
+                ActorId = actorId,
                 Type = NotificationType.TaskCommentAdded,
                 Title = "New Comment",
                 Message = $"New comment on task '{task.Title}'",
@@ -161,16 +160,18 @@ public class NotificationService : INotificationService
         _context.Notifications.AddRange(notifications);
         await _context.SaveChangesAsync();
 
-        return notifications.Select(n => ToDto(n, comment.UserName)).ToList();
+        var actorName = await GetUserNameAsync(actorId);
+
+        return notifications.Select(n => ToDto(n, actorName)).ToList();
     }
 
     /// <summary>
     /// Notifies the assignee that the priority moved, carrying both names in the message.
     /// Null when there is no assignee, the actor is the assignee, or the type is disabled.
     /// </summary>
-    public async Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid actorId, TaskDto task, string oldPriority, string newPriority)
+    public async Task<NotificationDto?> NotifyTaskPriorityChangedAsync(Guid actorId, TaskSnapshot task, string oldPriority, string newPriority)
     {
-        if (task.AssignedToId is not Guid assigneeId || assigneeId == actorId)
+        if (task.AssigneeId is not Guid assigneeId || assigneeId == actorId)
             return null;
 
         if (!await ShouldNotifyAsync(assigneeId, NotificationType.TaskPriorityChanged))
@@ -198,9 +199,9 @@ public class NotificationService : INotificationService
     /// Tells the assignee their task was edited. Same null-when-nothing-to-send contract as the
     /// other single-recipient notifiers.
     /// </summary>
-    public async Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid actorId, TaskDto task)
+    public async Task<NotificationDto?> NotifyTaskUpdatedAsync(Guid actorId, TaskSnapshot task)
     {
-        if (task.AssignedToId is not Guid assigneeId || assigneeId == actorId)
+        if (task.AssigneeId is not Guid assigneeId || assigneeId == actorId)
             return null;
 
         if (!await ShouldNotifyAsync(assigneeId, NotificationType.TaskUpdated))
@@ -219,6 +220,35 @@ public class NotificationService : INotificationService
             RelatedEntityId = task.Id,
             RelatedEntityType = "Task",
             
+        };
+
+        return await CreateNotificationAsync(notification, await GetUserNameAsync(actorId));
+    }
+
+    /// <summary>
+    /// Tells the person who lost the task. Uses the TaskAssigned preference, so opting out of
+    /// assignment notifications covers both directions.
+    /// </summary>
+    public async Task<NotificationDto?> NotifyUnassignedAsync(Guid actorId, TaskSnapshot task, Guid previousAssigneeId)
+    {
+        if (previousAssigneeId == actorId)
+            return null;
+
+        if (!await ShouldNotifyAsync(previousAssigneeId, NotificationType.TaskAssigned))
+        {
+            _logger.LogInformation("User {UserId} has disabled TaskAssigned notifications", previousAssigneeId);
+            return null;
+        }
+
+        var notification = new Notification
+        {
+            UserId = previousAssigneeId,
+            ActorId = actorId,
+            Type = NotificationType.TaskAssigned,
+            Title = "Task Unassigned",
+            Message = $"You have been removed from task: {task.Title}",
+            RelatedEntityId = task.Id,
+            RelatedEntityType = "Task",
         };
 
         return await CreateNotificationAsync(notification, await GetUserNameAsync(actorId));

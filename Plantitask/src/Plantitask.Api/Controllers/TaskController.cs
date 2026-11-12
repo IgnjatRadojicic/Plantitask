@@ -5,6 +5,7 @@ using Plantitask.Api.Configuration;
 using Plantitask.Api.Extensions;
 using Plantitask.Api.Services;
 using Plantitask.Contracts.DTO.Tasks;
+using Plantitask.Core.DTO.Tasks;
 using Plantitask.Core.Interfaces;
 
 namespace Plantitask.Api.Controllers
@@ -63,7 +64,7 @@ namespace Plantitask.Api.Controllers
                 action: "Created",
                 groupId: groupId);
 
-            var notification = await _notificationService.NotifyAssignmentAsync(userId, task);
+            var notification = await _notificationService.NotifyAssignmentAsync(userId, Snapshot(task));
             if (notification != null)
                 await _notificationBroadcaster.BroadcastNotificationAsync(notification);
 
@@ -133,7 +134,7 @@ namespace Plantitask.Api.Controllers
                 action: "Updated",
                 groupId: task.GroupId);
 
-            var notification = await _notificationService.NotifyTaskUpdatedAsync(userId, task);
+            var notification = await _notificationService.NotifyTaskUpdatedAsync(userId, Snapshot(task));
             if (notification != null)
                 await _notificationBroadcaster.BroadcastNotificationAsync(notification);
 
@@ -168,7 +169,7 @@ namespace Plantitask.Api.Controllers
 
             var notifications = await _notificationService.NotifyTaskStatusChangedAsync(
                 userId,
-                statusChange.Task,
+                Snapshot(statusChange.Task),
                 statusChange.OldStatus,
                 statusChange.NewStatus);
 
@@ -209,7 +210,7 @@ namespace Plantitask.Api.Controllers
             {
                 var notification = await _notificationService.NotifyTaskPriorityChangedAsync(
                     userId,
-                    priorityChange.Task,
+                    Snapshot(priorityChange.Task),
                     priorityChange.OldPriority,
                     priorityChange.NewPriority);
 
@@ -249,7 +250,7 @@ namespace Plantitask.Api.Controllers
                 propertyName: "AssignedTo",
                 newValue: task.AssignedToUserName);
 
-            var notification = await _notificationService.NotifyAssignmentAsync(userId, task);
+            var notification = await _notificationService.NotifyAssignmentAsync(userId, Snapshot(task));
 
             if (notification != null)
                 await _notificationBroadcaster.BroadcastNotificationAsync(notification);
@@ -321,5 +322,14 @@ namespace Plantitask.Api.Controllers
 
             return NoContent();
         }
+
+        // Until the controllers pass moves notifications into the handler, deleted at step 14.
+        private static TaskSnapshot Snapshot(TaskDto t) => new()
+        {
+            Id = t.Id,
+            Title = t.Title,
+            AssigneeId = t.AssignedToId,
+            CreatedById = t.CreatedBy,
+        };
     }
 }

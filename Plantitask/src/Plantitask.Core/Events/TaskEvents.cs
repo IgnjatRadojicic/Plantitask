@@ -32,7 +32,9 @@ namespace Plantitask.Core.Events
         public required Guid? AssigneeId { get; init; }
         public required Guid CreatedById { get; init; }
         public required int OldStatusId { get; init; }
+        public required string OldStatusName { get; init; }
         public required int NewStatusId { get; init; }
+        public required string NewStatusName { get; init; }
     }
 
     [EventName("task.priority-changed.v1")]
@@ -43,7 +45,9 @@ namespace Plantitask.Core.Events
         public required string Title { get; init; }
         public required Guid? AssigneeId { get; init; }
         public required int OldPriorityId { get; init; }
+        public required string OldPriorityName { get; init; }
         public required int NewPriorityId { get; init; }
+        public required string NewPriorityName { get; init; }
     }
 
     // Raised only when the assignee actually changes, so assigning the same person again sends nothing.
@@ -83,7 +87,9 @@ namespace Plantitask.Core.Events
         public required Guid TaskId { get; init; }
         public required Guid GroupId { get; init; }
         public required int OldStatusId { get; init; }
+        public required string OldStatusName { get; init; }
         public required int NewStatusId { get; init; }
+        public required string NewStatusName { get; init; }
         public required int NewDisplayOrder { get; init; }
     }
 }
