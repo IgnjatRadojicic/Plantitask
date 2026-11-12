@@ -75,8 +75,8 @@ public class CommentsController : BaseApiController
                 Id = task.Id,
                 Title = task.Title,
                 AssigneeId = task.AssignedToId,
-                CreatedById = task.CreatedBy,
-            });
+            },
+            createdById: task.CreatedBy);
 
         foreach (var notification in notifications)
             await _notificationBroadcaster.BroadcastNotificationAsync(notification);

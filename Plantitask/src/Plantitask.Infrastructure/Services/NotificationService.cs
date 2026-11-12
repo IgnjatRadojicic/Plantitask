@@ -67,15 +67,15 @@ public class NotificationService : INotificationService
     /// who disabled the type. Preferences are fetched in one query and everything commits with
     /// a single save - the shape that replaced the old save-per-recipient N+1.
     /// </summary>
-    public async Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskSnapshot task, string oldStatus, string newStatus)
+    public async Task<List<NotificationDto>> NotifyTaskStatusChangedAsync(Guid actorId, TaskSnapshot task, Guid createdById, string oldStatus, string newStatus)
     {
         var recipients = new List<Guid>();
 
         if (task.AssigneeId.HasValue && task.AssigneeId.Value != actorId)
             recipients.Add(task.AssigneeId.Value);
 
-        if (task.CreatedById != actorId && task.CreatedById != task.AssigneeId)
-            recipients.Add(task.CreatedById);
+        if (createdById != actorId && createdById != task.AssigneeId)
+            recipients.Add(createdById);
 
         if (recipients.Count == 0)
             return new();
@@ -116,16 +116,16 @@ public class NotificationService : INotificationService
     /// Fans a new comment out to the task's creator and assignee, minus the commenter. Same
     /// batched-preferences, single-save shape as the status fan-out.
     /// </summary>
-    public async Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid actorId, TaskSnapshot task)
+    public async Task<List<NotificationDto>> NotifyTaskCommentAddedAsync(Guid actorId, TaskSnapshot task, Guid createdById)
     {
         var usersToNotify = new List<Guid>();
 
-        if (task.CreatedById != actorId)
-            usersToNotify.Add(task.CreatedById);
+        if (createdById != actorId)
+            usersToNotify.Add(createdById);
 
         if (task.AssigneeId.HasValue
             && task.AssigneeId.Value != actorId
-            && task.AssigneeId.Value != task.CreatedById)
+            && task.AssigneeId.Value != createdById)
         {
             usersToNotify.Add(task.AssigneeId.Value);
         }

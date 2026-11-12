@@ -6,6 +6,5 @@ namespace Plantitask.Core.DTO.Tasks
         public required Guid Id { get; init; }
         public required string Title { get; init; }
         public required Guid? AssigneeId { get; init; }
-        public required Guid CreatedById { get; init; }
     }
 }

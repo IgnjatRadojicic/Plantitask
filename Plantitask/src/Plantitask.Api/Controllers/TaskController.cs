@@ -170,6 +170,7 @@ namespace Plantitask.Api.Controllers
             var notifications = await _notificationService.NotifyTaskStatusChangedAsync(
                 userId,
                 Snapshot(statusChange.Task),
+                createdById: statusChange.Task.CreatedBy,
                 statusChange.OldStatus,
                 statusChange.NewStatus);
 
@@ -329,7 +330,6 @@ namespace Plantitask.Api.Controllers
             Id = t.Id,
             Title = t.Title,
             AssigneeId = t.AssignedToId,
-            CreatedById = t.CreatedBy,
         };
     }
 }

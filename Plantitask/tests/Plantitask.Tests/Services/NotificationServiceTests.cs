@@ -30,13 +30,11 @@ namespace Plantitask.Tests.Services
 
         private static TaskSnapshot Snapshot(
             Guid? assignedTo = null,
-            Guid? createdBy = null,
             string title = "Ship the release") => new()
             {
                 Id = TaskId,
                 Title = title,
-                AssigneeId = assignedTo,
-                CreatedById = createdBy ?? LeadId
+                AssigneeId = assignedTo
             };
 
         private async Task SetPreferenceAsync(
@@ -206,7 +204,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskStatusChangedAsync(
-                OtherLeadId, Snapshot(assignedTo: MemberId, createdBy: LeadId), "Not Started", "In Progress");
+                OtherLeadId, Snapshot(assignedTo: MemberId), createdById: LeadId, "Not Started", "In Progress");
 
             Assert.Equal(2, dtos.Count);
             Assert.Contains(dtos, d => d.UserId == MemberId);
@@ -224,7 +222,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskStatusChangedAsync(
-                OtherLeadId, Snapshot(assignedTo: LeadId, createdBy: LeadId), "Not Started", "In Progress");
+                OtherLeadId, Snapshot(assignedTo: LeadId), createdById: LeadId, "Not Started", "In Progress");
 
             Assert.Equal(LeadId, Assert.Single(dtos).UserId);
         }
@@ -236,7 +234,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskStatusChangedAsync(
-                LeadId, Snapshot(assignedTo: LeadId, createdBy: LeadId), "Not Started", "In Progress");
+                LeadId, Snapshot(assignedTo: LeadId), createdById: LeadId, "Not Started", "In Progress");
 
             Assert.Empty(dtos);
             Assert.Empty(await ReadAllAsync());
@@ -250,7 +248,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskStatusChangedAsync(
-                OtherLeadId, Snapshot(assignedTo: MemberId, createdBy: LeadId), "Not Started", "In Progress");
+                OtherLeadId, Snapshot(assignedTo: MemberId), createdById: LeadId, "Not Started", "In Progress");
 
             Assert.Equal(LeadId, Assert.Single(dtos).UserId);
         }
@@ -262,7 +260,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskCommentAddedAsync(
-                MemberId, Snapshot(assignedTo: MemberId, createdBy: LeadId));
+                MemberId, Snapshot(assignedTo: MemberId), createdById: LeadId);
 
             var dto = Assert.Single(dtos);
             Assert.Equal(LeadId, dto.UserId);
@@ -277,7 +275,7 @@ namespace Plantitask.Tests.Services
 
             await using var act = NewContext();
             var dtos = await NewSut(act).NotifyTaskCommentAddedAsync(
-                LeadId, Snapshot(assignedTo: LeadId, createdBy: LeadId));
+                LeadId, Snapshot(assignedTo: LeadId), createdById: LeadId);
 
             Assert.Empty(dtos);
         }
