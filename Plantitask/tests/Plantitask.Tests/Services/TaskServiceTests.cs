@@ -569,23 +569,6 @@ namespace Plantitask.Tests.Services
             Assert.Null(task.DueAt);
         }
 
-        [Fact]
-        public async Task UpdateTaskAsync_WithUnknownPriority_ReturnsBadRequestAndSavesNothing()
-        {
-            await SeedAsync();
-            await SeedTaskAsync();
-
-            await using var act = NewContext();
-            var result = await NewSut(act).UpdateTaskAsync(
-                TaskId, new UpdateTaskDto { Title = "Renamed", PriorityId = 999 }, LeadId);
-
-            Assert.True(result.IsFailure);
-            Assert.Equal("BadRequest", result.Error!.Code);
-
-            await using var assert = NewContext();
-            Assert.Equal("Seeded task", (await assert.Tasks.SingleAsync()).Title);
-        }
-
         /// <summary>
         /// Hangfire is outside the transaction, so the irreversible half goes last. The new job is
         /// scheduled first and the old one cancelled only once the row is on disk. The other order

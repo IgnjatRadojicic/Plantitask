@@ -15,9 +15,6 @@ namespace Plantitask.Contracts.DTO.Tasks
         [StringLength(2000)]
         public string? Description { get; set; }
 
-        [Range(1, 4)]
-        public int? PriorityId { get; set; }
-
         public DateOnly? DueDate { get; set; }
 
         public bool ClearDueDate { get; set; }

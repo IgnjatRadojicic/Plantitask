@@ -187,7 +187,7 @@ namespace Plantitask.Infrastructure.Services
         }
 
         /// <summary>
-        /// Edits title, description, priority and due date - for the creator or TeamLead and
+        /// Edits title, description and due date - for the creator or TeamLead and
         /// above. Null description means "leave it alone" while whitespace clears it, and
         /// ClearDueDate exists because null cannot mean both. Any change reschedules the
         /// due-soon reminder from scratch.
@@ -216,17 +216,6 @@ namespace Plantitask.Infrastructure.Services
                 task.Description = string.IsNullOrWhiteSpace(updateTaskDto.Description)
                     ? null
                     : updateTaskDto.Description;
-            }
-
-            if (updateTaskDto.PriorityId.HasValue)
-            {
-                var priorityExists = await _context.TaskPriorities
-                    .AnyAsync(p => p.Id == updateTaskDto.PriorityId.Value && p.IsActive);
-
-                if (!priorityExists)
-                    return Error.BadRequest("Invalid priority selected");
-
-                task.PriorityId = updateTaskDto.PriorityId.Value;
             }
 
             if (updateTaskDto.ClearDueDate)
