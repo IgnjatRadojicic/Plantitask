@@ -6,6 +6,7 @@ using Plantitask.Core.Common;
 using Plantitask.Contracts.DTO.Auth;
 using Plantitask.Contracts.DTO.Users;
 using Plantitask.Core.Entities;
+using Plantitask.Core.Events;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Models;
 using Plantitask.Infrastructure.Security;
@@ -25,6 +26,7 @@ namespace Plantitask.Tests.Services
         private readonly Mock<IJwtTokenGenerator> _tokens = new();
         private readonly Mock<IEmailService> _email = new();
         private readonly Mock<IRedisService> _redis = new();
+        private readonly RecordingEventCollector _events = new();
         private readonly List<string> _callOrder = [];
 
         public AuthServiceTests(PostgresFixture fixture) : base(fixture)
@@ -62,6 +64,7 @@ namespace Plantitask.Tests.Services
             _email.Object,
             NullLogger<AuthService>.Instance,
             _redis.Object,
+            _events,
             Options.Create(new GoogleAuthSettings { ClientId = "google-client-id" }),
             Options.Create(new JwtSettings { RefreshTokenExpiryInDays = 7 }),
             Options.Create(new AppSettings { FrontendUrl = "https://app.plantitask.test" }));
@@ -127,6 +130,7 @@ namespace Plantitask.Tests.Services
 
             Assert.True(result.IsFailure);
             Assert.Equal("BadRequest", result.Error!.Code);
+            Assert.Empty(_events.Raised);
 
             await using var assert = NewContext();
             Assert.False(await assert.Users.AnyAsync(u => u.Email == "newcomer@example.com"));
@@ -149,8 +153,6 @@ namespace Plantitask.Tests.Services
             var created = await assert.Users.SingleAsync(u => u.Email == "newcomer@example.com");
             Assert.Equal("hashed:Str0ng!pass", created.PasswordHash);
             Assert.True(created.IsEmailConfirmed);
-
-            _email.Verify(e => e.SendWelcomeEmailAsync("newcomer@example.com", "Ada"), Times.Once);
         }
 
         /// <summary>
@@ -206,24 +208,32 @@ namespace Plantitask.Tests.Services
 
             Assert.Equal("Conflict", byName.Error!.Code);
             Assert.Contains("username", byName.Error.Message);
+            Assert.Empty(_events.Raised);
         }
 
+        /// <summary>
+        /// The welcome email left the request. Registration raises the fact and the email handler
+        /// sends it after the drain, so registering never waits on the mail server.
+        /// </summary>
         [Fact]
-        public async Task RegisterAsync_StillSucceedsWhenTheWelcomeEmailFails()
+        public async Task RegisterAsync_RaisesUserRegisteredAndSendsNoEmailItself()
         {
             await SeedAsync();
 
-            _email
-                .Setup(e => e.SendWelcomeEmailAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ThrowsAsync(new EmailSendException("provider down"));
-
             await using var act = NewContext();
-            var result = await NewSut(act).RegisterAsync(NewRegistration(), "1.1.1.1");
-
-            Assert.True(result.IsSuccess, result.Error?.Message);
+            await NewSut(act).RegisterAsync(NewRegistration(), "1.1.1.1");
 
             await using var assert = NewContext();
-            Assert.True(await assert.Users.AnyAsync(u => u.Email == "newcomer@example.com"));
+            var created = await assert.Users.SingleAsync(u => u.Email == "newcomer@example.com");
+
+            var raised = Assert.IsType<UserRegistered>(Assert.Single(_events.Raised));
+            Assert.Equal(created.Id, raised.UserId);
+            Assert.Equal("newcomer", raised.UserName);
+            Assert.Equal("newcomer@example.com", raised.Email);
+            Assert.Equal("Ada", raised.DisplayName);
+            Assert.Equal("1.1.1.1", raised.IpAddress);
+
+            _email.VerifyNoOtherCalls();
         }
 
         /// <summary>
@@ -946,6 +956,7 @@ namespace Plantitask.Tests.Services
 
             Assert.True(result.IsFailure);
             Assert.Equal("Forbidden", result.Error!.Code);
+            Assert.Empty(_events.Raised);
 
             await using var assert = NewContext();
             Assert.Equal(4, await assert.Users.CountAsync());

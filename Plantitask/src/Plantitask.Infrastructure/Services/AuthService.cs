@@ -6,6 +6,7 @@ using Plantitask.Core.Common;
 using Plantitask.Contracts.DTO.Auth;
 using Plantitask.Contracts.DTO.Users;
 using Plantitask.Core.Entities;
+using Plantitask.Core.Events;
 using Plantitask.Core.Interfaces;
 using Plantitask.Core.Models;
 using Plantitask.Infrastructure.Security;
@@ -27,6 +28,7 @@ namespace Plantitask.Infrastructure.Services
         private readonly IJwtTokenGenerator _tokenGenerator;
         private readonly IEmailService _emailService;
         private readonly IRedisService _redisService;
+        private readonly IEventCollector _events;
         private readonly ILogger<AuthService> _logger;
         private readonly GoogleAuthSettings _googleSettings;
         private readonly JwtSettings _jwtSettings;
@@ -44,12 +46,14 @@ namespace Plantitask.Infrastructure.Services
             IEmailService emailService,
             ILogger<AuthService> logger,
             IRedisService redisService,
+            IEventCollector events,
             IOptions<GoogleAuthSettings> googleSettings,
             IOptions<JwtSettings> jwtSettings,
             IOptions<AppSettings> appSettings)
         {
             _context = context;
             _redisService = redisService;
+            _events = events;
             _passwordHasher = passwordHasher;
             _tokenGenerator = tokenGenerator;
             _emailService = emailService;
@@ -60,8 +64,8 @@ namespace Plantitask.Infrastructure.Services
         }
 
         /// <summary>
-        /// Creates an account for an email that already passed code verification, then sends the
-        /// welcome email and signs the new user in. Duplicate email and username each get their
+        /// Creates an account for an email that already passed code verification, raises
+        /// UserRegistered and signs the new user in. Duplicate email and username each get their
         /// own conflict message - registration is where that fact is public by design.
         /// </summary>
         public async Task<Result<AuthResponseDto>> RegisterAsync(RegisterDto registerDto, string ipAddress)
@@ -97,18 +101,10 @@ namespace Plantitask.Infrastructure.Services
             };
 
             _context.Users.Add(user);
+            RaiseRegistered(user, ipAddress);
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("New user registered: {Email}", user.Email);
-
-            try
-            {
-                await _emailService.SendWelcomeEmailAsync(user.Email, user.FirstName ?? user.UserName);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send welcome email");
-            }
 
             return await GenerateAuthResponseAsync(user, ipAddress);
         }
@@ -465,18 +461,10 @@ namespace Plantitask.Infrastructure.Services
                 };
 
                 _context.Users.Add(user);
+                RaiseRegistered(user, ipAddress);
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("New user created via Google SSO: {Email}", user.Email);
-
-                try
-                {
-                    await _emailService.SendWelcomeEmailAsync(user.Email, user.FirstName ?? user.UserName);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send welcome email for Google user");
-                }
             }
             else
             {
@@ -492,6 +480,17 @@ namespace Plantitask.Infrastructure.Services
 
             return await GenerateAuthResponseAsync(user, ipAddress);
         }
+
+        private void RaiseRegistered(User user, string ipAddress) =>
+            _events.Raise(new UserRegistered
+            {
+                UserId = user.Id,
+                UserName = user.UserName,
+                Email = user.Email,
+                DisplayName = user.FirstName ?? user.UserName,
+                IpAddress = ipAddress,
+                UserAgent = null,
+            });
 
         /// <summary>
         /// Issues an access/refresh pair and stores the refresh token in Redis before handing
