@@ -112,6 +112,7 @@ namespace Plantitask.Tests.Events
 
             var pushed = Assert.Single(_pushed);
             Assert.Equal(MemberId, pushed.UserId);
+            Assert.Equal(NotificationType.TaskUnassigned, pushed.Type);
         }
 
         /// <summary>

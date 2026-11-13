@@ -57,6 +57,7 @@
     private static string GetIcon(string t) => t switch
     {
         "TaskAssigned" => Icons.Material.Outlined.PersonAdd,
+        "TaskUnassigned" => Icons.Material.Outlined.PersonRemove,
         "TaskStatusChanged" => Icons.Material.Outlined.SyncAlt,
         "TaskCommentAdded" => Icons.Material.Outlined.ChatBubbleOutline,
         "TaskPriorityChanged" => Icons.Material.Outlined.Flag,
@@ -71,6 +72,7 @@
     private static string FormatName(string t) => t switch
     {
         "TaskAssigned" => "Task Assigned",
+        "TaskUnassigned" => "Task Unassigned",
         "TaskStatusChanged" => "Status Changed",
         "TaskCommentAdded" => "New Comment",
         "TaskPriorityChanged" => "Priority Changed",

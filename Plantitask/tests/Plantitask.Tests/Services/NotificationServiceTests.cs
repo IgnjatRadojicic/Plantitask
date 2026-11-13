@@ -156,6 +156,7 @@ namespace Plantitask.Tests.Services
             Assert.Equal(LeadId, dto.ActorId);
             Assert.Equal("lead", dto.ActorName);
             Assert.Equal(TaskId, dto.RelatedEntityId);
+            Assert.Equal(NotificationType.TaskUnassigned, dto.Type);
             Assert.Contains("Ship the release", dto.Message);
 
             Assert.Single(await ReadAllAsync());
@@ -173,11 +174,24 @@ namespace Plantitask.Tests.Services
             Assert.Empty(await ReadAllAsync());
         }
 
+        [Fact]
+        public async Task NotifyUnassignedAsync_SaysNothingWhenTheRecipientTurnedUnassignmentsOff()
+        {
+            await SeedAsync();
+            await SetPreferenceAsync(MemberId, NotificationType.TaskUnassigned, inApp: false);
+
+            await using var act = NewContext();
+            var dto = await NewSut(act).NotifyUnassignedAsync(LeadId, Snapshot(assignedTo: null), MemberId);
+
+            Assert.Null(dto);
+            Assert.Empty(await ReadAllAsync());
+        }
+
         /// <summary>
-        /// Losing a task follows the TaskAssigned switch, so turning assignment off covers both directions.
+        /// Losing a task has its own switch. Turning assignment off no longer silences it.
         /// </summary>
         [Fact]
-        public async Task NotifyUnassignedAsync_SaysNothingWhenTheRecipientTurnedAssignmentsOff()
+        public async Task NotifyUnassignedAsync_StillTellsARecipientWhoOnlyTurnedAssignmentsOff()
         {
             await SeedAsync();
             await SetPreferenceAsync(MemberId, NotificationType.TaskAssigned, inApp: false);
@@ -185,8 +199,8 @@ namespace Plantitask.Tests.Services
             await using var act = NewContext();
             var dto = await NewSut(act).NotifyUnassignedAsync(LeadId, Snapshot(assignedTo: null), MemberId);
 
-            Assert.Null(dto);
-            Assert.Empty(await ReadAllAsync());
+            Assert.NotNull(dto);
+            Assert.Single(await ReadAllAsync());
         }
 
         /// <summary>

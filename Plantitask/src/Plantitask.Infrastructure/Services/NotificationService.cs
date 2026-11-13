@@ -223,17 +223,16 @@ public class NotificationService : INotificationService
     }
 
     /// <summary>
-    /// Tells the person who lost the task. Uses the TaskAssigned preference, so opting out of
-    /// assignment notifications covers both directions.
+    /// Tells the person who lost the task. It has its own preference, separate from being assigned.
     /// </summary>
     public async Task<NotificationDto?> NotifyUnassignedAsync(Guid actorId, TaskSnapshot task, Guid previousAssigneeId)
     {
         if (previousAssigneeId == actorId)
             return null;
 
-        if (!await ShouldNotifyAsync(previousAssigneeId, NotificationType.TaskAssigned))
+        if (!await ShouldNotifyAsync(previousAssigneeId, NotificationType.TaskUnassigned))
         {
-            _logger.LogInformation("User {UserId} has disabled TaskAssigned notifications", previousAssigneeId);
+            _logger.LogInformation("User {UserId} has disabled TaskUnassigned notifications", previousAssigneeId);
             return null;
         }
 
@@ -241,7 +240,7 @@ public class NotificationService : INotificationService
         {
             UserId = previousAssigneeId,
             ActorId = actorId,
-            Type = NotificationType.TaskAssigned,
+            Type = NotificationType.TaskUnassigned,
             Title = "Task Unassigned",
             Message = $"You have been removed from task: {task.Title}",
             RelatedEntityId = task.Id,
@@ -530,6 +529,7 @@ public class NotificationService : INotificationService
         return type switch
         {
             NotificationType.TaskAssigned => "When you are assigned to a task",
+            NotificationType.TaskUnassigned => "When you are removed from a task",
             NotificationType.TaskStatusChanged => "When a task status changes in your groups",
             NotificationType.TaskCommentAdded => "When someone comments on your tasks",
             NotificationType.TaskPriorityChanged => "When a task priority is changed",

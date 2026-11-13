@@ -15,6 +15,7 @@ namespace Plantitask.Contracts.Enums
         TaskOverdue = 5,
         GroupInvitation = 6,
         TaskPriorityChanged = 7,
-        TaskUpdated = 8
+        TaskUpdated = 8,
+        TaskUnassigned = 9
     }
 }

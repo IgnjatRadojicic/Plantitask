@@ -239,7 +239,7 @@ else
     };
 
     private static bool IsTaskNotification(string t) =>
-        t is "TaskAssigned" or "TaskStatusChanged" or "TaskCommentAdded"
+        t is "TaskAssigned" or "TaskUnassigned" or "TaskStatusChanged" or "TaskCommentAdded"
         or "TaskPriorityChanged" or "TaskUpdated" or "TaskDueSoon"
         or "TaskOverdue" or "TaskCreated";
 
