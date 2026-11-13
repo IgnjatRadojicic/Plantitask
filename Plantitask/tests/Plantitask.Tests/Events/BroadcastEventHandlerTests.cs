@@ -39,7 +39,7 @@ namespace Plantitask.Tests.Events
         {
             await NewSut().HandleAsync(new TaskCreated
             {
-                TaskId = TaskId, GroupId = GroupId, Title = "T", StatusId = 1, AssigneeId = null
+                TaskId = TaskId, GroupId = GroupId, Title = "T", StatusId = 1, AssigneeId = null, GroupName = "G"
             }, By(LeadId), CancellationToken.None);
 
             _kanban.Verify(k => k.BroadcastTaskCreatedAsync(GroupId, TaskId, 1, LeadId), Times.Once);

@@ -12,6 +12,7 @@ namespace Plantitask.Core.Events
         public required string Title { get; init; }
         public required int StatusId { get; init; }
         public required Guid? AssigneeId { get; init; }
+        public required string GroupName { get; init; }
     }
 
     [EventName("task.updated.v1")]

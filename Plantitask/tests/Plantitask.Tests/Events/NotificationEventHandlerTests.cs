@@ -125,7 +125,7 @@ namespace Plantitask.Tests.Events
             await using var act = NewContext();
             await NewSut(act).HandleAsync(new TaskCreated
             {
-                TaskId = TaskId, GroupId = GroupId, Title = "T", StatusId = 1, AssigneeId = null
+                TaskId = TaskId, GroupId = GroupId, Title = "T", StatusId = 1, AssigneeId = null, GroupName = "G"
             }, By(LeadId), CancellationToken.None);
 
             Assert.Empty(_pushed);

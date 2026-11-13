@@ -52,7 +52,7 @@ namespace Plantitask.Tests.Events
         public static TheoryData<IEvent, ExpectedRow> SignedInEvents => new()
         {
             {
-                new TaskCreated { TaskId = TaskId, GroupId = Group, Title = "T", StatusId = 1, AssigneeId = null },
+                new TaskCreated { TaskId = TaskId, GroupId = Group, Title = "T", StatusId = 1, AssigneeId = null, GroupName = "G" },
                 new(EntityTypes.TaskItem, TaskId, AuditActions.Created, Group)
             },
             {
