@@ -10,8 +10,9 @@ namespace Plantitask.Tests.Events
     public class EmailEventHandlerTests
     {
         private readonly Mock<ITaskEmailSender> _emails = new();
+        private readonly Mock<IEmailService> _emailService = new();
 
-        private EmailEventHandler NewSut() => new(_emails.Object);
+        private EmailEventHandler NewSut() => new(_emails.Object, _emailService.Object);
 
         private static EventContext By(Guid actorId, string userName = "lead") => new()
         {
@@ -37,6 +38,12 @@ namespace Plantitask.Tests.Events
         {
             TaskId = TaskId, GroupId = GroupId, Title = "Ship it",
             AssigneeId = assigneeId, AssigneeName = "member", GroupName = "Dev Team"
+        };
+
+        private static UserRegistered Registered() => new()
+        {
+            UserId = MemberId, UserName = "member", Email = "member@example.com",
+            DisplayName = "Ada", IpAddress = "1.1.1.1", UserAgent = null
         };
 
         private static CommentAdded Commented(Guid? taskAssigneeId) => new()
@@ -127,6 +134,31 @@ namespace Plantitask.Tests.Events
             await NewSut().HandleAsync(Commented(MemberId), ByNobody(), CancellationToken.None);
 
             _emails.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Registration happens before a token exists, so there is no actor. The email goes to
+        /// the address in the event and greets by the name captured when the account was made.
+        /// </summary>
+        [Fact]
+        public async Task Registered_SendsTheWelcomeEmailWithNoActor()
+        {
+            await NewSut().HandleAsync(Registered(), ByNobody(), CancellationToken.None);
+
+            _emailService.Verify(s => s.SendWelcomeEmailAsync("member@example.com", "Ada"), Times.Once);
+            _emailService.VerifyNoOtherCalls();
+            _emails.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task Registered_AFailedSendEscapesTheHandler()
+        {
+            _emailService
+                .Setup(s => s.SendWelcomeEmailAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ThrowsAsync(new EmailSendException("provider down"));
+
+            await Assert.ThrowsAsync<EmailSendException>(
+                () => NewSut().HandleAsync(Registered(), ByNobody(), CancellationToken.None));
         }
 
         /// <summary>

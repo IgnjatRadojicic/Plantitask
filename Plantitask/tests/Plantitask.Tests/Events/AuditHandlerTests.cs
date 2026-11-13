@@ -186,7 +186,7 @@ namespace Plantitask.Tests.Events
         public static TheoryData<IEvent, ExpectedRow> EventsBeforeAToken => new()
         {
             {
-                new UserRegistered { UserId = User, UserName = "lead", Email = "lead@example.com", IpAddress = Ip, UserAgent = Agent },
+                new UserRegistered { UserId = User, UserName = "lead", Email = "lead@example.com", DisplayName = "Lead", IpAddress = Ip, UserAgent = Agent },
                 new(EntityTypes.User, User, AuditActions.Registered, Ip: Ip, Agent: Agent)
             },
             {

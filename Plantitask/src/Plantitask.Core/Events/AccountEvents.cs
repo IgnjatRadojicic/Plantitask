@@ -16,6 +16,7 @@ namespace Plantitask.Core.Events
         public required Guid UserId { get; init; }
         public required string UserName { get; init; }
         public required string Email { get; init; }
+        public required string DisplayName { get; init; }
         public required string? IpAddress { get; init; }
         public required string? UserAgent { get; init; }
     }

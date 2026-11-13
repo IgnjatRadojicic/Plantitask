@@ -6,13 +6,16 @@ namespace Plantitask.Infrastructure.Events.Handlers
     public class EmailEventHandler :
         IDurableEventHandler<TaskCreated>,
         IDurableEventHandler<TaskAssigned>,
-        IDurableEventHandler<CommentAdded>
+        IDurableEventHandler<CommentAdded>,
+        IDurableEventHandler<UserRegistered>
     {
         private readonly ITaskEmailSender _emails;
+        private readonly IEmailService _emailService;
 
-        public EmailEventHandler(ITaskEmailSender emails)
+        public EmailEventHandler(ITaskEmailSender emails, IEmailService emailService)
         {
             _emails = emails;
+            _emailService = emailService;
         }
 
         public string Name => "email";
@@ -37,6 +40,11 @@ namespace Plantitask.Infrastructure.Events.Handlers
 
             await _emails.SendCommentEmailAsync(
                 e.TaskAssigneeId ?? Guid.Empty, commenter.Id, e.TaskTitle, e.Content);
+        }
+
+        public async Task HandleAsync(UserRegistered e, EventContext context, CancellationToken ct)
+        {
+            await _emailService.SendWelcomeEmailAsync(e.Email, e.DisplayName);
         }
 
         private async Task SendAssignmentAsync(Guid assigneeId, string title, string groupName, EventContext context)
